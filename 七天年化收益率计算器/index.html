@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>7日年化收益率计算器</title>
+  <style>
+      body {
+          text-align: center;
+      }
+
+      [for="principal"], [for="rate"], .right {
+          flex: .6;
+          /*靠右*/
+          text-align: right;
+          max-width: 200px;
+      }
+
+      #principal, #rate, .left {
+          flex: .4;
+          /*靠左*/
+          text-align: left;
+          max-width: 200px;
+      }
+      [onclick="calculateReturns()"]{
+          min-width: 200px;
+          font-size: 16px;
+          font-weight: 800;
+          border: unset;
+          border-radius: 30px;
+          margin: 10px;
+          color: #a35834;
+          background: linear-gradient(11deg, #dfb6b6 0%,#ffedf7 50%, #a7fffc 100%);/*渐变*/
+          box-shadow: 4px 6px 7px -4px #39487061;/*阴影     水平偏移 垂直偏移  模糊  阴影大小*/
+      }
+
+  </style>
+</head>
+<body>
+<h1>7日年化收益率计算器</h1>
+<div style="display: flex;justify-content: center;">
+  <label for="principal">投资金额（元）：</label>
+  <input type="number" id="principal"><br>
+</div>
+<div style="display: flex;justify-content: center;margin: 3px 0;">
+  <label for="rate">年化收益率（%）：</label>
+  <input type="number" step="0.01" id="rate">
+</div>
+
+
+<button onclick="calculateReturns()">计 算</button>
+
+<h2>收益结果</h2>
+<p style="display: flex;justify-content: center;">
+  <span class="right">一天收益：</span> <span class="left"><span id="dayReturn"></span> 元</span>
+</p>
+<p style="display: flex;justify-content: center;">
+  <span class="right">一周收益：</span> <span class="left"><span id="weekReturn"></span> 元</span>
+</p>
+<p style="display: flex;justify-content: center;">
+  <span class="right">一个月收益：</span> <span class="left"><span id="monthReturn"></span> 元</span>
+</p>
+<p style="display: flex;justify-content: center;">
+  <span class="right">一年收益：</span> <span class="left"><span id="yearReturn"></span> 元</span>
+</p>
+
+<!--<h2>收益结果</h2>-->
+<!--<p>一天收益：<span id="dayReturn"></span> 元</p>-->
+<!--<p>一周收益：<span id="weekReturn"></span> 元</p>-->
+<!--<p>一个月收益：<span id="monthReturn"></span> <span style="margin-right: 1em">元</span></p>-->
+<!--<p>一年收益：<span id="yearReturn"></span> 元</p>-->
+
+<script>
+  function calculateReturns() {
+    // 获取输入的金额和年化收益率
+    const principal = parseFloat(document.getElementById('principal').value);
+    const annualRate = parseFloat(document.getElementById('rate').value) / 100;
+
+    // 计算每天的收益率
+    const dailyRate = annualRate / 365;
+
+    // 计算不同周期的收益
+    const dayReturn = principal * dailyRate;
+    const weekReturn = dayReturn * 7;
+    const monthReturn = dayReturn * 30;
+    const yearReturn = principal * annualRate;
+
+    // 更新页面上的显示结果
+    document.getElementById('dayReturn').textContent = dayReturn.toFixed(2);
+    document.getElementById('weekReturn').textContent = weekReturn.toFixed(2);
+    document.getElementById('monthReturn').textContent = monthReturn.toFixed(2);
+    document.getElementById('yearReturn').textContent = yearReturn.toFixed(2);
+  }
+</script>
+</body>
+</html>
