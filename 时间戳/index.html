@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="UTF-8">
+  <title>时间戳转换工具</title>
+  <script src="./ofa.min.js"></script>
+<!--  <script src="https://cdn.jsdelivr.net/gh/kirakiray/ofa.js@4.5.26/dist/ofa.min.js"></script>-->
+  <script src="./tailwindcss3.4.16.js"></script>
+<!--  <script src="https://cdn.tailwindcss.com"></script>-->
+  <script src="./dayjs.min.js"></script>
+<!--  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>-->
+</head>
+<body class="p-6">
+
+<div class="text-center text-3xl">时间戳转换工具</div>
+<l-m src="./current-time.html"></l-m>
+<current-time></current-time>
+
+
+<div class="rounded-md border-2 p-2">
+  <div class="text-base font-semibold mb-3">时间戳转日期</div>
+  <label><input type="text" id="转日期时间戳" placeholder="请输入时间戳" class="border-2 p-1"></label>
+  <div class="inline-block cursor-pointer 转日期单位 text-right" >
+    <div class="inline-block w-8 ">毫秒</div>
+    <img src="./转换.svg" alt="SVG Image" width="20" class="inline-block" />
+  </div>
+  <label><input type="text" id="转日期结果" placeholder="这里是结果" class="border-2 p-1 ml-5 w-96"></label>
+  <div class="m-3"><hr></div>
+
+
+  <div class="text-base font-semibold mb-3">日期转时间戳</div>
+  <label><input type="text" id="日期时间" placeholder="请输入日期" class="border-2 p-1 w-96"></label>
+  <label><input type="text" id="转时间戳结果" placeholder="这里是结果" class="border-2 p-1 ml-5"></label>
+  <div class="inline-block cursor-pointer 转时间戳单位 text-right" >
+    <div class="inline-block w-8 ">毫秒</div>
+    <img src="./转换.svg" alt="SVG Image" width="20" class="inline-block" />
+  </div>
+
+  <div class="m-3"><hr></div>
+  <label>
+    <span>输入输出的日期格式</span>
+    <input type="text" id="日期格式" value="YYYY-MM-DD HH:mm:ss" class="border-2 p-1 w-1/2">
+  </label>
+</div>
+
+
+<div class="m-5">
+  <h5 class="font-bold">简介</h5>
+  时间戳，是从1970年1月1日（UTC/GMT的午夜）开始所经过的秒数（不考虑闰秒），用于表示一个时间点。
+  然而，这种格式对于人类阅读并不友好，因此需要转换成可读的日期和时间格式。
+  这个工具能够将时间戳快速转换为人类可读的日期时间格式，同时也支持反向转换，即将日期时间转换为时间戳。
+  <hr>
+  <div>参考链接：
+    <a href="https://tool.lu/timestamp" class="text-teal-400" target="_blank">
+      在线工具 时间戳(包括批量的，我这里就不做批量了)
+    </a>
+  </div>
+  <hr>
+  <div>
+    页面框架用了<a href="https://ofajs.com/cn/index.html" class="text-teal-400" target="_blank">ofa.js</a>，“很好用，以后都不用了”。
+    还有<a href="https://www.tailwindcss.cn/" class="text-teal-400" target="_blank">tailwindcss</a>，“也很好用，就是不想再用了而已”
+    <span class="opacity-0">就这点东西，昨晚八九点搞到现在游戏都没玩,现在是什么时候？2025年1月10日 01:47:33 (时区还没搞)</span>
+  </div>
+
+</div>
+
+
+<script>
+  function 转日期方法() {
+    const 时间戳 = Number($('#转日期时间戳').value);
+    if (时间戳===0) return;
+    if (isNaN(时间戳)) return $('#转日期结果').value = '输入的时间戳格式有误';
+    const 单位因素 = $('.转日期单位 div').text.includes('毫') ? 1 : 1000;
+    $('#转日期结果').value = dayjs(时间戳 * 单位因素).format($('#日期格式').value)
+  }
+
+
+  $('#转日期时间戳').on('input', 转日期方法)
+  $('#日期格式').on('input', 转日期方法)
+
+
+  $('.转日期单位').on('click', (e) => {
+    let fu = e.target.closest('.转日期单位');
+    if (fu.innerText.includes('毫')) {
+      fu.querySelector('div').innerText = '秒'
+    } else {
+      fu.querySelector('div').innerText = '毫秒'
+    }
+    转日期方法()
+  })
+
+  // ----------------------------------------------
+  function 转时间戳方法() {
+    const 日期时间 = $('#日期时间').value;
+    if (!日期时间) return;
+    try {
+      $('#转时间戳结果').value = dayjs(日期时间, $('#日期格式').value).valueOf()
+    }catch (e){
+      $('#转时间戳结果').value = '输入的日期时间格式有误';
+    }
+  }
+
+
+  $('#日期时间').on('input', 转时间戳方法)
+
+</script>
+</body>
+</html>
