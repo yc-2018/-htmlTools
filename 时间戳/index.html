@@ -93,11 +93,22 @@
     const 日期时间 = $('#日期时间').value;
     if (!日期时间) return;
     try {
-      $('#转时间戳结果').value = dayjs(日期时间, $('#日期格式').value).valueOf()
+      const 单位因素 = $('.转时间戳单位 div').text.includes('毫') ? 1 : 1000;
+      $('#转时间戳结果').value = dayjs(日期时间, $('#日期格式').value).valueOf() / 单位因素
     }catch (e){
       $('#转时间戳结果').value = '输入的日期时间格式有误';
     }
   }
+
+  $('.转时间戳单位').on('click', (e) => {
+    let fu = e.target.closest('.转时间戳单位');
+    if (fu.innerText.includes('毫')) {
+      fu.querySelector('div').innerText = '秒'
+    } else {
+      fu.querySelector('div').innerText = '毫秒'
+    }
+    转时间戳方法()
+  })
 
 
   $('#日期时间').on('input', 转时间戳方法)
