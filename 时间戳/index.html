@@ -17,7 +17,7 @@
 <current-time></current-time>
 
 
-<div class="rounded-md border-2 p-2">
+<div class="rounded-md border-2 p-2 ml-10 mr-10 border-green-950">
   <div class="text-base font-semibold mb-3">时间戳转日期</div>
   <label><input type="text" id="转日期时间戳" placeholder="请输入时间戳" class="border-2 p-1"></label>
   <div class="inline-block cursor-pointer 转日期单位 text-right" >
@@ -35,16 +35,22 @@
     <div class="inline-block w-8 ">毫秒</div>
     <img src="./转换.svg" alt="SVG Image" width="20" class="inline-block" />
   </div>
-
   <div class="m-3"><hr></div>
+
   <label>
-    <span>输入输出的日期格式</span>
-    <input type="text" id="日期格式" value="YYYY-MM-DD HH:mm:ss" class="border-2 p-1 w-1/2">
+    <span>时区:</span>
+    <select id="时区选择" class="border-2 mb-1 rounded-xl p-1"></select>
   </label>
+  <br>
+  <label>
+    <span>输入输出的日期格式:</span>
+    <input type="text" id="日期格式" value="YYYY-MM-DD HH:mm:ss" class="border-2 p-1 w-1/2 rounded-xl">
+  </label>
+
 </div>
 
 
-<div class="m-5">
+<div class="ml-10 mr-10 mt-3 border-2 p-2 rounded-md border-red-400">
   <h5 class="font-bold">简介</h5>
   时间戳，是从1970年1月1日（UTC/GMT的午夜）开始所经过的秒数（不考虑闰秒），用于表示一个时间点。
   然而，这种格式对于人类阅读并不友好，因此需要转换成可读的日期和时间格式。
@@ -62,23 +68,132 @@
     <span class="opacity-0">就这点东西，昨晚八九点搞到现在游戏都没玩,现在是什么时候？2025年1月10日 01:47:33 (时区还没搞)</span>
   </div>
 
+  <div class="m-3 border-2 p-2 rounded-md border-red-400">
+    <h6 class="font-bold">对时间戳的一些理解</h6>
+    <li>时间戳是没有时区概念的，但时间是有时区概念的，假设我现在在东八区，生成的时间戳实际上对应的也是格林威治时间(实际上是当前时间减去8个小时再进行生成的)</li>
+    <li>时间戳格式化为时间，很多代码也是会自动获取当前时区， 所以时间戳转日期时，会自动加上当前时区偏差。</li>
+    <li>总的来说就是:我在东八区，我把当前时间生成时间戳会自动先减去8个小时再生成时间戳,格式化为时间的时候，会自动先加上八小时再格式化为时间。</li>
+  </div>
+
+  <div class="m-3 border-2 p-2 rounded-md border-red-400">
+    <h6 class="font-bold">夏令时对 getTimezoneOffset() 的影响</h6>
+    <div>
+      <div>夏令时调整示例</div>
+      <p>在使用夏令时的地区，<code>getTimezoneOffset()</code> 的返回值会随季节发生变化。</p>
+      <p class="note">提示：返回值表示本地时间相对于 UTC 的分钟差，因此负值表示比 UTC 早，正值表示比 UTC 晚。</p>
+
+      <div>示例</div>
+      <table class="border-separate border border-slate-400">
+        <thead>
+        <tr>
+          <th class="border border-slate-300">地区</th>
+          <th class="border border-slate-300">季节</th>
+          <th class="border border-slate-300">返回值 (分钟)</th>
+          <th class="border border-slate-300">对应的 UTC 偏移</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+          <td class="border border-slate-300">美国纽约（美国东部时间）</td>
+          <td class="border border-slate-300">冬季（标准时间）</td>
+          <td class="border border-slate-300">300</td>
+          <td class="border border-slate-300">UTC-5</td>
+        </tr>
+        <tr>
+          <td class="border border-slate-300">美国纽约（美国东部时间）</td>
+          <td class="border border-slate-300">夏季（夏令时）</td>
+          <td class="border border-slate-300">240</td>
+          <td class="border border-slate-300">UTC-4</td>
+        </tr>
+        <tr>
+          <td class="border border-slate-300">英国伦敦</td>
+          <td class="border border-slate-300">冬季（标准时间）</td>
+          <td class="border border-slate-300">0</td>
+          <td class="border border-slate-300">UTC+0</td>
+        </tr>
+        <tr>
+          <td class="border border-slate-300">英国伦敦</td>
+          <td class="border border-slate-300">夏季（夏令时）</td>
+          <td class="border border-slate-300">-60</td>
+          <td class="border border-slate-300">UTC+1</td>
+        </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
 </div>
 
 
 <script>
+  const 时区偏差小时 = new Date().getTimezoneOffset() / 60; //东区是负数
+  const 时区数据  = [
+    ["东12区:太平洋/奥克兰 (新西兰标准时间)", 12],
+    ["东11区:太平洋/所罗门群岛", 11],
+    ["东10区:太平洋/夏威夷-阿留申标准时间", 10],
+    ["东9区:亚洲/东京 (日本标准时间)", 9],
+    ["东8区:亚洲/上海 (中国标准时间)", 8],
+    ["东7区:亚洲/曼谷", 7],
+    ["东6区:亚洲/达卡", 6],
+    ["东5区:亚洲/卡拉奇", 5],
+    ["东4区:亚洲/迪拜", 4],
+    ["东3区:欧洲/莫斯科", 3],
+    ["东2区:欧洲/雅典", 2],
+    ["东1区:欧洲/柏林", 1],
+    ["格林威治标准时间:格林威治/伦敦 (UTC+0)", 0],
+    ["西一区:大西洋/亚速尔群岛", -1],
+    ["西二区:大西洋/南乔治亚岛", -2],
+    ["西三区:美洲/圣保罗", -3],
+    ["西四区:美洲/加拉加斯", -4],
+    ["西五区:美洲/纽约 (美国东部标准时间)", -5],
+    ["西六区:美洲/芝加哥 (美国中部标准时间)", -6],
+    ["西七区:美洲/丹佛 (美国山区标准时间)", -7],
+    ["西八区:美洲/洛杉矶 (美国太平洋标准时间)", -8],
+    ["西九区:美洲/阿拉斯加", -9],
+    ["西十区:太平洋/夏威夷", -10],
+    ["西十一区:太平洋/中途岛", -11],
+    ["西十二区:太平洋/贝克岛", -12],
+    ["西十三区:太平洋/菲尼克斯群岛", -13],
+    ["西十四区:太平洋/莱恩群岛", -14]
+  ]
+
+  window.onload = () => {
+    // 获取当前时区偏移量（单位为小时）
+    const currentTimezoneOffset = new Date().getTimezoneOffset() / 60 * -1;
+    // 获取选择框 DOM 元素
+    const timezoneSelect = document.getElementById("时区选择");
+    // 动态渲染时区选项
+    时区数据.forEach(([label, offset]) => {
+      const option = document.createElement("option"); // 创建 <option> 元素
+      option.value = offset; // 设置值为时区偏移量
+      option.textContent = label; // 设置显示的文字
+      if (offset === currentTimezoneOffset) {
+        option.selected = true; // 默认选中当前时区
+      }
+      timezoneSelect.appendChild(option); // 添加到选择框中
+    });
+
+    $('#时区选择').on('change', () => {
+      转日期方法()
+      转时间戳方法()
+    })
+  }
+
   function 转日期方法() {
+    const 选择时区小时 = Number($('#时区选择').value);
     const 时间戳 = Number($('#转日期时间戳').value);
-    if (时间戳===0) return;
+    if (时间戳 === 0) return;
     if (isNaN(时间戳)) return $('#转日期结果').value = '输入的时间戳格式有误';
     const 单位因素 = $('.转日期单位 div').text.includes('毫') ? 1 : 1000;
-    $('#转日期结果').value = dayjs(时间戳 * 单位因素).format($('#日期格式').value)
+    $('#转日期结果').value = dayjs(时间戳 * 单位因素)
+      .add(时区偏差小时, 'hour')
+      .add(选择时区小时, 'hour')
+      .format($('#日期格式').value)
   }
 
 
   $('#转日期时间戳').on('input', 转日期方法)
   $('#日期格式').on('input', 转日期方法)
-
-
   $('.转日期单位').on('click', (e) => {
     let fu = e.target.closest('.转日期单位');
     if (fu.innerText.includes('毫')) {
@@ -92,10 +207,14 @@
   // ----------------------------------------------
   function 转时间戳方法() {
     const 日期时间 = $('#日期时间').value;
+    const 选择时区小时 = Number($('#时区选择').value);
     if (!日期时间) return;
     try {
       const 单位因素 = $('.转时间戳单位 div').text.includes('毫') ? 1 : 1000;
-      $('#转时间戳结果').value = dayjs(日期时间, $('#日期格式').value).valueOf() / 单位因素
+      $('#转时间戳结果').value = dayjs(日期时间, $('#日期格式').value)
+        .add(时区偏差小时, 'hour')
+        .add(选择时区小时, 'hour')
+        .valueOf() / 单位因素
     }catch (e){
       $('#转时间戳结果').value = '输入的日期时间格式有误';
     }
