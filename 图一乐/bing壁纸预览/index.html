@@ -76,6 +76,7 @@
         const imgElement = document.createElement('img');
         imgElement.src = `https://www.bing.com/th?id=OHR.${bingWallpaperID.replace('-', '_ZH-CN')}_1920x1080.jpg&w=384&h=216&rs=1&c=4`;
         imgElement.setAttribute('loading', 'lazy');  // 启用懒加载
+        imgElement.style.minHeight='216px';
         container.appendChild(imgElement);
       });
     })
