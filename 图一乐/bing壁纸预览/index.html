@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>瀑布流图片墙</title>
+  <style>
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+      }
+
+      body {
+          background-color: #f0f0f0;
+          font-family: Arial, sans-serif;
+      }
+
+      .container {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(384px, 1fr));
+          gap: 16px;
+          padding: 16px;
+      }
+
+      .container img {
+          width: 100%;
+          height: auto;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      #预览{
+          height: 100vh;
+          width: 100%;
+          position: fixed;
+          background: #f0f8ffc7;
+          display: none;
+          justify-content: center;
+          align-items: center;
+      }
+  </style>
+</head>
+<body>
+<div id="预览" onclick="document.getElementById('预览').style.display='none'"></div>
+<div class="container">
+  <!-- 这里会插入图片 -->
+</div>
+
+<script>
+  document.querySelector('.container').addEventListener('click', clickImgHandle);
+  function clickImgHandle(e) {
+    if (e.target.tagName === 'IMG') {
+      const imgSrc = e.target.src.split('&w=')[0];
+      const imgElement = document.createElement('img');
+      imgElement.src = imgSrc;
+      imgElement.style.maxWidth = '100%';
+      imgElement.style.maxHeight = '100%';
+      imgElement.style.display = 'block';
+      imgElement.style.margin = '0 auto';
+      const 预览 = document.getElementById('预览');
+      预览.innerHTML = '';
+      预览.style.display = 'flex';
+      预览.appendChild(imgElement);
+    }
+  }
+
+
+  // 使用fetch加载本地JSON文件
+  fetch('bingImgList.json')
+    .then(response => response.json())  // 解析为JSON格式
+    .then(imgList => {
+      const container = document.querySelector('.container');
+
+      // 遍历图片URL数组，并插入到页面中
+      imgList.forEach(bingWallpaperID => {
+        const imgElement = document.createElement('img');
+        imgElement.src = `https://www.bing.com/th?id=OHR.${bingWallpaperID.replace('-', '_ZH-CN')}_1920x1080.jpg&w=384&h=216&rs=1&c=4`;
+        imgElement.setAttribute('loading', 'lazy');  // 启用懒加载
+        container.appendChild(imgElement);
+      });
+    })
+    .catch(error => {
+      console.error("加载图片列表时出错:", error);
+    });
+</script>
+</body>
+</html>
