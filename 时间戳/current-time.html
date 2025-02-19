@@ -1,0 +1,107 @@
+<template component>
+  <link rel="stylesheet" href="./notyf.min.css" />
+  <style>
+      .main {
+          border-radius: 1rem; /* 16px */
+          margin: 15px 40px;
+          padding: 12px;
+          border: 2px solid #ccc;
+          text-align: center;
+      }
+      .描述{
+          font-size: 18px;
+          font-weight: bold;
+      }
+      .时间戳{
+          font-size: 18px;
+          display: inline-block;
+          font-weight: bold;
+          margin: 16px 0;
+      }
+      .单位 {
+          display: inline-block;
+          font-size: 14px;
+      }
+      button {
+          background-color: #1D4ED8; /* 蓝色背景 */
+          color: white; /* 白色文字 */
+          font-weight: bold; /* 加粗字体 */
+          padding: 10px 20px; /* 上下内边距10px，左右内边距20px */
+          border-radius: 5px; /* 圆角边框 */
+          border: none; /* 无边框 */
+          cursor: pointer; /* 鼠标悬停时显示为指针 */
+          transition: background-color 0.3s ease; /* 背景颜色变化的过渡效果*/
+      }
+      button:hover {
+          background-color: #2563EB; /* 悬停时背景颜色变为深蓝色*/
+      }
+      .提示{
+          font-weight: bold;
+          color: #6e74e7;
+          position: fixed;
+          top: 5vh;
+          right: 45vw;
+          padding: 2px 33px;
+      }
+      .提示成功{
+          background: #a4efc6;
+          box-shadow: #a4efc6 0 0 20px 10px;
+      }
+  </style>
+
+
+  <div class="main">
+    <div :html="tipHTML"></div>
+    <div class="描述">当前时间戳</div>
+    <div class="时间戳" :text="timeStamp"></div>
+    <div class="单位">{{isSecond? '秒' : '毫秒'}}</div>
+    <br>
+    <button on:click="switchingUnits" class="按钮">
+      切换单位
+    </button>
+    <button on:click="copyTimestamp" id="复制按钮">复制</button>
+    <button on:click="handleStopOrStart" id="启停" style="background: #f56e6e;">停止</button>
+
+  </div>
+
+
+  <script>
+    export default {
+      data: {
+        timeStamp: new Date().getTime(),
+        isSecond: false,  // 不是秒，就是毫秒
+        tipHTML: null,
+      },
+      created() {
+      },
+      ready() {
+        setInterval(() => {
+          if (this.shadow.$("#启停").text === '停止') {
+            this.timeStamp = Math.round(new Date() / (this.isSecond ? 1000 : 1))
+          }
+        }, 1000);
+      },
+      proto: {  // ————方法————
+        switchingUnits() { // ————毫秒和秒的显示切换————
+          this.isSecond = !this.isSecond
+          this.timeStamp = Math.round(new Date() / (this.isSecond ? 1000 : 1))
+        },
+        copyTimestamp() { // ————复制时间戳到剪切板————
+          navigator.clipboard.writeText(this.timeStamp)
+          this.tipHTML = '<div class="提示 提示成功">复制成功</div>'
+          setTimeout(() => this.tipHTML = null, 500)
+        },
+        handleStopOrStart(){
+          if (this.shadow.$("#启停").text === '停止') {
+            this.shadow.$("#启停").text = '开始';
+            this.shadow.$("#启停").style.background = '#4aa975';
+          } else {
+            this.shadow.$("#启停").text = '停止';
+            this.shadow.$("#启停").style.background = '#f56e6e';
+          }
+        },
+      },
+    };
+
+  </script>
+</template>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>ADB命令测试界面(未完成)</title>
+<!--    <script src="https://cdn.jsdelivr.net/gh/webadb/webadb.js@master/webadb.js"></script>-->
+    <script src="./webAdb.js"></script><!--https://github.com/webadb/webadb.js/tree/master-->
+<!--    <script src="https://unpkg.com/@alenaksu/json-viewer@2.1.0/dist/json-viewer.bundle.js"></script>-->
+    <script src="./json-viewer.bundle.js"></script> <!--https://github.com/alenaksu/json-viewer?tab=readme-ov-file#from-cdn-->
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 600px; margin: auto; padding: 20px; }
+        .button { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ADB命令界面</h1>
+        <button id="connect" class="button">连接设备</button>
+
+        <h2>选择命令</h2>
+        <select id="presetCommands">
+            <option value="adb shell sh /storage/emulated/0/Android/data/web1n.stopapp/files/starter.sh">米10小黑屋</option>
+            <option value="uname -a">uname -a</option>
+        </select>
+        <button id="executePreset" class="button">执行预设命令</button>
+        
+
+        <h2>输出</h2>
+        <pre id="output"></pre>
+        <json-viewer id="json"></json-viewer>
+    </div>
+
+    <script>
+        const outputElement = document.getElementById('output');
+        let adbClient;
+
+        document.getElementById('connect').addEventListener('click', async () => {
+            console.log('███████Adb>>>>', Adb,'<<<<██████')
+            try {
+                let webUsb = await Adb.open("WebUSB");
+                console.log('███████webUsb>>>>', webUsb,'<<<<██████')
+                adbClient = await webUsb.connectAdb("host::");
+                console.log('███████adbClient>>>>', adbClient,'<<<<██████')
+                outputElement.textContent = '设备已连接';
+            } catch (error) {
+                outputElement.textContent = '连接设备时出错: ' + error;
+                console.error('连接设备时出错:', error);
+            }
+        });
+
+        document.getElementById('executePreset').addEventListener('click', async () => {
+            const command = document.getElementById('presetCommands').value;
+            if (adbClient) {
+
+                try {
+                    console.log('███████>>>开始<<<██████')
+                    let shell = await adbClient.shell(command);
+                    console.log('███████shell>>>>', shell,'<<<<██████')
+                    let result = await shell.receive();
+                    console.log('███████result>>>>', result,'<<<<██████')
+                    document.querySelector('#json').data = result //{ prop1: true, prop2: 'test' };
+                } catch (error) {
+                    outputElement.textContent = '执行命令时出错: ' + error;
+                    console.error('执行命令时出错:', error);
+                }
+
+                outputElement.textContent = "看看控制台";
+            } else {
+                outputElement.textContent = '请先连接设备';
+            }
+        });
+
+
+    </script>
+</body>
+</html>
