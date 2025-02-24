@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--主要由 deepSeek于20250224生成-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD5加密工具</title>
+    <script src="./md5.min.js"></script>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            box-sizing: border-box;
+        }
+        
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        
+        .result-group {
+            margin: 15px 0;
+        }
+        
+        .copy-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .clear-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .encrypt-btn {
+            background-color: #008CBA;
+            color: white;
+        }
+		.result-group{
+			display: grid;
+            grid-template-columns: 6rem 1fr 6rem;
+           gap: 10px;
+           align-items: center;
+		}
+    </style>
+</head>
+<body>
+    <h2>MD5加密工具</h2>
+    
+    <div class="input-group">
+        <input type="text" id="inputText" placeholder="请输入要加密的内容">
+    </div>
+    
+    <div>
+        <button class="encrypt-btn" onclick="generateMD5()">加密</button>
+        <button class="clear-btn" onclick="clearAll()">清空</button>
+    </div>
+    
+    <div class="result-group">
+        <label>32位大写：</label>
+        <input type="text" id="result32Upper" readonly>
+        <button class="copy-btn" onclick="copyText('result32Upper')">复制</button>
+    </div>
+    
+    <div class="result-group">
+        <label>32位小写：</label>
+        <input type="text" id="result32Lower" readonly>
+        <button class="copy-btn" onclick="copyText('result32Lower')">复制</button>
+    </div>
+    
+    <div class="result-group">
+        <label>16位大写：</label>
+        <input type="text" id="result16Upper" readonly>
+        <button class="copy-btn" onclick="copyText('result16Upper')">复制</button>
+    </div>
+    
+    <div class="result-group">
+        <label>16位小写：</label>
+        <input type="text" id="result16Lower" readonly>
+        <button class="copy-btn" onclick="copyText('result16Lower')">复制</button>
+    </div>
+
+    <script>
+        function generateMD5() {
+            const input = document.getElementById('inputText').value.trim();
+            if (!input) return;
+
+            // 生成32位MD5
+            const md32 = md5(input);
+            
+            // 生成16位MD5（取32位的8-24位）
+            const md16 = md32.substring(8, 24);
+
+            // 设置结果
+            document.getElementById('result32Upper').value = md32.toUpperCase();
+            document.getElementById('result32Lower').value = md32.toLowerCase();
+            document.getElementById('result16Upper').value = md16.toUpperCase();
+            document.getElementById('result16Lower').value = md16.toLowerCase();
+        }
+
+        function copyText(elementId) {
+            const copyText = document.getElementById(elementId);
+            copyText.select();
+            document.execCommand('copy');
+        }
+
+        function clearAll() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('result32Upper').value = '';
+            document.getElementById('result32Lower').value = '';
+            document.getElementById('result16Upper').value = '';
+            document.getElementById('result16Lower').value = '';
+        }
+    </script>
+</body>
+</html>
