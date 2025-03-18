@@ -196,6 +196,11 @@
     <div class="container">
         <h2>聚合图床文件上传</h2>
         <input type="file" id="fileInput">
+        <div id="okBtns" style="display: none;">
+            <button id="copyUrlBtn">复制图片链接</button>
+            <button id="resetBtn">重置</button>
+        </div>
+
 
         <div class="result" id="resultDiv"></div>
         <button id="neteaseUploadBtn">网易图床</button>
@@ -203,11 +208,10 @@
         <button id="sougouUploadBtn">搜狗图床</button>
         <button id="jdUploadBtn">京东图床</button>
         <button id="yzUploadBtn">邮政图床</button>
-        <br>
-        <button id="copyUrlBtn">复制图片链接</button>
-        <button id="resetBtn">重置</button>
+
     </div>
     <script>
+        const okBtns = document.getElementById('okBtns');
         const fileInput = document.getElementById('fileInput');
         const resultDiv = document.getElementById('resultDiv');
         const copyUrlBtn = document.getElementById('copyUrlBtn');
@@ -253,14 +257,13 @@
                         if (xhr.status === 200) {
                             const data = JSON.parse(xhr.responseText);
                             if (data.errno === 0) {
+                                okBtns.style.display = 'block';
                                 const imageUrl = data.data.url;
                                 resultDiv.innerHTML = `
                                         <p>上传成功！</p>
                                         <p class="center-url">图片链接: <a href="${imageUrl}" target="_blank">${imageUrl}</a></p>
-                                        <p>图片文件名: ${data.data.imgFile}</p>
                                         <img src="${imageUrl}" alt="上传的图片" class="uploaded-image" />
                                     `;
-                                disableUploadButtons();
                             } else showMessage(data.error, true);
                         } else showMessage('请求发生错误：' + xhr.statusText, true);
                     }
@@ -277,20 +280,6 @@
         bindUploadButton(document.getElementById('sougouUploadBtn'), 'https://api.xinyew.cn/api/sogotc');
         bindUploadButton(document.getElementById('jdUploadBtn'), 'https://api.xinyew.cn/api/jdtc');
         bindUploadButton(document.getElementById('yzUploadBtn'), 'https://api.xinyew.cn/api/psbctc');
-
-        function disableUploadButtons() {
-            uploadButtons.forEach(button => {
-                button.disabled = true;
-                button.title = '请先点击重置按钮';
-            });
-        }
-
-        function enableUploadButtons() {
-            uploadButtons.forEach(button => {
-                button.disabled = false;
-                button.removeAttribute('title');
-            });
-        }
 
         // 复制图片链接按钮点击事件
         copyUrlBtn.addEventListener('click', function () {
@@ -314,7 +303,7 @@
         resetBtn.addEventListener('click', function () {
             fileInput.value = '';
             showMessage('');
-            enableUploadButtons();
+            okBtns.style.display = 'none';
         });
 
 
@@ -361,7 +350,6 @@
             fileInput.dispatchEvent(event);
             // 显示文件名
             showMessage(`已选择文件: ${file.name}`);
-            enableUploadButtons();
         }
 
 
