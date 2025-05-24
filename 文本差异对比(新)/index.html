@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>文本差异对比(新)</title>
+<!--  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mergely/5.0.0/mergely.min.js"></script>-->
+<!--  <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mergely/5.0.0/mergely.css" />-->
+  <link type="text/css" rel="stylesheet" href="./mergely_5.0.0_mergely.css"/>
+  <script src="./mergely_5.0.0_mergely.js" type="text/javascript"></script>
+</head>
+
+<body>
+<div id="compare" style="height: 94vh;"></div>
+<div id="说明">
+  <div>官方文档: <a target="_blank" href="https://www.mergely.com/doc">mergely</a></div>
+  <div>官方仓库: <a target="_blank" href="https://github.com/wickedest/Mergely">GitHub</a></div>
+</div>
+<script>
+  const doc = new Mergely('#compare', {
+    lhs: 'the quick red fox\njumped over the hairy dog\n哈哈哈你是小黑子吗',
+    rhs: 'the quick brown fox\njumped over the lazy dog\n哈哈嘿你是小黑子吧'
+  });
+</script>
+</body>
+</html>
