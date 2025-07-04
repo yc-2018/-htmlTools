@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>find i miss</title>
+  <!--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">-->
+  <link rel="stylesheet" href="css/all.min.css">
+  <style>
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+          font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+
+      body {
+          background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+          color: #333;
+          line-height: 1.6;
+          padding: 20px 15px;
+          max-width: 500px;
+          margin: 0 auto;
+      }
+
+      .container {
+          background: rgba(255, 255, 255, 0.95);
+          border-radius: 20px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+          overflow: hidden;
+          padding: 20px;
+      }
+
+      header {
+          text-align: center;
+          margin-bottom: 25px;
+      }
+
+      h1 {
+          font-size: 24px;
+          color: #2c3e50;
+          margin-bottom: 15px;
+          font-weight: 600;
+      }
+
+      .description {
+          background: #e3f2fd;
+          border-left: 4px solid #2196f3;
+          padding: 12px 15px;
+          border-radius: 0 8px 8px 0;
+          margin: 15px 0;
+          font-size: 14px;
+          color: #37474f;
+      }
+
+      .direct-apps {
+          display: flex;
+          gap: 15px;
+          margin: 20px 0;
+      }
+
+      .app-btn {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: white;
+          border-radius: 12px;
+          padding: 15px 10px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+          transition: all 0.3s ease;
+          text-decoration: none;
+          border: 1px solid #e0e0e0;
+      }
+
+      .app-btn:active {
+          transform: translateY(3px);
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .meituan-btn {
+          background: linear-gradient(135deg, #ff5a00 0%, #ff9d00 100%);
+          color: white;
+          border: none;
+      }
+
+      .pinduoduo-btn {
+          background: linear-gradient(135deg, #ff3b30 0%, #ff5e52 100%);
+          color: white;
+          border: none;
+      }
+
+      .app-icon {
+          font-size: 28px;
+          margin-bottom: 8px;
+      }
+
+      .app-name {
+          font-size: 14px;
+          font-weight: 500;
+      }
+
+      .section-title {
+          font-size: 18px;
+          color: #2c3e50;
+          margin-top: 25px;
+          padding-bottom: 10px;
+          border-bottom: 2px solid #e0e7ff;
+          font-weight: 600;
+      }
+
+      #apps-section {
+          padding-top: 30px;
+          height: 100vh;
+      }
+
+      .apps-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 15px;
+      }
+
+      .app-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: white;
+          border-radius: 12px;
+          padding: 15px 5px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+          transition: all 0.2s ease;
+          border: 1px solid #eee;
+      }
+
+      .app-item:active {
+          transform: scale(0.95);
+      }
+
+      .app-item i {
+          font-size: 24px;
+          margin-bottom: 8px;
+          color: #3f51b5;
+      }
+
+      .app-item .app-label {
+          font-size: 12px;
+          text-align: center;
+          color: #546e7a;
+      }
+
+      .search-container {
+          margin: 25px 0 15px;
+          background: white;
+          border-radius: 50px;
+          padding: 5px 20px;
+          display: flex;
+          align-items: center;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+          border: 1px solid #e0e0e0;
+      }
+
+      .search-container i {
+          color: #78909c;
+          margin-right: 10px;
+          font-size: 20px;
+      }
+
+      #search-input {
+          flex: 1;
+          border: none;
+          outline: none;
+          padding: 15px 0;
+          font-size: 16px;
+          background: transparent;
+      }
+
+
+      .toast {
+          position: fixed;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%) translateY(100px);
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+          padding: 12px 25px;
+          border-radius: 50px;
+          font-size: 14px;
+          opacity: 0;
+          transition: all 0.3s ease;
+          z-index: 1000;
+      }
+
+      .toast.show {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+      }
+
+      .color-douyin {
+          color: #000000;
+      }
+
+      .color-xhs {
+          color: #ff2442;
+      }
+
+      .color-jd {
+          color: #e33333;
+      }
+
+      .color-taobao {
+          color: #ff5500;
+      }
+
+      .color-bilibili {
+          color: #fb7299;
+      }
+
+      @media (max-width: 400px) {
+          .apps-grid {
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+          }
+
+          .app-item {
+              padding: 12px 5px;
+          }
+
+          .app-item .app-label {
+              font-size: 11px;
+          }
+      }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>应用快捷搜索</h1>
+    <div class="description">
+      美团和拼多多不支持关键字 但能跳到搜索页
+    </div>
+  </header>
+
+  <div class="direct-apps">
+    <a href="imeituan://www.meituan.com/search/home?entrance=7" class="app-btn meituan-btn">
+      <i class="app-icon fas fa-shopping-bag"></i>
+      <span class="app-name">美团</span>
+    </a>
+    <a href="pinduoduo://com.xunmeng.pinduoduo/search_result.html" class="app-btn pinduoduo-btn">
+      <i class="app-icon fas fa-gem"></i>
+      <span class="app-name">拼多多</span>
+    </a>
+  </div>
+
+  <div class="section-title">内容搜索</div>
+
+  <div id="apps-section">
+    <div class="apps-grid">
+      <div class="app-item" data-scheme="snssdk1128://search?keyword={keyword}&search_type=user">
+        <i class="fab fa-tiktok color-douyin"></i>
+        <span class="app-label">抖音</span>
+      </div>
+      <div class="app-item" data-scheme="xhsdiscover://search/result?keyword={keyword}">
+        <i class="fas fa-book color-xhs"></i>
+        <span class="app-label">小红书</span>
+      </div>
+      <div class="app-item"
+           data-scheme="openapp.jdmobile://virtual?params={&quot;des&quot;:&quot;productList&quot;,&quot;keyWord&quot;:&quot;{keyword}&quot;,&quot;from&quot;:&quot;search&quot;,&quot;category&quot;:&quot;jump&quot;}">
+        <i class="fas fa-shopping-cart color-jd"></i>
+        <span class="app-label">京东</span>
+      </div>
+      <div class="app-item"
+           data-scheme="tbopen://m.taobao.com/tbopen/index.html?h5Url=https://s.taobao.com/search?q={keyword}">
+        <i class="fas fa-shopping-basket color-taobao"></i>
+        <span class="app-label">淘宝</span>
+      </div>
+      <div class="app-item" data-scheme="bilibili://search/?keyword={keyword}">
+        <i class="fab fa-bilibili color-bilibili"></i>
+        <span class="app-label">B站</span>
+      </div>
+    </div>
+
+    <div class="search-container">
+      <i class="fas fa-search"></i>
+      <input type="text" id="search-input" placeholder="屏无杂物，搜你所想...">
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast">请先输入搜索内容</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // 页面加载后滚动到应用区域
+    document.getElementById('apps-section').scrollIntoView({
+      behavior: 'smooth'
+    });
+
+    const searchInput = document.getElementById('search-input');
+    const toast = document.getElementById('toast');
+    const appItems = document.querySelectorAll('.app-item');
+
+    // 进来就聚焦输入框
+     searchInput.focus();
+
+    // 显示提示信息
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2000);
+    }
+
+    // 处理应用点击
+    appItems.forEach(item => {
+      item.addEventListener('click', function () {
+        const keyword = searchInput.value.trim();
+        if (!keyword) {
+          showToast('请先输入搜索内容');
+          searchInput.focus();
+          return;
+        }
+
+        const scheme = this.dataset.scheme.replace('{keyword}', encodeURIComponent(keyword));
+        window.location.href = scheme;
+      });
+    });
+
+
+    // 按回车键触发搜索
+    searchInput.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') showToast('请直接点击应用进行搜索');
+    });
+  });
+</script>
+</body>
+</html>
