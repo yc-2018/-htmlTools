@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>find i miss</title>
-  <!--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">-->
+  <title>哈?哦!</title>
   <style>
       * {
           margin: 0;
@@ -14,37 +13,10 @@
       }
 
       body {
-          background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
           color: #333;
           line-height: 1.6;
           padding: 20px 15px;
-          max-width: 500px;
           margin: 0 auto;
-      }
-
-      .container {
-          background: rgba(255, 255, 255, 0.95);
-          border-radius: 20px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-          overflow: hidden;
-          padding: 20px;
-      }
-
-      header {
-          text-align: center;
-          margin-bottom: 25px;
-      }
-
-      h1 {
-          font-size: 24px;
-          color: #2c3e50;
-          margin-bottom: 15px;
-          font-weight: 600;
-      }
-
-      #apps-section {
-          height: 100%;
-          min-height: 80vh;
       }
 
       #apps-grid {
@@ -63,12 +35,12 @@
           padding: 10px 5px;
           box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
           transition: all 0.2s ease;
-          border: 1px solid #eee;
           gap: 3px;
       }
 
       .app-item:active {
-          transform: scale(0.95);
+          transform: scale(0.90);
+          box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.05);
       }
 
       .app-item .app-label {
@@ -85,7 +57,6 @@
           display: flex;
           align-items: center;
           box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-          border: 1px solid #e0e0e0;
       }
 
       #search-input {
@@ -97,6 +68,14 @@
           background: transparent;
       }
 
+      #iKunFocus {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          top: 0;
+          left: 0;
+          z-index: -1;
+      }
 
       .toast {
           position: fixed;
@@ -112,6 +91,12 @@
           transition: all 0.3s ease;
           z-index: 1000;
       }
+
+      ::placeholder {
+          color: #ccc;
+          font-style: italic;
+      }
+
 
       .toast.show {
           opacity: 1;
@@ -135,18 +120,14 @@
   </style>
 </head>
 <body>
-<div class="container">
 
-  <div id="apps-section">
-    <div id="apps-grid">
-      <!-- 各个搜索项 插槽 -->
-    </div>
+<div id="main" style="padding: 1rem;">
+  <div id="iKunFocus"></div>
+  <div id="apps-grid"> <!-- 各个搜索项 插槽 --></div>
 
-    <div class="search-container">
-      🔎
-      <input type="text" id="search-input" placeholder="屏无杂物，搜你所想...">
-    </div>
-
+  <div class="search-container">
+    <img style="position: relative;top:1px;" src="./icon/magnifier.svg" width="18px" alt="">&nbsp;
+    <input type="text" id="search-input" placeholder="随念而搜...">
   </div>
 </div>
 
@@ -191,6 +172,10 @@
         name: '拼多多',
         icon: 'pdd',
         scheme: 'pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key={keyword}'
+      },{
+        name: '',
+        icon: '',
+        scheme: 'https://www.baidu.com/s?wd={keyword}'
       },
     ].map(item => `
       <div class="app-item" data-scheme="${item.scheme}">
@@ -201,9 +186,10 @@
 
     const searchInput = document.getElementById('search-input');
     const toast = document.getElementById('toast');
+    const bgFocus = document.getElementById('iKunFocus');
 
-    // 进来就聚焦输入框 输入框弹不出来还得慢一点点
-    window.setTimeout(searchInput.focus, 500)
+    // 进来就聚焦输入框 输入框弹不出来还得慢一点点// 移动端压根不支持进来就聚焦，必须有动作才能聚焦
+    window.setTimeout(() => searchInput.focus(), 500)
 
     // 显示提示信息
     function showToast(message) {
@@ -213,6 +199,9 @@
         toast.classList.remove('show');
       }, 2000);
     }
+
+    // 监听 点击背景也聚焦到输入框
+    bgFocus.addEventListener('click', () => searchInput.focus());
 
     // 监听 点击了哪个搜索呢？
     appsGrid.addEventListener('click', function (e) {
