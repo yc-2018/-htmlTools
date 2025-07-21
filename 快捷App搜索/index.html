@@ -140,37 +140,37 @@
     appsGrid.innerHTML = [
       {
         name: '抖音',
-        icon: 'douyin',
+        icon: './icon/douyin.svg',
         scheme: 'snssdk1128://search?keyword={keyword}&search_type=user'
       },
       {
         name: 'B站',
-        icon: 'bilibili',
+        icon: './icon/bilibili.svg',
         scheme: 'bilibili://search/?keyword={keyword}'
       },
       {
         name: '美团',
-        icon: 'meituan',
+        icon: './icon/meituan.svg',
         scheme: 'imeituan://www.meituan.com/search/result?q={keyword}'
       },
       {
         name: '小红书',
-        icon: 'xhs',
+        icon: './icon/xhs.svg',
         scheme: 'xhsdiscover://search/result?keyword={keyword}'
       },
       {
         name: '京东',
-        icon: 'jd',
-        scheme: 'openapp.jdmobile://virtual?params={"des":"productList","keyWord":"商品名称","from":"search","category":"jump"}'
+        icon: './icon/jd.svg',
+        scheme: 'openapp.jdmobile://virtual?params={"des":"productList","keyWord":"{keyword}","from":"search","category":"jump"}'
       },
       {
         name: '淘宝',
-        icon: 'taobao',
+        icon: './icon/taobao.svg',
         scheme: 'tbopen://m.taobao.com/tbopen/index.html?h5Url=https://s.taobao.com/search?q={keyword}'
       },
       {
         name: '拼多多',
-        icon: 'pdd',
+        icon: './icon/pdd.svg',
         scheme: 'pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key={keyword}'
       },{
         name: '',
@@ -178,8 +178,8 @@
         scheme: 'https://www.baidu.com/s?wd={keyword}'
       },
     ].map(item => `
-      <div class="app-item" data-scheme="${item.scheme}">
-      <img src="./icon/${item.icon}.svg" alt="" height="22px">
+      <div class="app-item" data-scheme='${item.scheme}'> <!-- 这里单引号非常重要 就因为京东url里面有双引号-->
+      <img src="${item.icon}" alt="" height="22px">
         <span class="app-label">${item.name}</span>
       </div>
   `).join('');
@@ -209,7 +209,7 @@
       if (target) {
         const keyword = searchInput.value.trim();
         if (!keyword) {
-          showToast('请先输入搜索内容');
+          showToast('仰晨:请先输入搜索内容');
           searchInput.focus();
           return;
         }
