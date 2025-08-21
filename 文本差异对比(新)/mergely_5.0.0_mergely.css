@@ -3,9 +3,13 @@
 }
 #说明{
 	color: white;
+	text-shadow: rgb(0 0 0) 0 0 0 !important;
+	display: flex;
+	gap: 30px;
 }
 #说明 a{
 	color: white;
+	text-shadow: rgb(0 0 0) 0 0 0 !important;
 }
 
 .mergely-editor .CodeMirror {
@@ -37,7 +41,7 @@
 	border: 1px solid black;
 	width: 325px;
 	padding: 10px;
-	font-family: arial;
+	font-family: arial, serif;
 	font-size: 11px;
 	transform: translate(0, 20%);
 }
@@ -67,7 +71,7 @@
 /* common stles */
 .mergely-editor .mergely.CodeMirror-linebackground {
 	border-style: solid;
-	border-width: 0px;
+	border-width: 0;
 }
 .mergely-editor .mergely.start.CodeMirror-linebackground {
 	border-top-width: 1px;
@@ -76,7 +80,7 @@
 	border-bottom-width: 1px;
 }
 .mergely-editor .mergely.no-end.CodeMirror-linebackground {
-	border-bottom-width: 0px;
+	border-bottom-width: 0;
 	background-color: initial;
 }
 
