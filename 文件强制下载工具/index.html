@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件强制下载工具</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 500;
+        }
+        
+        input[type="text"], input[type="url"] {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, input[type="url"]:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info-box {
+            background-color: #e8f4fc;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-top: 25px;
+            border-radius: 4px;
+        }
+        
+        .info-box h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .info-box ul {
+            padding-left: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .info-box li {
+            margin-bottom: 8px;
+            color: #34495e;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        footer {
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>文件强制下载工具</h1>
+        
+        <div class="form-group">
+            <label for="fileUrl">文件URL地址：</label>
+<!--            <input type="url" id="fileUrl" placeholder="请输入要下载的文件URL" value="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">-->
+            <input type="url" id="fileUrl" placeholder="请输入要下载的文件URL" value="">
+        </div>
+        
+        <div class="form-group">
+            <label for="fileName">自定义文件名（可选）：</label>
+            <input type="text" id="fileName" placeholder="输入保存时的文件名（包括扩展名）">
+        </div>
+        
+        <button id="downloadBtn">强制下载文件</button>
+        
+        <div id="status" class="status"></div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>正在处理中，请稍候...</p>
+        </div>
+        
+        <div class="info-box">
+            <h3>使用说明：</h3>
+            <ul>
+                <li>此工具用于强制下载文件，而不是在浏览器中直接打开</li>
+                <li>适用于CSS、TXT、JSON、XML等通常被浏览器直接显示的文件类型</li>
+                <li>如果服务器设置了CORS限制，可能无法下载跨域文件</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2025 文件强制下载工具 | 解决浏览器直接打开文件而非下载的问题</p>
+    </footer>
+
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            const fileUrl = document.getElementById('fileUrl').value.trim();
+            const fileName = document.getElementById('fileName').value.trim();
+            const statusEl = document.getElementById('status');
+            const loadingEl = document.getElementById('loading');
+            
+            // 隐藏状态信息，显示加载中
+            statusEl.style.display = 'none';
+            loadingEl.style.display = 'block';
+            
+            if (!fileUrl) {
+                showStatus('请输入有效的文件URL', 'error');
+                loadingEl.style.display = 'none';
+                return;
+            }
+            
+            // 使用fetch获取文件
+            fetch(fileUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('网络响应不正常');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    // 创建对象URL
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    
+                    // 确定文件名
+                    let downloadFileName = fileName;
+                    if (!downloadFileName) {
+                        // 从URL中提取文件名
+                        const urlParts = fileUrl.split('/');
+                        downloadFileName = urlParts[urlParts.length - 1] || 'download';
+                    }
+                    
+                    a.href = url;
+                    a.download = downloadFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    
+                    // 清理
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showStatus('文件下载已开始！', 'success');
+                })
+                .catch(error => {
+                    console.error('下载失败:', error);
+                    showStatus('下载失败: ' + error.message + '。请检查URL是否正确，且服务器允许跨域访问。', 'error');
+                })
+                .finally(() => {
+                    loadingEl.style.display = 'none';
+                });
+        });
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+            statusEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
