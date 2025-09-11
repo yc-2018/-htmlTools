@@ -248,10 +248,12 @@
       startY = e.touches[0].clientY;
       startPosition = isCoverOpen ? 0 : -100;
       this.style.transition = 'none';
+      document.body.style.overflow = 'hidden';
     });
 
     document.addEventListener('touchmove', function(e) {
       if (!isDragging) return;
+      e.preventDefault();
 
       const currentY = e.touches[0].clientY;
       const deltaY = currentY - startY;
@@ -266,7 +268,7 @@
     document.addEventListener('touchend', function() {
       if (!isDragging) return;
       isDragging = false;
-
+      document.body.style.overflow = 'auto';
       diceCover.style.transition = 'transform 0.3s ease';
 
       // 获取当前位置
