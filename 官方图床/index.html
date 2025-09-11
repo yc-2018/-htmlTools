@@ -92,7 +92,7 @@
     }
 
     .btn {
-      background: #3498db;
+      background: #68b8ed;
       color: white;
       border: none;
       padding: 12px 20px;
@@ -111,6 +111,25 @@
 
     .btn i {
       margin-right: 8px;
+    }
+
+    .fa-file-upload{
+      margin: 0!important;
+      font-size: 21px!important;
+    }
+
+    #attempt-clipboard {
+      position: absolute;
+      top: 234px;
+      right: 65px;
+      background: #b4b4ff;
+      color: white;
+      padding: 8px;
+      border-radius: 9px;
+      cursor: pointer;
+    }
+    #attempt-clipboard:hover {
+      box-shadow: inset 0 0 23px #7545fcad;
     }
 
     #file-input {
@@ -288,7 +307,10 @@
         <div class="progress-bar" id="progress-bar"></div>
       </div>
     </div>
+
+    <div id="attempt-clipboard">尝试上传剪贴板图片</div>
   </div>
+
 
   <div class="history-container">
     <div class="history-header">
@@ -312,6 +334,7 @@
     const clearAllBtn = document.getElementById('clear-all');
     const notification = document.getElementById('notification');
     const progressBar = document.getElementById('progress-bar');
+    const attemptClipboard = document.getElementById('attempt-clipboard');
 
     // 加载历史记录
     loadHistory();
@@ -319,6 +342,30 @@
     // 点击上传区域触发文件选择
     dropArea.addEventListener('click', function () {
       fileInput.click();
+    });
+
+    // 按钮点击事件 - 读取剪贴板图片
+    attemptClipboard.addEventListener('click', async function () {
+      try {
+        // 读取剪贴板内容
+        const clipboardItems = await navigator.clipboard.read();
+
+        for (const clipboardItem of clipboardItems) {
+          for (const type of clipboardItem.types) {
+            if (type.startsWith('image/')) {
+              const blob = await clipboardItem.getType(type);
+              // 将Blob转换为File对象
+              const file = new File([blob], 'image.png', {type: blob.type, lastModified: Date.now()});
+              // 显示预览
+              uploadFile(file);
+              return;
+            }
+          }
+        }
+        showNotification('剪贴板中没有找到图片', false);
+      } catch (err) {
+        showNotification('无法读取剪贴板内容: ' + err.message, false);
+      }
     });
 
     // 文件选择变化
