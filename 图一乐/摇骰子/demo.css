@@ -1,0 +1,218 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    color: white;
+    touch-action: manipulation;
+}
+
+.game-title {
+    margin: 100px 0;
+    font-size: 1.8rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+    gap: 20px;
+}
+
+.dice-area-container {
+    position: relative;
+    width: 100%;
+    min-height: 250px;
+    margin-bottom: 20px;
+}
+
+.dice-area {
+    width: 100%;
+    min-height: 250px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.dice-cover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(#fff 0%, #000 100%);
+    border-radius: 100px 100px 15px 15px;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.cover-handle {
+    width: 50px;
+    height: 6px;
+    background: #ccc;
+    border-radius: 3px;
+    position: absolute;
+    top: 15px;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.roll-button {
+    padding: 15px 30px;
+    font-size: 1.2rem;
+    background: linear-gradient(to right, #e74c3c, #c0392b);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.roll-button:active {
+    transform: scale(0.98);
+}
+
+.dice-count-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 50px;
+}
+
+.count-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #3498db;
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.count-btn:active {
+    transform: scale(0.95);
+}
+
+.count-value {
+    font-size: 1.2rem;
+    min-width: 40px;
+    text-align: center;
+}
+
+.instructions {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px;
+    border-radius: 10px;
+    max-width: 400px;
+}
+
+/* 骰子样式 */
+dice-element {
+    display: inline-block;
+}
+
+.dice {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    background: #f8f8f8;
+    border-radius: 8px;
+    box-shadow:
+            0 0 5px rgba(0,0,0,0.1),
+            2px 2px 5px rgba(0,0,0,0.2),
+            -1px -1px 2px rgba(255,255,255,0.9) inset;
+    transform: rotate(5deg);
+}
+
+.dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #e74c3c;
+    transform: translate(-50%, -50%);
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+/* 动画 */
+@keyframes cover-shake {
+    0% { transform: translateY(0); }
+    20% { transform: translateY(-5px); }
+    40% { transform: translateY(5px); }
+    60% { transform: translateY(-3px); }
+    80% { transform: translateY(3px); }
+    100% { transform: translateY(0); }
+}
+
+.shaking {
+    animation: cover-shake 0.5s ease-in-out;
+}
+
+.top{
+    position: absolute;
+    top: 0;
+
+    text-align: center;
+}
+
+#result{
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    font-weight: 800;
+}
+
+.resultCount{
+    width: 32px;
+    height: 26px;
+    transform: scale(.5);
+}

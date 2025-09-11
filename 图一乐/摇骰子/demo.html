@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>手机版骰子游戏</title>
+  <link rel="stylesheet" href="./demo.css">
+</head>
+<body>
+
+<div class="top">
+  <div class="dice-count-control">
+    <button class="count-btn" id="decreaseBtn">-</button>
+    <div class="count-value" id="diceCount">5</div>
+    <button class="count-btn" id="increaseBtn">+</button>
+  </div>
+  <div>
+    <label>
+      <label for="openMp3Checkbox">开盅音效</label>
+      <input type="checkbox" id="openMp3Checkbox" checked/>
+    </label>
+  </div>
+</div>
+
+<h1 class="game-title">摇骰子</h1>
+
+<div class="game-container">
+  <div class="dice-area-container">
+    <div class="dice-area" id="diceContainer">
+      <!-- 骰子将通过JS动态生成 -->
+    </div>
+    <div class="dice-cover" id="diceCover">
+      <div class="cover-handle"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="roll-button" id="rollButton">摇骰子</button>
+    <button class="roll-button" id="open">开!!!</button>
+  </div>
+</div>
+
+<div id="result"></div>
+
+<div class="instructions">
+  <p>点击"摇骰子"按钮，骰盅会自动盖下并摇动。点击加减按钮调整骰子数量(5-12个)。</p>
+  <p>也可以直接拖动白色骰盅上下滑动。</p>
+</div>
+
+<script>
+  // 注册自定义骰子元素
+  class DiceElement extends HTMLElement {
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' });
+    }
+
+    connectedCallback() {
+      const type = this.getAttribute('type') || '1';
+      this.shadowRoot.innerHTML = `
+          <style>
+            :host {
+              display: inline-block;
+            }
+            .dice {
+              position: relative;
+              width: 50px;
+              height: 50px;
+              background: #f8f8f8;
+              border-radius: 8px;
+              box-shadow:
+                0 0 5px rgba(0,0,0,0.1),
+                2px 2px 5px rgba(0,0,0,0.2),
+                -1px -1px 2px rgba(255,255,255,0.9) inset;
+              transform: rotate(5deg);
+            }
+            .dot {
+              position: absolute;
+              width: ${type === '1' ? '12px' : '10px'};
+              height: ${type === '1' ? '12px' : '10px'};
+              border-radius: 50%;
+              background: ${type === '1' || type === '4' ? '#e74c3c' : '#3498db'};
+              transform: translate(-50%, -50%);
+              box-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            }
+          </style>
+          <div class="dice">
+            ${this.generateDots(type)}
+          </div>
+        `;
+    }
+
+    generateDots(type) {
+      const positions = {
+        0: [],
+        1: [[50, 50]],
+        2: [[30, 30], [70, 70]],
+        3: [[30, 30], [50, 50], [70, 70]],
+        4: [[30, 30], [30, 70], [70, 30], [70, 70]],
+        5: [[30, 30], [30, 70], [50, 50], [70, 30], [70, 70]],
+        6: [[30, 30], [30, 50], [30, 70], [70, 30], [70, 50], [70, 70]]
+      };
+
+      return positions[type].map(pos =>
+        `<div class="dot" style="top:${pos[0]}%; left:${pos[1]}%"></div>`
+      ).join('');
+    }
+
+    // 随机生成骰子点数
+    roll() {
+      const randomType = Math.floor(Math.random() * 6) + 1;
+      this.setAttribute('type', randomType);
+      this.connectedCallback();
+    }
+  }
+
+  customElements.define('dice-element', DiceElement);
+
+  // 游戏逻辑
+  document.addEventListener('DOMContentLoaded', function() {
+    const diceContainer = document.getElementById('diceContainer');
+    const diceCover = document.getElementById('diceCover');
+    const rollButton = document.getElementById('rollButton');
+    const diceCountElement = document.getElementById('diceCount');
+    const decreaseBtn = document.getElementById('decreaseBtn');
+    const increaseBtn = document.getElementById('increaseBtn');
+
+    const open = document.getElementById('open');
+    const result = document.getElementById('result');
+    const openMp3Checkbox = document.getElementById('openMp3Checkbox');
+
+    // 初始化骰子
+    let diceCount = 5;
+    let diceElements = [];
+    let isCoverOpen = true;
+
+    // 创建骰子
+    function createDice() {
+      diceContainer.innerHTML = '';
+      diceElements = [];
+
+      for (let i = 0; i < diceCount; i++) {
+        const dice = document.createElement('dice-element');
+        dice.setAttribute('type', '0');
+        diceContainer.appendChild(dice);
+        diceElements.push(dice);
+      }
+    }
+
+    // 更新骰子数量显示
+    function updateDiceCount() {
+      diceCountElement.textContent = diceCount;
+    }
+
+    // 设置骰盅位置
+    function setCoverPosition(isOpen) {
+      isCoverOpen = isOpen;
+      if (isOpen) {
+        diceCover.style.transform = 'translateY(0)';
+      } else {
+        diceCover.style.transform = 'translateY(-100%)';
+      }
+    }
+
+    // 摇骰子函数
+    function rollDice() {
+      // 关闭骰盅
+      setCoverPosition(true);
+      result.innerHTML= '';
+
+      // 播放声音
+      const audio = new Audio('./dice.mp3');
+      audio.play();
+
+
+
+      // 添加摇动动画
+      diceCover.classList.add('shaking');
+
+      // 摇动所有骰子
+      setTimeout(() => {
+        diceElements.forEach(dice => {
+          dice.roll();
+        });
+      }, 100);
+
+      // 2秒后停止摇动
+      setTimeout(() => {
+        diceCover.classList.remove('shaking');
+      }, 2000);
+    }
+
+    // 初始化
+    createDice();
+    updateDiceCount();
+
+    // 事件监听
+    rollButton.addEventListener('click', rollDice);
+
+    open.addEventListener('click', function(){
+      setCoverPosition(false);
+
+      if(openMp3Checkbox.checked){
+        // 播放声音
+        const audio = new Audio('./open.mp3');
+        audio.play();
+      }
+
+      const resultCountMap = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
+      for (let i = 0; i < diceElements.length; i++) {
+        const dice = diceElements[i];
+        const type = dice.getAttribute('type');
+        resultCountMap[type]++;
+      }
+      // 输出非0个的结果
+      let resultText = '';
+      for (let i = 1; i <= 6; i++) {
+        if (resultCountMap[i] > 0) {
+          resultText += `<div><dice-element class="resultCount" type="${i}"></dice-element> ：${resultCountMap[i]}</div>`;
+        }
+      }
+      result.innerHTML = resultText;
+    });
+
+    decreaseBtn.addEventListener('click', function() {
+      if (diceCount > 5) {
+        diceCount--;
+        updateDiceCount();
+        createDice();
+      }
+    });
+
+    increaseBtn.addEventListener('click', function() {
+      if (diceCount < 12) {
+        diceCount++;
+        updateDiceCount();
+        createDice();
+      }
+    });
+
+    // 骰盅拖动功能
+    let isDragging = false;
+    let startY = 0;
+    let startPosition = 0;
+
+    diceCover.addEventListener('touchstart', function(e) {
+      isDragging = true;
+      startY = e.touches[0].clientY;
+      startPosition = isCoverOpen ? 0 : -100;
+      this.style.transition = 'none';
+    });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!isDragging) return;
+
+      const currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+      let position = startPosition + (deltaY / diceCover.offsetHeight) * 100;
+
+      // 限制位置在-100到0之间
+      position = Math.max(-100, Math.min(0, position));
+
+      diceCover.style.transform = `translateY(${position}%)`;
+    });
+
+    document.addEventListener('touchend', function() {
+      if (!isDragging) return;
+      isDragging = false;
+
+      diceCover.style.transition = 'transform 0.3s ease';
+
+      // 获取当前位置
+      const transform = diceCover.style.transform;
+      const match = transform.match(/translateY\((-?\d+)%\)/);
+      const currentPosition = match ? parseInt(match[1]) : 0;
+
+      // 根据当前位置决定是打开还是关闭
+      if (currentPosition < -50) {
+        setCoverPosition(false);
+      } else {
+        setCoverPosition(true);
+      }
+    });
+  });
+</script>
+</body>
+</html>
