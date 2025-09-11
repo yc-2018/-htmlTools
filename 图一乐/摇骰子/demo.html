@@ -24,7 +24,7 @@
 
 <div class="instructions">
   <p>点击"摇骰子"按钮，骰盅会自动盖下并摇动。点击加减按钮调整骰子数量(5-12个)。</p>
-  <p>也可以直接拖动骰盅上下滑动。</p>
+  <p>也可以直接拖动骰盅上下滑动。点击也可以</p>
 </div>
 
 <div class="game-container">
@@ -46,6 +46,9 @@
 <div id="result"></div>
 
 <script>
+  // 提前加载
+  const openMp3 = new Audio('./open.mp3');
+  const diceMp3 = new Audio('./dice.mp3');
   // 注册自定义骰子元素
   class DiceElement extends HTMLElement {
     constructor() {
@@ -165,10 +168,8 @@
       // 关闭骰盅
       setCoverPosition(true);
       result.innerHTML= '';
-
       // 播放声音
-      const audio = new Audio('./dice.mp3');
-      audio.play();
+      diceMp3.play();
 
 
 
@@ -200,8 +201,7 @@
 
       if(openMp3Checkbox.checked){
         // 播放声音
-        const audio = new Audio('./open.mp3');
-        audio.play();
+        openMp3.play();
       }
 
       const resultCountMap = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
@@ -218,6 +218,10 @@
         }
       }
       result.innerHTML = resultText;
+    });
+
+    diceCover.addEventListener('click', function(){
+      setCoverPosition(!isCoverOpen);
     });
 
     decreaseBtn.addEventListener('click', function() {
