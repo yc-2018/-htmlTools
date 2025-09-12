@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-  <title>摇骰子</title>
+  <title>大话骰</title>
   <link rel="stylesheet" href="index.css">
 
 </head>
@@ -12,13 +12,30 @@
 
 <div class="dice-main">
   <div class="dice-cover" id="diceCover"></div>
-  <div class="dice-container">
 
-  </div>
+  <div class="dices" id="dices"></div>
+
+  <div class="dice-base"></div>
+
 </div>
 
 <button class="roll-button" id="rollButton">摇骰子</button>
 
 
 </body>
+
+<script>
+
+  const dices = document.getElementById('dices')
+  const diceNumbers = Array(5).fill(0).map(()=>Math.floor(Math.random() * 6) + 1).sort()
+  dices.innerHTML = '';
+  diceNumbers.forEach(diceNumber => {
+    const dice = document.createElement('img')
+    dice.src = `./dice-svg/${diceNumber}.svg`
+    dices.appendChild(dice)
+  })
+
+
+
+</script>
 </html>
