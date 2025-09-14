@@ -11,7 +11,7 @@
 <body>
 
 <div class="dice-main">
-  <div class="dice-cover" id="diceCover"></div>
+  <div class="dice-cover" id="diceCover" style="transform:translateY(-80%)"></div>
 
   <div class="dices" id="dices"></div>
 
@@ -19,22 +19,66 @@
 
 </div>
 
-<button class="roll-button" id="rollButton">摇骰子</button>
+<div style="display: grid;grid-template-columns: repeat(3, 1fr); gap: 10px;">
+  <button class="shakeDice-button" id="openCover" onclick="handleCover()">关</button>
+  <button class="shakeDice-button" onclick="shakeDice()">计算</button>
+  <button class="shakeDice-button" onclick="shakeDice()">摇🎲</button>
+</div>
 
 
 </body>
 
 <script>
+  // 提前加载音效
+  const openMp3 = new Audio('./open.mp3');
+  const diceMp3 = new Audio('./dice.mp3');
+  let isCoverOpen = true;
 
   const dices = document.getElementById('dices')
-  const diceNumbers = Array(5).fill(0).map(()=>Math.floor(Math.random() * 6) + 1).sort()
-  dices.innerHTML = '';
-  diceNumbers.forEach(diceNumber => {
-    const dice = document.createElement('img')
-    dice.src = `./dice-svg/${diceNumber}.svg`
-    dices.appendChild(dice)
-  })
+  const openCover = document.getElementById('openCover')
+  const diceCover = document.getElementById('diceCover')
 
+  shakeDice(true) // 初始化骰子
+
+  /**
+   * 摇骰子逻辑
+   *
+   * @author 𝓒𝓱𝓮𝓷𝓖𝓾𝓪𝓷𝓰𝓛𝓸𝓷𝓰
+   * @since 2025/9/15 2:42
+   */
+  function shakeDice(isInit = false) {
+    let diceNumbers = Array(5).fill(0)
+    if (!isInit) {
+      isCoverOpen = true
+      handleCover()
+      diceMp3.play()
+      diceNumbers = diceNumbers.map(() => Math.floor(Math.random() * 6) + 1).sort()
+    }
+    dices.innerHTML = '';
+    diceNumbers.forEach(diceNumber => {
+      const dice = document.createElement('img')
+      dice.src = `./dice-svg/${diceNumber}.svg`
+      dices.appendChild(dice)
+    })
+  }
+
+  /**
+   * 处理骰盅开关
+   *
+   * @param {boolean} isCalculate 是否计算
+   * @author 𝓒𝓱𝓮𝓷𝓖𝓾𝓪𝓷𝓰𝓛𝓸𝓷𝓰
+   * @since 2025/9/15 2:58
+   */
+  function handleCover(isCalculate = false) {
+    if (isCoverOpen) {
+      openCover.innerText = '开'
+      diceCover.style.transform = 'translateY(0)'
+    } else {
+      diceCover.style.transform = 'translateY(-80%)'
+      openCover.innerText = '关'
+    }
+    isCoverOpen = !isCoverOpen
+  }
 
 
 </script>

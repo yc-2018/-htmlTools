@@ -1,13 +1,15 @@
 .dice-main {
     position: relative;
     height: 450px;
+    margin-bottom: 1rem;
 }
 
 
 
 /* 骰盅 */
 #diceCover {
-    background-color: rgba(0, 0, 0, 0.62);
+    background: radial-gradient(#fff 0%, #000 100%);
+    transition: transform 0.1s ease;
     z-index: 9;
     width: 100%;
     height: 350px;
@@ -57,7 +59,7 @@
 }
 
 
-.roll-button {
+.shakeDice-button {
     padding: 15px 30px;
     font-size: 1.2rem;
     background: linear-gradient(to right, #e74c3c, #c0392b);
@@ -70,6 +72,6 @@
     width: 100%;
 }
 
-.roll-button:active {
+.shakeDice-button:active {
     transform: scale(0.98);
 }
