@@ -20,9 +20,9 @@
 </div>
 
 <div style="display: grid;grid-template-columns: repeat(3, 1fr); gap: 10px;">
-  <button class="shakeDice-button" id="openCover" onclick="handleCover()">关</button>
+  <button class="shakeDice-button" id="openCoverB" onclick="handleCover()">关</button>
   <button class="shakeDice-button" onclick="shakeDice()">计算</button>
-  <button class="shakeDice-button" onclick="shakeDice()">摇🎲</button>
+  <button class="shakeDice-button" id="shakeDiceB" onclick="shakeDice()">摇🎲</button>
 </div>
 
 
@@ -32,11 +32,12 @@
   // 提前加载音效
   const openMp3 = new Audio('./open.mp3');
   const diceMp3 = new Audio('./dice.mp3');
-  let isCoverOpen = true;
+  let isCoverOpen = true; // 骰盅开关状态
 
-  const dices = document.getElementById('dices')
-  const openCover = document.getElementById('openCover')
-  const diceCover = document.getElementById('diceCover')
+  const diceCover = document.getElementById('diceCover')      // 骰盅
+  const dices = document.getElementById('dices')              // 骰子容器
+  const openCoverB = document.getElementById('openCoverB')    // 骰盅开关按钮
+  const shakeDiceB = document.getElementById('shakeDiceB')    // 摇骰子按钮
 
   shakeDice(true) // 初始化骰子
 
@@ -49,17 +50,23 @@
   function shakeDice(isInit = false) {
     let diceNumbers = Array(5).fill(0)
     if (!isInit) {
+      shakeDiceB.disabled = true
       isCoverOpen = true
       handleCover()
       diceMp3.play()
       diceNumbers = diceNumbers.map(() => Math.floor(Math.random() * 6) + 1).sort()
     }
-    dices.innerHTML = '';
-    diceNumbers.forEach(diceNumber => {
-      const dice = document.createElement('img')
-      dice.src = `./dice-svg/${diceNumber}.svg`
-      dices.appendChild(dice)
-    })
+
+    window.setTimeout(() => {
+      dices.innerHTML = '';
+      diceNumbers.forEach(diceNumber => {
+        const dice = document.createElement('img')
+        dice.src = `./dice-svg/${diceNumber}.svg`
+        dices.appendChild(dice)
+        shakeDiceB.disabled = false
+      })
+    }, 200)
+
   }
 
   /**
@@ -71,11 +78,11 @@
    */
   function handleCover(isCalculate = false) {
     if (isCoverOpen) {
-      openCover.innerText = '开'
+      openCoverB.innerText = '开'
       diceCover.style.transform = 'translateY(0)'
     } else {
       diceCover.style.transform = 'translateY(-80%)'
-      openCover.innerText = '关'
+      openCoverB.innerText = '关'
     }
     isCoverOpen = !isCoverOpen
   }

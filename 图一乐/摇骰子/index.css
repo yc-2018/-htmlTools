@@ -4,6 +4,10 @@
     margin-bottom: 1rem;
 }
 
+/*!*所有按钮出现disabled 强行色为灰色背景*!*/
+/*button:disabled {*/
+/*    background: #999!important;*/
+/*}*/
 
 
 /* 骰盅 */
