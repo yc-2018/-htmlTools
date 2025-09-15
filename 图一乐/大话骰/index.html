@@ -19,10 +19,10 @@
 
 </div>
 
-<div style="display: grid;grid-template-columns: repeat(3, 1fr); gap: 10px;margin-bottom: 20px;">
-  <button class="shakeDice-button" id="openCoverB" onclick="handleCover()">关</button>
-  <button class="shakeDice-button" onclick="calculate()">开!(算)</button>
+<div style="display: grid;grid-template-columns: repeat(2, 1fr); gap: 10px;margin-bottom: 20px;">
   <button class="shakeDice-button" id="shakeDiceB" onclick="shakeDice()">摇🎲</button>
+  <button class="shakeDice-button" onclick="calculate()">开!(算)</button>
+  <button class="shakeDice-button" id="openCoverB" onclick="handleCover()" style="display: none;">关</button>
 </div>
 
 <div id="result"></div>
@@ -70,12 +70,13 @@
 
   /**
    * 摇骰子逻辑
+   * @param {boolean} isInit 是否是初始化
    *
    * @author 𝓒𝓱𝓮𝓷𝓖𝓾𝓪𝓷𝓰𝓛𝓸𝓷𝓰
    * @since 2025/9/15 2:42
    */
   function shakeDice(isInit = false) {
-    let diceNumbers = Array(5).fill(1)
+    let diceNumbers = Array(5).fill(0)
     if (!isInit) {
       shakeDiceB.disabled = true          // 禁用按钮
       if (!noAutoCover.checked) handleCover(isCoverOpen = true)     // 关闭骰盅
