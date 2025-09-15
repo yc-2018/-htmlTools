@@ -23,8 +23,18 @@
     box-shadow: 10px 10px 30px 2px rgba(0, 0, 0, 0.75);
 }
 
-
-
+.shaking {
+    animation: cover-shake 0.5s ease-in-out;
+}
+/* 动画 */
+@keyframes cover-shake {
+    0% { transform: translateY(0) rotate(0deg); }
+    20% { transform: translateY(-15px) rotate(-45deg); }
+    40% { transform: translateY(15px) rotate(45deg); }
+    60% { transform: translateY(-13px) rotate(-45deg); }
+    80% { transform: translateY(13px) rotate(45deg); }
+    100% { transform: translateY(0) rotate(0deg); }
+}
 
 /* 骰子s */
 .dices > img {
@@ -35,19 +45,29 @@
 }
 
 .dices > img:nth-child(1) {
-    transform: translate(45px, -65px);
+    /*transform: translate(50%, 0);*/
+    bottom: 60px;
+    left: 10%;
 }
 .dices > img:nth-child(2) {
-    transform: translate(144px, -20px);
+    /*transform: translate(50%, 0);*/
+    bottom: 126px;
+    left: 27%;
 }
 .dices > img:nth-child(3) {
-    transform: translate(245px, -65px);
+    /*transform: translate(50%, 0);*/
+    bottom: 160px;
+    left: 48%;
 }
 .dices > img:nth-child(4) {
-    transform: translate(90px, -150px);
+    /*transform: translate(50%, 0);*/
+    bottom: 84px;
+    left: 69%;
 }
 .dices > img:nth-child(5) {
-    transform: translate(190px, -150px);
+    /*transform: translate(50%, 0);*/
+    bottom: 32px;
+    left: 41%;
 }
 
 /*底座*/
@@ -78,4 +98,28 @@
 
 .shakeDice-button:active {
     transform: scale(0.98);
+}
+
+#result {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    text-align: center;
+}
+
+#result img{
+    width: 30px;
+}
+
+#resultSpecial{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: red;
+    font-weight: bold;
+}
+#resultSpecial img{
+    height: 42px;
+    margin: 0 3px;
 }
