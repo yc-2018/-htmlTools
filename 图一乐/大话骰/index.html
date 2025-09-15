@@ -150,7 +150,7 @@
       return resultSpecial.innerHTML = `先摇啦~`
     }
 
-    // 检查是否是纯豹
+    // 检查是否是纯豹  豹子又叫围骰
     const findPureLeopard = entries.find(([_key, value]) => value === 5);
     if (findPureLeopard) {
       return resultSpecial.innerHTML = `🐆纯豹<img src="./dice-svg/${findPureLeopard[0]}.svg" alt=""/>5+2个`
@@ -173,7 +173,7 @@
     /** 计算有1的特殊情况，给的样式 */
     const addOneNumber = (iKey) => {
       if (oneNumber === 0 || iKey === 1) return resultCountMap[iKey]
-      let keyNun = resultCountMap[iKey] === 0 ? '' : `<b>${resultCountMap[iKey]}</b><span style="color: red">+</span>`
+      let keyNun = resultCountMap[iKey] === 0 ? '' : `<b>${resultCountMap[iKey]}</b><span style="color: #4bafab">+</span>`
       return `${keyNun}<span style="color: red">${oneNumber}</span>`
     }
 
