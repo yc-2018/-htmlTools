@@ -1,18 +1,17 @@
+body{
+    background: linear-gradient(345deg, #ffffff, #c8f5eb, #ffffdf);
+    min-height: 100vh;
+}
+
 .dice-main {
     position: relative;
     height: 450px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
 }
-
-/*!*所有按钮出现disabled 强行色为灰色背景*!*/
-/*button:disabled {*/
-/*    background: #999!important;*/
-/*}*/
-
 
 /* 骰盅 */
 #diceCover {
-    background: radial-gradient(#fff 0%, #000 100%);
+    background: radial-gradient(#d2d2d2 0%, #646464 50%, #000 100%);
     transition: transform 0.1s ease;
     z-index: 9;
     width: 100%;
@@ -26,14 +25,27 @@
 .shaking {
     animation: cover-shake 0.5s ease-in-out;
 }
+
 /* 动画 */
 @keyframes cover-shake {
-    0% { transform: translateY(0) rotate(0deg); }
-    20% { transform: translateY(-15px) rotate(-45deg); }
-    40% { transform: translateY(15px) rotate(45deg); }
-    60% { transform: translateY(-13px) rotate(-45deg); }
-    80% { transform: translateY(13px) rotate(45deg); }
-    100% { transform: translateY(0) rotate(0deg); }
+    0% {
+        transform: translateY(0) rotate(0deg);
+    }
+    20% {
+        transform: translateY(-15px) rotate(-45deg);
+    }
+    40% {
+        transform: translateY(15px) rotate(45deg);
+    }
+    60% {
+        transform: translateY(-13px) rotate(-45deg);
+    }
+    80% {
+        transform: translateY(13px) rotate(45deg);
+    }
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
 }
 
 /* 骰子s */
@@ -49,44 +61,56 @@
     bottom: 60px;
     left: 10%;
 }
+
 .dices > img:nth-child(2) {
     /*transform: translate(50%, 0);*/
     bottom: 126px;
     left: 27%;
 }
+
 .dices > img:nth-child(3) {
     /*transform: translate(50%, 0);*/
     bottom: 160px;
     left: 48%;
 }
+
 .dices > img:nth-child(4) {
     /*transform: translate(50%, 0);*/
     bottom: 84px;
     left: 69%;
 }
+
 .dices > img:nth-child(5) {
     /*transform: translate(50%, 0);*/
     bottom: 32px;
     left: 41%;
 }
 
+/* 禁止摇色子 */
+.prohibit {
+    background: #999 !important;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /*底座*/
 .dice-base {
     width: 100%;
     height: 234px;
-    background: #8b7972;
+    background: radial-gradient(ellipse, #cccccc, #999999, #000000);
+    border: 2px solid #999;
     border-radius: 50%;
     position: absolute;
     bottom: 0;
     z-index: -1;
-    box-shadow: 5px 9px 4px 0 #515151;
+    box-shadow: 0 14px 0 0 #515151;
 }
 
 
-.shakeDice-button {
-    padding: 15px 30px;
+.btn {
+    padding: 10px 30px;
     font-size: 1.2rem;
-    background: linear-gradient(to right, #e74c3c, #c0392b);
+    background: linear-gradient(to right, #6561fa, #3bcac8);
     color: white;
     border: none;
     border-radius: 50px;
@@ -96,22 +120,30 @@
     width: 100%;
 }
 
+.openCloseBg {
+    background: linear-gradient(-45deg, #20441d, #93e580);
+}
+
+.prohibitBg {
+    background: linear-gradient(to right, #fa6161, #3bcab4);
+}
+
 .shakeDice-button:active {
     transform: scale(0.98);
 }
 
 #result {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 10px;
     text-align: center;
 }
 
-#result img{
+#result img {
     width: 30px;
 }
 
-#resultSpecial{
+#resultSpecial {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -119,7 +151,8 @@
     color: red;
     font-weight: bold;
 }
-#resultSpecial img{
+
+#resultSpecial img {
     height: 42px;
     margin: 0 3px;
 }

@@ -20,9 +20,10 @@
 </div>
 
 <div style="display: grid;grid-template-columns: repeat(2, 1fr); gap: 10px;margin-bottom: 20px;">
-  <button class="shakeDice-button" id="shakeDiceB" onclick="shakeDice()">摇🎲</button>
-  <button class="shakeDice-button" onclick="calculate()">开!(算)</button>
-  <button class="shakeDice-button" id="openCoverB" onclick="handleCover()" style="display: none;">关</button>
+  <button class="btn openCloseBg" id="openCoverB" onclick="handleCover()">关盅</button>
+  <button class="btn" id="shakeDiceB" onclick="shakeDice()">摇骰子🎲</button>
+  <button class="btn" onclick="calculate()">结果(开)</button>
+  <button class="btn prohibitBg" onclick="doNotRollDice(this)">禁止摇骰🚫</button>
 </div>
 
 <div id="result"></div>
@@ -53,7 +54,8 @@
   // 提前加载音效
   const openMp3 = new Audio('./open.mp3');
   const diceMp3 = new Audio('./dice.mp3');
-  let isCoverOpen = true; // 骰盅开关状态
+  let isCoverOpen = true;     // 骰盅开关状态
+  let isNotRollDice = false;  // 是否禁止摇骰子
 
   const diceMain = document.getElementById('diceMain')            // 骰子全部
   const diceCover = document.getElementById('diceCover')          // 骰盅
@@ -112,11 +114,11 @@
    */
   function handleCover() {
     if (isCoverOpen) {
-      openCoverB.innerText = '开'
+      openCoverB.innerText = '打开盅'
       diceCover.style.transform = 'translateY(0)'
     } else {
       diceCover.style.transform = 'translateY(-80%)'
-      openCoverB.innerText = '关'
+      openCoverB.innerText = '关盅'
     }
     isCoverOpen = !isCoverOpen
   }
@@ -140,41 +142,79 @@
 
     delete resultCountMap[0]; // 删除 0 的ksy
 
-    // 检查是否是纯豹
     const entries = Object.entries(resultCountMap);
+    const oneNumber = resultCountMap[1];
+
+    // 检查是否没摇（全是0)
+    if (entries.every(([_key, value]) => value === 0)) {
+      return resultSpecial.innerHTML = `先摇啦~`
+    }
+
+    // 检查是否是纯豹
     const findPureLeopard = entries.find(([_key, value]) => value === 5);
     if (findPureLeopard) {
-      return resultSpecial.innerHTML = `🐆纯豹<img src="./dice-svg/${findPureLeopard[0]}.svg"/>5+2个`
+      return resultSpecial.innerHTML = `🐆纯豹<img src="./dice-svg/${findPureLeopard[0]}.svg" alt=""/>5+2个`
     }
     // 检查是否是豹子
     if (resultCountMap[1] !== 0) {  // 首先，报纸的概念一肯定不能为零[条件可忽略
-      const oneNumber = resultCountMap[1];
       const findLeopard = entries.find(([key, value]) => {
         if (key === "1") return false;  // 当然不可以为1   条件可忽略：1加本身只能是偶数，不可能等于五
         return value + oneNumber === 5
       });
       if (findLeopard) {
-        return resultSpecial.innerHTML = `🐆豹子<img src="./dice-svg/${findLeopard[0]}.svg"/>(${findLeopard[1]}+${oneNumber})+1个`
+        return resultSpecial.innerHTML = `🐆豹子<img src="./dice-svg/${findLeopard[0]}.svg" alt=""/>(${findLeopard[1]}+${oneNumber})+1个`
       }
     }
     // 检查是否是顺子(顺子，就是5颗骰子，没有相同的，就是顺子:::就是列表的value全部要<=1)
     if (entries.every(([_key, value]) => value <= 1)) {
-      return resultSpecial.innerHTML = `顺子(重摇或归0)`
+      return resultSpecial.innerHTML = `顺骰(重摇或归0)`
+    }
+
+    /** 计算有1的特殊情况，给的样式 */
+    const addOneNumber = (iKey) => {
+      if (oneNumber === 0 || iKey === 1) return resultCountMap[iKey]
+      let keyNun = resultCountMap[iKey] === 0 ? '' : `<b>${resultCountMap[iKey]}</b><span style="color: red">+</span>`
+      return `${keyNun}<span style="color: red">${oneNumber}</span>`
     }
 
     // 输出非0个的结果
     let resultText = '';
     for (let i = 1; i <= 6; i++) {
-      if (resultCountMap[i] > 0) {
-        resultText += `<div><img src="./dice-svg/${i}.svg"/><div>${resultCountMap[i]}个</div></div>`;
+      if (resultCountMap[i] > 0 || oneNumber > 0) {
+        resultText += `
+          <div>
+            <img src="./dice-svg/${i}.svg" alt=""/>
+            <div>${addOneNumber(i)}</div>
+          </div>`;
       }
     }
+    if (oneNumber > 0) result.style.gridTemplateColumns='repeat(6, 1fr)'
+    else result.style.gridTemplateColumns = `repeat(${entries.filter(([_, value]) => value > 0).length}, 1fr)`
     result.innerHTML = resultText;
   }
-  
+
+  /**
+   * 禁止摇骰子按钮点击事件
+   *
+   * @author 𝓒𝓱𝓮𝓷𝓖𝓾𝓪𝓷𝓰𝓛𝓸𝓷𝓰
+   * @since 2025/9/15 2:58
+   */
+  function doNotRollDice(e) {
+    if (isNotRollDice) {
+      isNotRollDice = false;
+      shakeDiceB.classList.remove('prohibit');
+      e.innerText = '禁止摇骰🚫'
+
+    } else {
+      isNotRollDice = true;
+      shakeDiceB.classList.add('prohibit');
+      e.innerText = '允许摇骰⭕'
+    }
+  }
+
   /**
    * 骰盅半透明
-   * 
+   *
    * @author 𝓒𝓱𝓮𝓷𝓖𝓾𝓪𝓷𝓰𝓛𝓸𝓷𝓰
    * @since 2025/9/15 22:03
    */
