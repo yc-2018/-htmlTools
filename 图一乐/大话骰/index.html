@@ -15,7 +15,7 @@
 
   <div class="dices" id="dices"></div>
 
-  <div class="dice-base" id="diceBase"></div>
+  <div class="dice-base"></div>
 
 </div>
 
@@ -45,6 +45,10 @@
     <label for="noAutoCover">摇骰子不自动盖盅</label>
     <input type="checkbox" id="noAutoCover"/>
   </div>
+
+  <div>
+    <a href="./dice-rules.html">基本说明</a>
+  </div>
 </div>
 
 
@@ -60,7 +64,6 @@
   const diceMain = document.getElementById('diceMain')            // 骰子全部
   const diceCover = document.getElementById('diceCover')          // 骰盅
   const dices = document.getElementById('dices')                  // 骰子容器
-  const diceBase = document.getElementById('diceBase')            // 容器底座
   const openCoverB = document.getElementById('openCoverB')        // 骰盅开关按钮
   const shakeDiceB = document.getElementById('shakeDiceB')        // 摇骰子按钮
   const result = document.getElementById('result')                // 开的结果
