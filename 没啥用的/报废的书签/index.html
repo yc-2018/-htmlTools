@@ -204,7 +204,7 @@
     let folderElementsMap = new Map(); // 存储文件夹ID到DOM元素的映射
 
     // 加载书签数据
-    fetch('a.json')
+    fetch('./a.json')
       .then(response => response.json())
       .then(data => {
         allBookmarks = data;
