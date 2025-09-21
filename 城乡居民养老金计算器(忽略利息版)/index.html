@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>城乡居民养老金计算器</title>
+  <style>
+      * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-family: 'Microsoft YaHei', sans-serif;
+      }
+
+      body {
+          background: linear-gradient(135deg, #f5f7fa 0%, #e4edf5 100%);
+          color: #333;
+          line-height: 1.6;
+          padding: 20px;
+          min-height: 100vh;
+      }
+
+      .container {
+          max-width: 1000px;
+          margin: 0 auto;
+          background: white;
+          border-radius: 15px;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+          overflow: hidden;
+      }
+
+      header {
+          background: linear-gradient(135deg, #1e88e5 0%, #0d47a1 100%);
+          color: white;
+          padding: 30px;
+          text-align: center;
+          position: relative;
+      }
+
+      h1 {
+          font-size: 32px;
+          margin-bottom: 10px;
+          letter-spacing: 1px;
+      }
+
+      .subtitle {
+          font-size: 16px;
+          opacity: 0.9;
+          max-width: 600px;
+          margin: 0 auto;
+      }
+
+      .calculator {
+          padding: 30px;
+      }
+
+      .section {
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid #eee;
+      }
+
+      .section-title {
+          font-size: 22px;
+          color: #1e88e5;
+          margin-bottom: 25px;
+          padding-bottom: 10px;
+          border-bottom: 2px solid #e3f2fd;
+          display: flex;
+          align-items: center;
+      }
+
+      .section-title i {
+          margin-right: 10px;
+          font-size: 24px;
+      }
+
+      .input-group {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 15px;
+          margin-bottom: 20px;
+          align-items: center;
+      }
+
+      label {
+          width: 200px;
+          font-weight: bold;
+          color: #444;
+      }
+
+      input, select {
+          padding: 12px 15px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          font-size: 16px;
+          flex: 1;
+          min-width: 200px;
+          transition: all 0.3s;
+      }
+
+      input:focus, select:focus {
+          outline: none;
+          border-color: #1e88e5;
+          box-shadow: 0 0 8px rgba(30, 136, 229, 0.4);
+          transform: translateY(-2px);
+      }
+
+      button {
+          background: #1e88e5;
+          color: white;
+          border: none;
+          padding: 12px 25px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 16px;
+          font-weight: bold;
+          transition: all 0.3s;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+      }
+
+      button i {
+          margin-right: 8px;
+      }
+
+      button:hover {
+          background: #1565c0;
+          transform: translateY(-3px);
+          box-shadow: 0 5px 15px rgba(21, 101, 192, 0.4);
+      }
+
+      .btn-secondary {
+          background: #78909c;
+      }
+
+      .btn-secondary:hover {
+          background: #546e7a;
+      }
+
+      .btn-danger {
+          background: #e53935;
+      }
+
+      .btn-danger:hover {
+          background: #c62828;
+      }
+
+      .btn-success {
+          background: #43a047;
+      }
+
+      .btn-success:hover {
+          background: #2e7d32;
+      }
+
+      .records-container {
+          margin-top: 25px;
+          border: 1px solid #e0e0e0;
+          border-radius: 10px;
+          padding: 20px;
+          background: #f9f9f9;
+      }
+
+      .records-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding-bottom: 15px;
+          border-bottom: 2px solid #e3f2fd;
+      }
+
+      .record-row {
+          display: flex;
+          gap: 15px;
+          margin-bottom: 15px;
+          align-items: center;
+          padding: 15px;
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+          transition: all 0.3s;
+      }
+
+      .record-row:hover {
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+          transform: translateY(-2px);
+      }
+
+      .record-row input {
+          flex: 1;
+          min-width: 100px;
+      }
+
+      .record-label {
+          width: 80px;
+          font-weight: bold;
+          color: #0d47a1;
+      }
+
+      .results {
+          background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+          border-radius: 15px;
+          padding: 30px;
+          margin-top: 25px;
+          display: none;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+      }
+
+      .results-title {
+          font-size: 26px;
+          color: #0d47a1;
+          margin-bottom: 25px;
+          text-align: center;
+          padding-bottom: 15px;
+          border-bottom: 2px solid #90caf9;
+      }
+
+      .result-item {
+          display: flex;
+          justify-content: space-between;
+          padding: 15px 0;
+          border-bottom: 1px solid #bbdefb;
+          align-items: center;
+      }
+
+      .result-label {
+          font-weight: bold;
+          font-size: 18px;
+      }
+
+      .result-value {
+          font-weight: bold;
+          color: #1e88e5;
+          font-size: 22px;
+      }
+
+      .highlight {
+          background: linear-gradient(135deg, #bbdefb 0%, #90caf9 100%);
+          padding: 20px;
+          border-radius: 10px;
+          margin-top: 25px;
+          text-align: center;
+          font-size: 24px;
+          color: #0d47a1;
+          font-weight: bold;
+          box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      }
+
+      .explanation {
+          margin-top: 30px;
+          padding: 20px;
+          background: #f9fbe7;
+          border-radius: 10px;
+          font-size: 15px;
+          color: #555;
+          border-left: 5px solid #ffd54f;
+      }
+
+      .explanation h3 {
+          color: #0d47a1;
+          margin-bottom: 15px;
+          font-size: 20px;
+      }
+
+      .explanation p {
+          margin-bottom: 12px;
+          line-height: 1.7;
+      }
+
+      .footer {
+          text-align: center;
+          padding: 20px;
+          color: #666;
+          font-size: 14px;
+          border-top: 1px solid #eee;
+          margin-top: 20px;
+      }
+
+      @media (max-width: 768px) {
+          .input-group {
+              flex-direction: column;
+              align-items: flex-start;
+          }
+
+          label {
+              width: 100%;
+              margin-bottom: 8px;
+          }
+
+          input, select {
+              width: 100%;
+          }
+
+          .record-row {
+              flex-wrap: wrap;
+          }
+
+          .section-title {
+              font-size: 20px;
+          }
+
+          .result-label, .result-value {
+              font-size: 16px;
+          }
+
+          .highlight {
+              font-size: 20px;
+              padding: 15px;
+          }
+      }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><i class="fas fa-calculator"></i> 城乡居民养老金计算器</h1>
+    <div class="subtitle">根据您的缴费情况，计算退休后可领取的养老金</div>
+  </header>
+
+  <div class="calculator">
+    <div class="section">
+      <h2 class="section-title"><i class="fas fa-money-bill-wave"></i> 缴费信息</h2>
+      <div class="input-group">
+        <label for="basePension">基础养老金标准：</label>
+        <input type="number" id="basePension" min="0" value="150">
+        <span>元/月</span>
+      </div>
+
+      <div class="records-header">
+        <h3><i class="fas fa-history"></i> 缴费记录</h3>
+        <button id="addRecord" class="btn-secondary"><i class="fas fa-plus"></i> 添加缴费记录</button>
+      </div>
+
+      <div class="records-container" id="recordsContainer">
+        <div class="record-row">
+          <span class="record-label">金额：</span>
+          <input type="number" class="record-amount" placeholder="缴费金额" min="0" value="300">
+          <span>元</span>
+          <span class="record-label">缴纳年数：</span>
+          <input type="number" class="record-years" placeholder="缴纳年数" min="1" value="1">
+          <span>年</span>
+          <button class="remove-record btn-danger"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-group" style="justify-content: center; margin-top: 30px;">
+      <button id="calculateBtn" class="btn-success" style="padding: 15px 30px; font-size: 18px;">
+        <i class="fas fa-calculator"></i> 计算养老金
+      </button>
+      <button id="resetBtn" class="btn-danger" style="padding: 15px 30px; font-size: 18px;">
+        <i class="fas fa-redo"></i> 重置
+      </button>
+    </div>
+
+    <div class="results" id="results">
+      <h2 class="results-title"><i class="fas fa-chart-line"></i> 计算结果</h2>
+      <div class="result-item">
+        <span class="result-label">个人账户总额：</span>
+        <span class="result-value" id="totalAccount">0.00</span>
+        <span>元</span>
+      </div>
+      <div class="result-item">
+        <span class="result-label">个人账户养老金：</span>
+        <span class="result-value" id="personalPension">0.00</span>
+        <span>元/月</span>
+      </div>
+      <div class="result-item">
+        <span class="result-label">基础养老金：</span>
+        <span class="result-value" id="basePensionResult">0.00</span>
+        <span>元/月</span>
+      </div>
+      <div class="highlight">
+        <i class="fas fa-coins"></i> 预计每月可领取养老金：<span id="totalPension">0.00</span> 元
+      </div>
+
+      <div class="explanation">
+        <h3><i class="fas fa-info-circle"></i> 计算说明：</h3>
+        <p><strong>本计算器计算方式：</strong></p>
+        <p>1. 个人账户总额 = 所有缴费金额 × 缴纳年数之和</p>
+        <p>2. 个人账户养老金 = 个人账户总额 ÷ 139（城乡居民养老保险计发月数）</p>
+        <p>3. 基础养老金 = 当地政府规定的基础养老金标准</p>
+        <p>4. 每月养老金总额 = 个人账户养老金 + 基础养老金</p>
+
+        <p><strong>官方实际计算方式（参考）：</strong></p>
+        <p>1. 个人账户总额 = 缴费金额 × 缴纳年数 + 利息（由国家统一规定利率）</p>
+        <p>2. 个人账户养老金 = 个人账户总额 ÷ 139</p>
+        <p>3. 基础养老金 = 当地政府规定的基础养老金标准（可能随政策调整）</p>
+        <p>4. 每月养老金总额 = 个人账户养老金 + 基础养老金</p>
+
+        <p><strong>注：本计算器结果仅供参考，实际养老金以当地社保部门计算结果为准。</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>© 2023 城乡居民养老金计算器 | 数据仅供参考，实际金额以社保部门计算为准</p>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const recordsContainer = document.getElementById('recordsContainer');
+    const addRecordBtn = document.getElementById('addRecord');
+    const calculateBtn = document.getElementById('calculateBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const results = document.getElementById('results');
+
+    // 添加缴费记录
+    function addRecordRow() {
+      const recordRow = document.createElement('div');
+      recordRow.className = 'record-row';
+
+      recordRow.innerHTML = `
+                    <span class="record-label">金额：</span>
+                    <input type="number" class="record-amount" placeholder="缴费金额" min="0" value="300">
+                    <span>元</span>
+                    <span class="record-label">缴纳年数：</span>
+                    <input type="number" class="record-years" placeholder="缴纳年数" min="1" value="1">
+                    <span>年</span>
+                    <button class="remove-record btn-danger"><i class="fas fa-trash"></i></button>
+                `;
+
+      recordsContainer.appendChild(recordRow);
+
+      // 添加删除按钮事件
+      const removeBtn = recordRow.querySelector('.remove-record');
+      removeBtn.addEventListener('click', function() {
+        recordsContainer.removeChild(recordRow);
+      });
+    }
+
+    // 添加记录按钮事件
+    addRecordBtn.addEventListener('click', addRecordRow);
+
+    // 计算养老金
+    calculateBtn.addEventListener('click', function() {
+      const basePension = parseFloat(document.getElementById('basePension').value);
+
+      const recordRows = recordsContainer.querySelectorAll('.record-row');
+
+      if (recordRows.length === 0) {
+        alert('请至少添加一条缴费记录');
+        return;
+      }
+
+      let totalAccount = 0;
+
+      recordRows.forEach(row => {
+        const amountInput = row.querySelector('.record-amount');
+        const yearsInput = row.querySelector('.record-years');
+
+        const paymentAmount = parseFloat(amountInput.value);
+        const paymentYears = parseInt(yearsInput.value);
+
+        if (isNaN(paymentAmount) || isNaN(paymentYears) || paymentAmount <= 0 || paymentYears <= 0) {
+          return;
+        }
+
+        // 计算该缴费记录的总价值
+        totalAccount += paymentAmount * paymentYears;
+      });
+
+      // 计算个人账户养老金
+      const personalPension = totalAccount / 139; // 139是城乡居民养老保险计发月数
+
+      // 显示结果
+      document.getElementById('totalAccount').textContent = totalAccount.toFixed(2);
+      document.getElementById('personalPension').textContent = personalPension.toFixed(2);
+      document.getElementById('basePensionResult').textContent = basePension.toFixed(2);
+      document.getElementById('totalPension').textContent = (personalPension + basePension).toFixed(2);
+
+      results.style.display = 'block';
+
+      // 滚动到结果区域
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // 重置计算器
+    resetBtn.addEventListener('click', function() {
+      document.getElementById('basePension').value = 150;
+      recordsContainer.innerHTML = '';
+      results.style.display = 'none';
+
+      // 添加一个初始记录
+      addRecordRow();
+    });
+
+    // 初始化添加一个缴费记录
+    addRecordRow();
+  });
+</script>
+</body>
+</html>
