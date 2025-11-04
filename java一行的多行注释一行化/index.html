@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>java一行的多行注释一行化工具</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+      font-size: 2.5rem;
+    }
+
+    .description {
+      color: #546e7a;
+      font-size: 1.1rem;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .editor-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .input-section, .output-section {
+      flex: 1;
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      color: #2c3e50;
+      font-size: 1.5rem;
+    }
+
+    .counter {
+      background: #3498db;
+      color: white;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+    }
+
+    textarea {
+      width: 100%;
+      height: 400px;
+      padding: 15px;
+      border: 1px solid #bdc3c7;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    }
+
+    .input-section textarea {
+      background-color: #f8f9fa;
+    }
+
+    .output-section textarea {
+      background-color: #e8f4fc;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 8px 15px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+      font-weight: 500;
+    }
+
+    button:hover {
+      background: #2980b9;
+    }
+
+    .clear-btn {
+      background: #e74c3c;
+    }
+
+    .clear-btn:hover {
+      background: #c0392b;
+    }
+
+    .example {
+      margin-top: 30px;
+      width: 100%;
+    }
+
+    .example h3 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+
+    .example pre {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 30px;
+      text-align: center;
+      color: #7f8c8d;
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+      .editor-container {
+        flex-direction: column;
+      }
+
+      textarea {
+        height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>多行注释格式化工具</h1>
+    <p class="description">
+      此工具可以将Java风格的多行注释（以<code>/**</code>开头，<code>*/</code>结尾）转换为单行注释格式。
+      当注释内容只有一行时，会自动去除换行符，将其转换为单行注释格式。
+    </p>
+  </header>
+
+  <div class="editor-container">
+    <div class="input-section">
+      <div class="section-header">
+        <h2>输入代码</h2>
+        <span class="counter">字符数: <span id="inputCount">0</span></span>
+      </div>
+      <textarea id="input" autofocus placeholder="在此输入您的Java代码..."></textarea>
+      <div class="actions">
+        <button id="formatBtn">格式化注释</button>
+        <button class="clear-btn" id="clearBtn">清空输入</button>
+      </div>
+    </div>
+
+    <div class="output-section">
+      <div class="section-header">
+        <h2>输出结果</h2>
+        <span class="counter">字符数: <span id="outputCount">0</span></span>
+      </div>
+      <textarea id="output" readonly placeholder="格式化后的结果将显示在这里..."></textarea>
+      <div class="actions">
+        <button id="copyBtn">复制结果</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="example">
+    <h3>示例</h3>
+    <pre>输入:
+  /**
+   * 这里会变!!!!!!!!!
+   */
+  @TableId(type = IdType.ASSIGN_UUID)
+  private String uuid;
+
+  /** 不用动 */
+  private String vehicleUuid;
+  /**
+   * 车辆代码
+   * xxxxxxx
+   */
+  private String vehicleCode;
+
+输出:
+  /** 主键 */
+  @TableId(type = IdType.ASSIGN_UUID)
+  private String uuid;
+
+  /** 车辆原uuid */
+  private String vehicleUuid;
+  /**
+   * 属性注释
+   * 多行不动
+   */
+  private String vehicleCode;</pre>
+  </div>
+
+  <div>
+    <h2>IDEA怎么设置多行单行注释</h2>
+    <ol>
+      <li>打开IDEA设置</li>
+      <li>展开编辑器</li>
+      <li>展开代码样式</li>
+      <li>选择 Java</li>
+      <li>右边点击JavaDoc</li>
+      <li>展开 Other</li>
+      <li>勾选 Do not wrap one line comments</li>
+
+    </ol>
+    <img src="https://img11.360buyimg.com/cxxjwimg/jfs/t1/343583/26/22284/222663/690978e8F076df433/d15af8ffd43c33a4.png" alt="IDEA设置">
+  </div>
+
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const formatBtn = document.getElementById('formatBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const inputCount = document.getElementById('inputCount');
+    const outputCount = document.getElementById('outputCount');
+
+    // 更新字符计数
+    function updateCount() {
+      inputCount.textContent = input.value.length;
+      outputCount.textContent = output.value.length;
+    }
+
+    // 格式化注释函数
+    function formatComments(text) {
+      // 匹配 /** 开头，*/ 结尾的注释块
+      const pattern = /(\/\*\*)([^*]|(\*(?!\/)))*\*\//g;
+
+      return text.replace(pattern, (match) => {
+        // 检查是否已经是单行注释（不包含换行符）
+        if (!match.includes('\n')) {
+          return match;
+        }
+
+        // 提取注释内容（去掉 /** 和 */）
+        let content = match.substring(3, match.length - 2);
+
+        // 分割成行
+        const lines = content.split('\n');
+
+        // 过滤并清理每一行
+        const cleanedLines = lines
+          .map(line => {
+            // 去除行首尾空白
+            line = line.trim();
+            // 去除行首的*
+            if (line.startsWith('*')) {
+              line = line.substring(1).trim();
+            }
+            return line;
+          })
+          .filter(line => line.length > 0); // 移除空行
+
+        // 如果只有一行内容，转换为单行注释
+        if (cleanedLines.length === 1) {
+          return `/** ${cleanedLines[0]} */`;
+        }
+
+        // 否则保持多行格式
+        return match;
+      });
+    }
+
+    // 处理输入变化
+    function processInput() {
+      const inputText = input.value;
+      output.value = formatComments(inputText);
+      updateCount();
+    }
+
+    // 事件监听
+    input.addEventListener('input', processInput);
+
+    formatBtn.addEventListener('click', processInput);
+
+    clearBtn.addEventListener('click', function () {
+      input.value = '';
+      output.value = '';
+      updateCount();
+      input.focus();
+    });
+
+    copyBtn.addEventListener('click', function () {
+      output.select();
+      document.execCommand('copy');
+
+      // 显示复制成功提示
+      const originalText = copyBtn.textContent;
+      copyBtn.textContent = '已复制!';
+      setTimeout(() => {
+        copyBtn.textContent = originalText;
+      }, 2000);
+    });
+
+    // 初始化字符计数
+    updateCount();
+
+    // 在页面加载时添加示例代码
+    input.value = `  /**
+   * 这里会变!!!!!!!!!
+   */
+  @TableId(type = IdType.ASSIGN_UUID)
+  private String uuid;
+
+  /** 不用动 */
+  private String vehicleUuid;
+  /**
+   * 属性注释
+   * 多行不动
+   */
+  private String vehicleCode;`;
+    processInput();
+  });
+</script>
+</body>
+</html>
