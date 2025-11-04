@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>java一行的多行注释一行化工具</title>
+  <title>Java一行的多行注释一行化工具</title>
   <style>
     * {
       box-sizing: border-box;
@@ -113,6 +113,8 @@
       display: flex;
       gap: 10px;
       margin-top: 10px;
+      align-items: center;
+      flex-wrap: wrap;
     }
 
     button {
@@ -136,6 +138,18 @@
 
     .clear-btn:hover {
       background: #c0392b;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-left: 15px;
+      font-size: 14px;
+      color: #2c3e50;
+    }
+
+    .checkbox-container input {
+      margin-right: 5px;
     }
 
     .example {
@@ -172,13 +186,23 @@
       textarea {
         height: 300px;
       }
+
+      .actions {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .checkbox-container {
+        margin-left: 0;
+        margin-top: 10px;
+      }
     }
   </style>
 </head>
 <body>
 <div class="container">
   <header>
-    <h1>多行注释格式化工具</h1>
+    <h1>Java一行的多行注释一行化工具</h1>
     <p class="description">
       此工具可以将Java风格的多行注释（以<code>/**</code>开头，<code>*/</code>结尾）转换为单行注释格式。
       当注释内容只有一行时，会自动去除换行符，将其转换为单行注释格式。
@@ -206,6 +230,10 @@
       <textarea id="output" readonly placeholder="格式化后的结果将显示在这里..."></textarea>
       <div class="actions">
         <button id="copyBtn">复制结果</button>
+        <div class="checkbox-container">
+          <input type="checkbox" id="removeEmptyLines">
+          <label for="removeEmptyLines">不保留空换行</label>
+        </div>
       </div>
     </div>
   </div>
@@ -222,17 +250,17 @@
   /** 不用动 */
   private String vehicleUuid;
   /**
-   * 车辆代码
-   * xxxxxxx
+   * 属性注释
+   * 多行不动
    */
   private String vehicleCode;
 
 输出:
-  /** 主键 */
+  /** 这里会变!!!!!!!!! */
   @TableId(type = IdType.ASSIGN_UUID)
   private String uuid;
 
-  /** 车辆原uuid */
+  /** 不用动 */
   private String vehicleUuid;
   /**
    * 属性注释
@@ -251,9 +279,8 @@
       <li>右边点击JavaDoc</li>
       <li>展开 Other</li>
       <li>勾选 Do not wrap one line comments</li>
-
     </ol>
-    <img src="https://img11.360buyimg.com/cxxjwimg/jfs/t1/343583/26/22284/222663/690978e8F076df433/d15af8ffd43c33a4.png" alt="IDEA设置">
+    <img src="https://img11.360buyimg.com/cxxjwimg/jfs/t1/343583/26/22284/222663/690978e8F076df433/d15af8ffd43c33a4.png" alt="IDEA设置" style="max-width:100%;">
   </div>
 
 </div>
@@ -265,6 +292,7 @@
     const formatBtn = document.getElementById('formatBtn');
     const clearBtn = document.getElementById('clearBtn');
     const copyBtn = document.getElementById('copyBtn');
+    const removeEmptyLinesCheckbox = document.getElementById('removeEmptyLines');
     const inputCount = document.getElementById('inputCount');
     const outputCount = document.getElementById('outputCount');
 
@@ -275,11 +303,11 @@
     }
 
     // 格式化注释函数
-    function formatComments(text) {
+    function formatComments(text, removeEmptyLines) {
       // 匹配 /** 开头，*/ 结尾的注释块
       const pattern = /(\/\*\*)([^*]|(\*(?!\/)))*\*\//g;
 
-      return text.replace(pattern, (match) => {
+      let result = text.replace(pattern, (match) => {
         // 检查是否已经是单行注释（不包含换行符）
         if (!match.includes('\n')) {
           return match;
@@ -312,18 +340,33 @@
         // 否则保持多行格式
         return match;
       });
+
+      // 如果用户选择了"不保留空换行"，则移除注释之间的空行
+      if (removeEmptyLines) {
+        result = removeEmptyLinesFunc(result);
+      }
+
+      return result;
+    }
+
+    // 移除空行
+    function removeEmptyLinesFunc(text) {
+      return text.split(/\r?\n/)  // 处理不同系统的换行符
+        .filter(line => line.trim() !== '')  // 过滤掉空行和只有空格的行
+        .join('\n');
     }
 
     // 处理输入变化
     function processInput() {
       const inputText = input.value;
-      output.value = formatComments(inputText);
+      const removeEmptyLines = removeEmptyLinesCheckbox.checked;
+      output.value = formatComments(inputText, removeEmptyLines);
       updateCount();
     }
 
     // 事件监听
     input.addEventListener('input', processInput);
-
+    removeEmptyLinesCheckbox.addEventListener('change', processInput);
     formatBtn.addEventListener('click', processInput);
 
     clearBtn.addEventListener('click', function () {
