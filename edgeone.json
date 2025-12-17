@@ -1,0 +1,17 @@
+{
+  "headers": [
+    {
+      "source": "/*",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ],
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": ".",
+  "nodeVersion": "22.11.0"
+}
