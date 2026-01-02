@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>白板</title>
+  <!-- 豆包生成2026.1.2 叫豆包改好多次还是有一个bug：笔画太快到边缘会空一段、形状到边缘会卡住再随便画一下，卡在的形状会消失、橡皮擦划出边缘后会擦不掉 要重新在里面擦-->
+  <style>
+    /* 全局样式重置 */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    body, html {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* 容器布局：工具栏+画布 */
+    .whiteboard-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    /* 工具栏样式 */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px; /* 按钮间距10px */
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+
+    /* 工具按钮样式 - 新增图标容器 */
+    .tool-btn {
+      padding: 8px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px; /* 图标与文字间距 */
+    }
+
+    .tool-btn:hover {
+      background: #e9ecef; /* hover变色 */
+    }
+
+    .tool-btn.active {
+      background: #28a745; /* 选中态绿色 */
+      color: white;
+      border-color: #28a745;
+    }
+
+    /* 工具图标样式 */
+    .tool-icon {
+      font-size: 16px;
+      display: inline-block;
+      width: 18px;
+      text-align: center;
+    }
+
+    /* 样式控制区域 */
+    .style-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .style-control label {
+      font-size: 14px;
+      color: #495057;
+    }
+
+    .style-control input[type="color"] {
+      width: 36px;
+      height: 36px;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      background: transparent;
+    }
+
+    .style-control input[type="range"] {
+      width: 120px;
+      cursor: pointer;
+    }
+
+    .style-control .value-display {
+      width: 40px;
+      text-align: center;
+      font-size: 14px;
+      color: #495057;
+    }
+
+    /* 笔画大小预览 */
+    .brush-preview {
+      width: 60px;
+      height: 30px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brush-preview-dot {
+      background: #000;
+      border-radius: 50%;
+      /* 动态调整大小 */
+    }
+
+    /* 最近颜色展示 */
+    .recent-colors {
+      display: flex;
+      gap: 4px;
+    }
+
+    .recent-color-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 1px solid #ccc;
+    }
+
+    /* 画布容器（用于缩放） */
+    .canvas-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: auto;
+      background: #eccdcd;
+      cursor: none; /* 隐藏原生光标 */
+    }
+
+    /* 新增：自定义画笔光标 */
+    .brush-cursor {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none; /* 不拦截鼠标事件 */
+      z-index: 9999;
+      display: none; /* 默认隐藏 */
+      transform: translate(-50%, -50%); /* 光标中心对齐鼠标 */
+    }
+
+    /* 主画布+临时画布样式 */
+    #mainCanvas, #tempCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0; /* 缩放原点为左上角 */
+    }
+
+    #tempCanvas {
+      pointer-events: none; /* 临时画布不拦截鼠标事件 */
+      z-index: 1;
+    }
+
+    #mainCanvas {
+      z-index: 0;
+      background: white;
+    }
+
+    /* 按钮禁用状态 */
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+<div class="whiteboard-container">
+  <!-- 工具栏 -->
+  <div class="toolbar">
+    <!-- 绘图工具按钮 - 图标 -->
+    <button class="tool-btn active" data-tool="pencil">
+      <span class="tool-icon">✏️</span>铅笔
+    </button>
+    <button class="tool-btn" data-tool="line">
+      <span class="tool-icon">📏</span>直线
+    </button>
+    <button class="tool-btn" data-tool="rect">
+      <span class="tool-icon">🟦</span>矩形
+    </button>
+    <button class="tool-btn" data-tool="circle">
+      <span class="tool-icon">🟠</span>圆形
+    </button>
+    <button class="tool-btn" data-tool="ellipse">
+      <span class="tool-icon">🟪</span>椭圆
+    </button>
+    <button class="tool-btn" data-tool="eraser">
+      <span class="tool-icon">🧽</span>橡皮擦
+    </button>
+
+    <!-- 颜色控制 -->
+    <div class="style-control">
+      <label>颜色：</label>
+      <input type="color" id="colorPicker" value="#000000">
+      <div class="recent-colors" id="recentColors"></div>
+    </div>
+
+    <!-- 粗细控制 - 笔画预览 -->
+    <div class="style-control">
+      <label>粗细：</label>
+      <input type="range" id="lineWidth" min="1" max="30" value="5">
+      <span class="value-display" id="lineWidthValue">5px</span>
+      <!-- 笔画大小预览 -->
+      <div class="brush-preview">
+        <div class="brush-preview-dot" id="brushPreviewDot"></div>
+      </div>
+    </div>
+
+    <!-- 透明度控制 -->
+    <div class="style-control">
+      <label>透明度：</label>
+      <input type="range" id="opacity" min="0.1" max="1" step="0.1" value="1">
+      <span class="value-display" id="opacityValue">1.0</span>
+    </div>
+
+    <!-- 圆角矩形控制（仅矩形工具显示） -->
+    <div class="style-control" id="rectRadiusControl" style="display: none;">
+      <label>圆角：</label>
+      <input type="range" id="rectRadius" min="0" max="50" value="0">
+      <span class="value-display" id="rectRadiusValue">0px</span>
+    </div>
+
+    <!-- 编辑功能按钮 - 图标 -->
+    <button class="tool-btn" id="undoBtn">
+      <span class="tool-icon">↩️</span>撤销
+    </button>
+    <button class="tool-btn" id="redoBtn">
+      <span class="tool-icon">↪️</span>重做
+    </button>
+    <button class="tool-btn" id="clearBtn">
+      <span class="tool-icon">🗑️</span>清空画布
+    </button>
+    <button class="tool-btn" id="saveBtn">
+      <span class="tool-icon">💾</span>保存图片
+    </button>
+  </div>
+
+  <!-- 画布容器 -->
+  <div class="canvas-wrapper" id="canvasWrapper">
+    <!-- 新增：自定义画笔光标 -->
+    <div class="brush-cursor" id="brushCursor"></div>
+    <canvas id="mainCanvas"></canvas>
+    <canvas id="tempCanvas"></canvas>
+  </div>
+</div>
+
+<script>
+  // ========== 全局状态管理（统一维护白板状态） ==========
+  const state = {
+    currentTool: 'pencil',          // 当前选中工具
+    isDrawing: false,               // 是否正在绘制
+    startPos: {x: 0, y: 0},       // 绘制起始坐标
+    currentPos: {x: 0, y: 0},     // 绘制当前坐标
+    scale: 1,                       // 画布缩放比例
+    // 画笔样式配置
+    brush: {
+      color: '#000000',
+      lineWidth: 5,
+      opacity: 1,
+      rectRadius: 0
+    },
+    // 最近使用的颜色（最多5个）
+    recentColors: [],
+    // 历史记录相关
+    history: [],                    // 画布状态历史（存储dataURL）
+    currentStep: -1                 // 当前历史步骤
+  };
+
+  // ========== DOM元素获取 ==========
+  const elements = {
+    mainCanvas: document.getElementById('mainCanvas'),
+    tempCanvas: document.getElementById('tempCanvas'),
+    canvasWrapper: document.getElementById('canvasWrapper'),
+    brushCursor: document.getElementById('brushCursor'), // 新增：自定义光标
+    toolBtns: document.querySelectorAll('.tool-btn[data-tool]'),
+    colorPicker: document.getElementById('colorPicker'),
+    recentColors: document.getElementById('recentColors'),
+    lineWidth: document.getElementById('lineWidth'),
+    lineWidthValue: document.getElementById('lineWidthValue'),
+    brushPreviewDot: document.getElementById('brushPreviewDot'), // 笔画预览
+    opacity: document.getElementById('opacity'),
+    opacityValue: document.getElementById('opacityValue'),
+    rectRadiusControl: document.getElementById('rectRadiusControl'),
+    rectRadius: document.getElementById('rectRadius'),
+    rectRadiusValue: document.getElementById('rectRadiusValue'),
+    undoBtn: document.getElementById('undoBtn'),
+    redoBtn: document.getElementById('redoBtn'),
+    clearBtn: document.getElementById('clearBtn'),
+    saveBtn: document.getElementById('saveBtn')
+  };
+
+  // 获取2D上下文
+  const mainCtx = elements.mainCanvas.getContext('2d');
+  const tempCtx = elements.tempCanvas.getContext('2d');
+
+  // ========== 模块1：工具初始化（initTools） ==========
+  /**
+   * 初始化所有工具和事件监听
+   * 功能：绑定工具切换、样式调整、编辑按钮等事件
+   */
+  function initTools() {
+    // 1. 工具按钮切换事件
+    elements.toolBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // 移除所有按钮选中态
+        elements.toolBtns.forEach(b => b.classList.remove('active'));
+        // 添加当前按钮选中态
+        btn.classList.add('active');
+        // 更新当前工具
+        state.currentTool = btn.dataset.tool;
+        // 显示/隐藏矩形圆角控制
+        elements.rectRadiusControl.style.display = state.currentTool === 'rect' ? 'flex' : 'none';
+        // 更新笔画预览和光标样式
+        updateBrushPreview();
+        updateBrushCursorStyle();
+      });
+    });
+
+    // 2. 颜色拾取器事件
+    elements.colorPicker.addEventListener('input', (e) => {
+      updateBrushStyle('color', e.target.value);
+      addRecentColor(e.target.value); // 添加到最近颜色
+      updateBrushPreview(); // 更新预览
+      updateBrushCursorStyle(); // 新增：更新光标样式
+    });
+
+    // 3. 画笔粗细调整事件
+    elements.lineWidth.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      updateBrushStyle('lineWidth', value);
+      elements.lineWidthValue.textContent = `${value}px`;
+      updateBrushPreview(); // 更新预览大小
+      updateBrushCursorStyle(); // 新增：更新光标大小
+    });
+
+    // 4. 透明度调整事件
+    elements.opacity.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      updateBrushStyle('opacity', value);
+      elements.opacityValue.textContent = value.toFixed(1);
+      updateBrushPreview(); // 更新预览透明度
+      updateBrushCursorStyle(); // 新增：更新光标透明度
+    });
+
+    // 5. 矩形圆角调整事件
+    elements.rectRadius.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      updateBrushStyle('rectRadius', value);
+      elements.rectRadiusValue.textContent = `${value}px`;
+    });
+
+    // 6. 编辑按钮事件绑定
+    elements.undoBtn.addEventListener('click', undo);
+    elements.redoBtn.addEventListener('click', redo);
+    elements.clearBtn.addEventListener('click', clearCanvas);
+    elements.saveBtn.addEventListener('click', saveImage);
+
+    // 7. 初始化最近颜色（默认添加黑色）
+    addRecentColor('#000000');
+
+    // 8. 绑定画布绘制事件
+    bindCanvasEvents();
+
+    // 9. 绑定滚轮缩放事件
+    bindScaleEvent();
+
+    // 10. 窗口大小调整事件
+    window.addEventListener('resize', resizeCanvas);
+
+    // 新增：绑定光标相关事件
+    bindCursorEvents();
+
+    // 初始化画布大小
+    resizeCanvas();
+
+    // 初始化历史记录（保存空白画布）
+    saveToHistory();
+
+    // 初始化笔画预览和光标
+    updateBrushPreview();
+    updateBrushCursorStyle();
+  }
+
+  // ========== 模块2：绘制逻辑（drawHandlers） ==========
+  /**
+   * 绑定画布鼠标/触摸事件，处理绘制逻辑
+   */
+  function bindCanvasEvents() {
+    // 鼠标按下：开始绘制
+    elements.mainCanvas.addEventListener('mousedown', (e) => {
+      state.isDrawing = true;
+      // 获取缩放后的实际坐标
+      state.startPos = getScaledCanvasPos(e);
+      state.currentPos = {...state.startPos};
+      // 清空临时画布
+      clearTempCanvas();
+
+      // 铅笔/橡皮擦初始化绘制路径
+      if (['pencil', 'eraser'].includes(state.currentTool)) {
+        mainCtx.beginPath();
+        mainCtx.moveTo(state.startPos.x, state.startPos.y);
+
+        // 橡皮擦额外初始化合成模式
+        if (state.currentTool === 'eraser') {
+          mainCtx.save(); // 保存当前上下文状态
+          mainCtx.globalCompositeOperation = 'destination-out'; // 透明擦除模式
+          mainCtx.lineCap = 'round'; // 线条端点圆润
+          mainCtx.lineJoin = 'round'; // 线条拐角圆润
+          mainCtx.lineWidth = state.brush.lineWidth; // 橡皮擦粗细
+        }
+      }
+    });
+
+    // 鼠标移动：绘制过程
+    elements.mainCanvas.addEventListener('mousemove', (e) => {
+      if (!state.isDrawing) return;
+      state.currentPos = getScaledCanvasPos(e);
+
+      switch (state.currentTool) {
+        case 'pencil':
+          drawPencil();
+          break;
+        case 'eraser':
+          drawEraser(); // 修复：连续路径擦除
+          break;
+        case 'line':
+        case 'rect':
+        case 'circle':
+        case 'ellipse':
+          // 形状工具在临时画布预览
+          drawShapeOnTempCanvas();
+          break;
+      }
+    });
+
+    // 鼠标抬起：结束绘制
+    elements.mainCanvas.addEventListener('mouseup', () => {
+      if (!state.isDrawing) return;
+      state.isDrawing = false;
+
+      // 橡皮擦恢复上下文状态
+      if (state.currentTool === 'eraser') {
+        mainCtx.restore(); // 恢复默认合成模式
+      }
+
+      // 形状工具：将临时画布内容绘制到主画布
+      if (['line', 'rect', 'circle', 'ellipse'].includes(state.currentTool)) {
+        drawShapeOnMainCanvas();
+        clearTempCanvas();
+      }
+
+      // 保存当前状态到历史记录
+      saveToHistory();
+    });
+
+    // 鼠标移出画布：结束绘制
+    elements.mainCanvas.addEventListener('mouseout', () => {
+      if (state.isDrawing && state.currentTool === 'eraser') {
+        mainCtx.restore(); // 恢复上下文
+      }
+      state.isDrawing = false;
+    });
+  }
+
+  /**
+   * 绘制铅笔（流畅线条，端点/拐角圆润）
+   */
+  function drawPencil() {
+    setBrushStyle(mainCtx);
+    mainCtx.lineTo(state.currentPos.x, state.currentPos.y);
+    mainCtx.stroke();
+  }
+
+  /**
+   * 修复：橡皮擦改为连续路径擦除（彻底解决残留问题）
+   */
+  function drawEraser() {
+    // 连续绘制路径，和铅笔逻辑一致，确保无间隙
+    mainCtx.lineTo(state.currentPos.x, state.currentPos.y);
+    mainCtx.stroke(); // 绘制连续的擦除路径
+
+    // 可选优化：在路径端点绘制圆形，确保边缘无死角
+    mainCtx.beginPath();
+    mainCtx.arc(state.currentPos.x, state.currentPos.y, state.brush.lineWidth / 2, 0, Math.PI * 2);
+    mainCtx.fill();
+    mainCtx.beginPath();
+    mainCtx.moveTo(state.currentPos.x, state.currentPos.y);
+  }
+
+  /**
+   * 在临时画布绘制形状（预览效果，不修改主画布）
+   */
+  function drawShapeOnTempCanvas() {
+    clearTempCanvas();
+    setBrushStyle(tempCtx);
+    drawShape(tempCtx);
+  }
+
+  /**
+   * 在主画布绘制形状（完成绘制）
+   */
+  function drawShapeOnMainCanvas() {
+    setBrushStyle(mainCtx);
+    drawShape(mainCtx);
+  }
+
+  /**
+   * 绘制指定形状（直线/矩形/圆形/椭圆）- 修复roundRect兼容问题
+   * @param {CanvasRenderingContext2D} ctx - 绘制上下文
+   */
+  function drawShape(ctx) {
+    const {startPos, currentPos, brush} = state;
+    const x = startPos.x;
+    const y = startPos.y;
+    const width = currentPos.x - startPos.x;
+    const height = currentPos.y - startPos.y;
+
+    ctx.beginPath();
+    switch (state.currentTool) {
+      case 'line':
+        // 直线
+        ctx.moveTo(x, y);
+        ctx.lineTo(currentPos.x, currentPos.y);
+        break;
+      case 'rect':
+        // 修复：手动实现圆角矩形（兼容所有浏览器）
+        drawRoundedRect(ctx, x, y, width, height, brush.rectRadius);
+        break;
+      case 'circle':
+        // 圆形（半径为起点到当前点的距离）
+        const radius = Math.sqrt(width * width + height * height);
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        break;
+      case 'ellipse':
+        // 椭圆（长半轴/短半轴为宽高的绝对值）
+        const rx = Math.abs(width);
+        const ry = Math.abs(height);
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        break;
+    }
+    ctx.stroke();
+  }
+
+  /**
+   * 手动绘制圆角矩形（替代ctx.roundRect，兼容所有浏览器）
+   * @param {CanvasRenderingContext2D} ctx - 绘制上下文
+   * @param {number} x - 矩形起始X坐标
+   * @param {number} y - 矩形起始Y坐标
+   * @param {number} width - 矩形宽度（可正可负）
+   * @param {number} height - 矩形高度（可正可负）
+   * @param {number} radius - 圆角半径
+   */
+  function drawRoundedRect(ctx, x, y, width, height, radius) {
+    // 处理宽高为负数的情况（从右下向左上绘制）
+    const xStart = width < 0 ? x + width : x;
+    const yStart = height < 0 ? y + height : y;
+    const w = Math.abs(width);
+    const h = Math.abs(height);
+    const r = Math.min(radius, Math.min(w / 2, h / 2)); // 限制圆角半径不超过宽高的一半
+
+    ctx.moveTo(xStart + r, yStart);
+    ctx.lineTo(xStart + w - r, yStart);
+    ctx.arcTo(xStart + w, yStart, xStart + w, yStart + r, r);
+    ctx.lineTo(xStart + w, yStart + h - r);
+    ctx.arcTo(xStart + w, yStart + h, xStart + w - r, yStart + h, r);
+    ctx.lineTo(xStart + r, yStart + h);
+    ctx.arcTo(xStart, yStart + h, xStart, yStart + h - r, r);
+    ctx.lineTo(xStart, yStart + r);
+    ctx.arcTo(xStart, yStart, xStart + r, yStart, r);
+    ctx.closePath();
+  }
+
+  /**
+   * 设置画笔样式
+   * @param {CanvasRenderingContext2D} ctx - 绘制上下文
+   */
+  function setBrushStyle(ctx) {
+    // 橡皮擦特殊处理：颜色为白色（预览用），绘制时用合成模式
+    const color = state.currentTool === 'eraser' ? '#ffffff' : state.brush.color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = state.brush.lineWidth;
+    ctx.globalAlpha = state.brush.opacity;
+    ctx.lineCap = 'round'; // 线条端点圆润
+    ctx.lineJoin = 'round'; // 线条拐角圆润
+    ctx.fillStyle = color; // 备用（如需填充形状）
+  }
+
+  // ========== 模块3：历史记录管理（historyManager） ==========
+  /**
+   * 保存当前画布状态到历史记录
+   * 逻辑：撤销后绘制时，清空后续历史；仅保存最新状态
+   */
+  function saveToHistory() {
+    // 撤销后绘制，清空后续历史（避免重做冲突）
+    if (state.currentStep < state.history.length - 1) {
+      state.history = state.history.slice(0, state.currentStep + 1);
+    }
+    // 将画布内容转为base64保存（支持无限次撤销，直到初始状态）
+    state.history.push(elements.mainCanvas.toDataURL('image/png'));
+    state.currentStep = state.history.length - 1;
+    // 更新撤销/重做按钮状态
+    updateHistoryBtnStatus();
+  }
+
+  /**
+   * 撤销操作：恢复上一步画布状态
+   */
+  function undo() {
+    if (state.currentStep <= 0) return;
+    state.currentStep--;
+    restoreHistory();
+    updateHistoryBtnStatus();
+  }
+
+  /**
+   * 重做操作：恢复下一步画布状态
+   */
+  function redo() {
+    if (state.currentStep >= state.history.length - 1) return;
+    state.currentStep++;
+    restoreHistory();
+    updateHistoryBtnStatus();
+  }
+
+  /**
+   * 恢复指定步骤的画布状态
+   */
+  function restoreHistory() {
+    const img = new Image();
+    img.src = state.history[state.currentStep];
+    img.onload = () => {
+      // 清空主画布并恢复历史状态
+      mainCtx.clearRect(0, 0, elements.mainCanvas.width, elements.mainCanvas.height);
+      mainCtx.drawImage(img, 0, 0);
+    };
+  }
+
+  /**
+   * 更新撤销/重做按钮禁用状态
+   */
+  function updateHistoryBtnStatus() {
+    elements.undoBtn.disabled = state.currentStep <= 0;
+    elements.redoBtn.disabled = state.currentStep >= state.history.length - 1;
+  }
+
+  // ========== 模块4：工具函数（utils） ==========
+  /**
+   * 更新画笔样式
+   * @param {string} key - 样式属性名（color/lineWidth/opacity/rectRadius）
+   * @param {any} value - 样式值
+   */
+  function updateBrushStyle(key, value) {
+    state.brush[key] = value;
+    // 同步颜色拾取器值（仅颜色属性）
+    if (key === 'color') {
+      elements.colorPicker.value = value;
+    }
+  }
+
+  /**
+   * 更新笔画大小预览
+   */
+  function updateBrushPreview() {
+    const previewDot = elements.brushPreviewDot;
+    // 设置预览点大小（等于画笔粗细）
+    previewDot.style.width = `${state.brush.lineWidth}px`;
+    previewDot.style.height = `${state.brush.lineWidth}px`;
+    // 设置预览点颜色（橡皮擦显示灰色边框，白色填充）
+    if (state.currentTool === 'eraser') {
+      previewDot.style.backgroundColor = '#ffffff';
+      previewDot.style.border = `1px solid #666666`;
+    } else {
+      previewDot.style.backgroundColor = state.brush.color;
+      previewDot.style.border = 'none';
+    }
+    // 设置透明度
+    previewDot.style.opacity = state.brush.opacity;
+  }
+
+  /**
+   * 新增：更新自定义画笔光标样式
+   */
+  function updateBrushCursorStyle() {
+    const cursor = elements.brushCursor;
+    const lineWidth = state.brush.lineWidth * state.scale; // 适配画布缩放
+
+    // 设置光标大小（匹配画笔粗细，适配缩放）
+    cursor.style.width = `${lineWidth}px`;
+    cursor.style.height = `${lineWidth}px`;
+
+    // 设置光标样式（区分工具）
+    if (state.currentTool === 'eraser') {
+      // 橡皮擦：白色填充+灰色边框
+      cursor.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
+      cursor.style.border = `1px solid #666666`;
+      cursor.style.boxShadow = '0 0 2px rgba(0,0,0,0.3)';
+    } else if (['line', 'rect', 'circle', 'ellipse'].includes(state.currentTool)) {
+      // 形状工具：仅边框，无填充（模拟画笔轮廓）
+      cursor.style.backgroundColor = 'transparent';
+      cursor.style.border = `1px solid ${state.brush.color}`;
+      cursor.style.opacity = state.brush.opacity;
+    } else {
+      // 铅笔：实心圆形，匹配画笔颜色和透明度
+      cursor.style.backgroundColor = state.brush.color;
+      cursor.style.border = 'none';
+      cursor.style.opacity = state.brush.opacity;
+    }
+  }
+
+  /**
+   * 新增：绑定光标相关事件（跟随/显示/隐藏）
+   */
+  function bindCursorEvents() {
+    const wrapper = elements.canvasWrapper;
+    const cursor = elements.brushCursor;
+
+    // 鼠标移动：光标跟随
+    wrapper.addEventListener('mousemove', (e) => {
+      // 设置光标位置（相对于画布容器）
+      cursor.style.left = `${e.clientX - wrapper.getBoundingClientRect().left}px`;
+      cursor.style.top = `${e.clientY - wrapper.getBoundingClientRect().top}px`;
+      // 显示光标
+      cursor.style.display = 'block';
+    });
+
+    // 鼠标移出画布容器：隐藏光标
+    wrapper.addEventListener('mouseleave', () => {
+      cursor.style.display = 'none';
+    });
+
+    // 画布缩放时更新光标样式
+    window.addEventListener('resize', updateBrushCursorStyle);
+  }
+
+  /**
+   * 添加最近使用的颜色（最多5个，去重）
+   * @param {string} color - 颜色值（hex格式）
+   */
+  function addRecentColor(color) {
+    // 去重：已存在则移除，重新添加到头部
+    state.recentColors = state.recentColors.filter(c => c !== color);
+    state.recentColors.unshift(color);
+    // 限制最多5个
+    if (state.recentColors.length > 5) {
+      state.recentColors.pop();
+    }
+    // 渲染最近颜色按钮
+    renderRecentColors();
+  }
+
+  /**
+   * 渲染最近使用的颜色按钮
+   */
+  function renderRecentColors() {
+    elements.recentColors.innerHTML = '';
+    state.recentColors.forEach(color => {
+      const btn = document.createElement('div');
+      btn.className = 'recent-color-btn';
+      btn.style.backgroundColor = color;
+      btn.title = color;
+      // 点击最近颜色切换画笔颜色
+      btn.addEventListener('click', () => {
+        updateBrushStyle('color', color);
+        updateBrushPreview(); // 更新预览
+        updateBrushCursorStyle(); // 新增：更新光标
+      });
+      elements.recentColors.appendChild(btn);
+    });
+  }
+
+  /**
+   * 获取缩放后的画布坐标（适配滚轮缩放）
+   * @param {MouseEvent} e - 鼠标事件
+   * @returns {object} - 缩放后的{x, y}坐标
+   */
+  function getScaledCanvasPos(e) {
+    const rect = elements.mainCanvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / state.scale,
+      y: (e.clientY - rect.top) / state.scale
+    };
+  }
+
+  /**
+   * 调整画布大小（自适应窗口）
+   * 逻辑：画布大小等于容器大小，缩放后保持绘制内容比例
+   */
+  function resizeCanvas() {
+    const wrapperRect = elements.canvasWrapper.getBoundingClientRect();
+    // 设置主画布/临时画布大小
+    elements.mainCanvas.width = wrapperRect.width;
+    elements.mainCanvas.height = wrapperRect.height;
+    elements.tempCanvas.width = wrapperRect.width;
+    elements.tempCanvas.height = wrapperRect.height;
+    // 恢复历史状态（避免resize后内容丢失）
+    restoreHistory();
+    // 应用缩放比例
+    applyScale();
+    // 新增：更新光标样式
+    updateBrushCursorStyle();
+  }
+
+  /**
+   * 清空临时画布
+   */
+  function clearTempCanvas() {
+    tempCtx.clearRect(0, 0, elements.tempCanvas.width, elements.tempCanvas.height);
+  }
+
+  /**
+   * 清空主画布（带确认弹窗）
+   */
+  function clearCanvas() {
+    if (confirm('确定要清空画布吗？此操作不可撤销！')) {
+      mainCtx.clearRect(0, 0, elements.mainCanvas.width, elements.mainCanvas.height);
+      saveToHistory(); // 保存清空后的状态
+    }
+  }
+
+  /**
+   * 保存画布为PNG图片（文件名带时间戳）
+   */
+  function saveImage() {
+    // 创建下载链接
+    const link = document.createElement('a');
+    // 生成带时间戳的文件名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    link.download = `白板_${timestamp}.png`;
+    // 导出画布为PNG
+    link.href = elements.mainCanvas.toDataURL('image/png');
+    // 触发下载
+    link.click();
+    // 释放链接
+    link.remove();
+  }
+
+  /**
+   * 绑定滚轮缩放事件
+   */
+  function bindScaleEvent() {
+    elements.canvasWrapper.addEventListener('wheel', (e) => {
+      e.preventDefault(); // 阻止默认滚动
+      // 缩放增量：滚轮向上+0.1，向下-0.1
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const newScale = Math.max(0.5, Math.min(3, state.scale + delta)); // 限制缩放范围0.5-3倍
+      if (newScale !== state.scale) {
+        state.scale = newScale;
+        applyScale();
+        updateBrushCursorStyle(); // 新增：缩放后更新光标
+      }
+    });
+  }
+
+  /**
+   * 应用画布缩放比例
+   */
+  function applyScale() {
+    elements.mainCanvas.style.transform = `scale(${state.scale})`;
+    elements.tempCanvas.style.transform = `scale(${state.scale})`;
+  }
+
+  // ========== 初始化 ==========
+  window.addEventListener('DOMContentLoaded', initTools);
+</script>
+</body>
+</html>
