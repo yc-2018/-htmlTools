@@ -99,12 +99,19 @@
     <div class="container">
         <h1>PDF多功能编辑器</h1>
         
-        <div class="section">
+        <div style="display: flex;gap: 8px;">
+          <div class="section">
             <h3>上传主PDF文件</h3>
             <input type="file" id="mainPdfFileInput" accept=".pdf" />
             <p>当前文档页数: <span id="currentTotalPages">0</span></p>
+          </div>
+
+          <div class="section">
+            <h3>其他功能</h3>
+            <button onclick="window.location.href='./压缩'" class="action-btn">跳转至PDF压缩页面</button>
+          </div>
         </div>
-        
+
         <div class="info">
             <p><strong>功能说明：</strong></p>
             <ul>
