@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI二维码欣赏</title>
+    <link rel="stylesheet" href="./index.css">
+</head>
+<body>
+    <div class="container">
+        <h1>AI二维码欣赏</h1>
+        <div class="image-list" id="imageList"></div>
+    </div>
+
+    <div id="imageModal" class="modal">
+        <span class="close">&times;</span>
+        <a class="prev">&#10094;</a>
+        <div class="drag-image" id="dragImage">
+            <img class="modal-content" id="modalImage">
+        </div>
+        <a class="next">&#10095;</a>
+    </div>
+
+    <script>
+        const images = [
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/342940/26/5634/219805/68ce9909Fff427d49/d17003fdd182fc88.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/344189/27/5598/2147716/68ce9941Fd1bd6244/91771b243aa2519b.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/344545/36/5161/261567/68ce97b9F570dc3be/a4cfb662b8a3a9ef.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/345185/15/5533/237906/68ce97fcFb0d61fc6/26a470fe0fafb612.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/326527/9/22483/198579/68ce9820F0f42d8a2/5d37447f8c6ff3e3.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/340822/19/12639/2907288/68ce9a19F62462a7b/ba605a4aa2d20c4a.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/323433/29/22100/2435362/68ce9cdeF976fe62d/ecb128c7cb37eb1c.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/349257/16/5711/3352102/68ce9e15Ffde274b0/97efe14e9ec345a2.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/330809/13/15721/3493143/68ce9e83F3e5d0226/1279e7c49609e8b5.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/331959/12/15630/3260237/68ce9ea8F84deebb9/d4dd689601361c21.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/333329/37/15463/3589941/68cea0a2Fdadefc8e/8ca14aca2ee05072.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/333715/1/15479/2270789/68cea0d5Ff0d7e9df/eb30e318ae35f5f7.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/333069/21/15651/3375512/68cea15dF13bf4be9/d9de80987e41de98.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/346780/26/5727/3296736/68cea2beF84fb994e/84c4332c2bf5861d.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/339470/35/13043/2793766/68cea322Fbe73714a/126de6beb7bb4666.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/322269/2/14049/2852079/68cea60aFd363b5fa/edfac1e3229a67d1.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/333425/18/15522/3113947/68cea82cFf10a8ef8/d2ccd2e617171987.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/342060/2/5666/3283879/68cea8b6Fc3816828/597ab06e05116d07.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/344336/35/4657/3279357/68cea932F76342de0/feea567670c0ebf3.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/322024/4/10985/173481/68cea9b4Fd247f3ce/cc85bd5046c0963a.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/338868/22/13043/174732/68ceae69F06a97348/f641cc86326bf429.png",
+            "https://img11.360buyimg.com/cxxjwimg/jfs/t1/342289/31/5640/157626/68ce9764Fc174c20d/ea9eb95b1cc889e1.png",
+        ];
+
+        let currentIndex = 0;
+        let scale = 1;
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+
+        const imageList = document.getElementById('imageList');
+        const modal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+        const closeBtn = document.getElementsByClassName('close')[0];
+        const prevBtn = document.getElementsByClassName('prev')[0];
+        const nextBtn = document.getElementsByClassName('next')[0];
+        const dragImage = document.getElementById('dragImage');
+
+        function renderImages() {
+            images.forEach((src, index) => {
+                const imageItem = document.createElement('div');
+                imageItem.className = 'image-item';
+                imageItem.innerHTML = `<img src="${src}" alt="图片 ${index + 1}" onclick="openModal(${index})" loading="lazy">`;
+                imageList.appendChild(imageItem);
+            });
+        }
+
+        function openModal(index) {
+            currentIndex = index;
+            modal.style.display = 'flex';
+            modalImage.src = images[currentIndex];
+            resetImage();
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+            resetImage();
+        }
+
+        function resetImage() {
+            scale = 1;
+            dragImage.style.transform = 'scale(1) translateX(0px) translateY(0px)';
+        }
+
+        function changeImage(n) {
+            currentIndex += n;
+            if (currentIndex < 0) {
+                currentIndex = images.length - 1;
+            } else if (currentIndex >= images.length) {
+                currentIndex = 0;
+            }
+            modalImage.src = images[currentIndex];
+            resetImage();
+        }
+
+        function handleWheel(event) {
+            event.preventDefault();
+            const delta = event.deltaY > 0 ? -0.1 : 0.1;
+            scale = Math.max(0.1, Math.min(5, scale + delta));
+            const currentTransform = dragImage.style.transform;
+            const translateX = parseInt(currentTransform.match(/translateX\(([^)]+)\)/)?.[1] || 0) || 0;
+            const translateY = parseInt(currentTransform.match(/translateY\(([^)]+)\)/)?.[1] || 0) || 0;
+            dragImage.style.transform = `scale(${scale}) translateX(${translateX}px) translateY(${translateY}px)`;
+        }
+
+        function startDrag(e) {
+            isDragging = true;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            startX = clientX - (parseInt(dragImage.style.transform.match(/translateX\(([^)]+)\)/)?.[1] || 0) || 0);
+            startY = clientY - (parseInt(dragImage.style.transform.match(/translateY\(([^)]+)\)/)?.[1] || 0) || 0);
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const offsetX = clientX - startX;
+            const offsetY = clientY - startY;
+            dragImage.style.transform = `scale(${scale}) translateX(${offsetX}px) translateY(${offsetY}px)`;
+        }
+
+        function stopDrag() {
+            isDragging = false;
+        }
+
+        renderImages();
+
+        closeBtn.onclick = closeModal;
+        prevBtn.onclick = () => changeImage(-1);
+        nextBtn.onclick = () => changeImage(1);
+
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        };
+
+        window.onkeydown = (e) => {
+            if (modal.style.display === 'block') {
+                if (e.key === 'Escape') closeModal();
+                if (e.key === 'ArrowLeft') changeImage(-1);
+                if (e.key === 'ArrowRight') changeImage(1);
+            }
+        };
+
+        modalImage.addEventListener('wheel', handleWheel);
+        dragImage.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', stopDrag);
+        dragImage.addEventListener('touchstart', startDrag);
+        document.addEventListener('touchmove', drag);
+        document.addEventListener('touchend', stopDrag);
+    </script>
+</body>
+</html>
