@@ -489,17 +489,6 @@
       state.startPos = getScaledCanvasPos(e);
       state.currentPos = {...state.startPos};
 
-      // 检查是否点击到调整大小控制点
-      const resizeInfo = checkResizeHandleAtPosition(state.startPos);
-      if (resizeInfo) {
-        // 开始调整大小
-        state.selectedTextId = resizeInfo.textId;
-        state.isResizing = true;
-        state.resizeHandle = resizeInfo.handle;
-        redrawCanvas();
-        return;
-      }
-
       // 检查是否点击到文本对象
       const clickedText = getTextObjectAtPosition(state.startPos);
       
@@ -551,11 +540,7 @@
     elements.mainCanvas.addEventListener('mousemove', (e) => {
       state.currentPos = getScaledCanvasPos(e);
       
-      // 如果正在调整大小
-      if (state.isResizing && state.selectedTextId) {
-        resizeSelectedText();
-        return;
-      }
+      
       
       // 如果正在拖拽文本对象
       if (state.isDragging && state.selectedTextId) {
@@ -584,13 +569,6 @@
 
     // 鼠标抬起：结束绘制或拖拽
     elements.mainCanvas.addEventListener('mouseup', () => {
-      if (state.isResizing) {
-        state.isResizing = false;
-        state.resizeHandle = null;
-        saveToHistory();
-        return;
-      }
-      
       if (state.isDragging) {
         state.isDragging = false;
         saveToHistory();
@@ -617,12 +595,6 @@
 
     // 鼠标移出画布：结束绘制或拖拽
     elements.mainCanvas.addEventListener('mouseout', () => {
-      if (state.isResizing) {
-        state.isResizing = false;
-        state.resizeHandle = null;
-        saveToHistory();
-      }
-      
       if (state.isDragging) {
         state.isDragging = false;
         saveToHistory();
@@ -1149,8 +1121,8 @@
       content: '双击编辑文本',
       x: pos.x,
       y: pos.y,
-      width: 200, // 初始宽度
-      height: 50, // 初始高度
+      width: 24, // 初始宽度：24px
+      height: 24, // 初始高度：24px
       style: {
         fontSize: state.text.fontSize,
         fontFamily: state.text.fontFamily,
