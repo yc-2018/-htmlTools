@@ -198,6 +198,9 @@
     <button class="tool-btn" data-tool="ellipse">
       <span class="tool-icon">🟪</span>椭圆
     </button>
+    <button class="tool-btn" data-tool="text">
+      <span class="tool-icon">📝</span>文本
+    </button>
     <button class="tool-btn" data-tool="eraser">
       <span class="tool-icon">🧽</span>橡皮擦
     </button>
@@ -232,6 +235,13 @@
       <label>圆角：</label>
       <input type="range" id="rectRadius" min="0" max="50" value="0">
       <span class="value-display" id="rectRadiusValue">0px</span>
+    </div>
+
+    <!-- 文本样式控制（仅文本工具显示） -->
+    <div class="style-control" id="textStyleControl" style="display: none;">
+      <label>字体大小：</label>
+      <input type="range" id="fontSize" min="12" max="72" value="24">
+      <span class="value-display" id="fontSizeValue">24px</span>
     </div>
 
     <!-- 编辑功能按钮 - 图标 -->
@@ -273,6 +283,13 @@
       opacity: 1,
       rectRadius: 0
     },
+    // 文本相关配置
+    text: {
+      fontSize: 24,                 // 默认字体大小
+      fontFamily: 'Arial, sans-serif', // 默认字体
+      fontWeight: 'normal',         // 默认字重
+      fontStyle: 'normal'           // 默认字体样式
+    },
     // 最近使用的颜色（最多5个）
     recentColors: [],
     // 历史记录相关
@@ -297,6 +314,9 @@
     rectRadiusControl: document.getElementById('rectRadiusControl'),
     rectRadius: document.getElementById('rectRadius'),
     rectRadiusValue: document.getElementById('rectRadiusValue'),
+    textStyleControl: document.getElementById('textStyleControl'),
+    fontSize: document.getElementById('fontSize'),
+    fontSizeValue: document.getElementById('fontSizeValue'),
     undoBtn: document.getElementById('undoBtn'),
     redoBtn: document.getElementById('redoBtn'),
     clearBtn: document.getElementById('clearBtn'),
@@ -324,6 +344,8 @@
         state.currentTool = btn.dataset.tool;
         // 显示/隐藏矩形圆角控制
         elements.rectRadiusControl.style.display = state.currentTool === 'rect' ? 'flex' : 'none';
+        // 显示/隐藏文本样式控制
+        elements.textStyleControl.style.display = state.currentTool === 'text' ? 'flex' : 'none';
         // 更新笔画预览和光标样式
         updateBrushPreview();
         updateBrushCursorStyle();
@@ -333,9 +355,12 @@
     // 2. 颜色拾取器事件
     elements.colorPicker.addEventListener('input', (e) => {
       updateBrushStyle('color', e.target.value);
-      addRecentColor(e.target.value); // 添加到最近颜色
       updateBrushPreview(); // 更新预览
       updateBrushCursorStyle(); // 新增：更新光标样式
+    });
+    // 颜色拾取器确认事件（仅在确认选择时添加到最近颜色）
+    elements.colorPicker.addEventListener('change', (e) => {
+      addRecentColor(e.target.value); // 添加到最近颜色
     });
 
     // 3. 画笔粗细调整事件
@@ -361,6 +386,13 @@
       const value = Number(e.target.value);
       updateBrushStyle('rectRadius', value);
       elements.rectRadiusValue.textContent = `${value}px`;
+    });
+
+    // 6. 字体大小调整事件
+    elements.fontSize.addEventListener('input', (e) => {
+      const value = Number(e.target.value);
+      state.text.fontSize = value;
+      elements.fontSizeValue.textContent = `${value}px`;
     });
 
     // 6. 编辑按钮事件绑定
@@ -402,13 +434,19 @@
   function bindCanvasEvents() {
     // 鼠标按下：开始绘制
     elements.mainCanvas.addEventListener('mousedown', (e) => {
-      state.isDrawing = true;
       // 获取缩放后的实际坐标
       state.startPos = getScaledCanvasPos(e);
       state.currentPos = {...state.startPos};
       // 清空临时画布
       clearTempCanvas();
 
+      // 文本工具特殊处理：点击画布弹出输入框
+      if (state.currentTool === 'text') {
+        addTextAtPosition(state.startPos);
+        return;
+      }
+
+      state.isDrawing = true;
       // 铅笔/橡皮擦初始化绘制路径
       if (['pencil', 'eraser'].includes(state.currentTool)) {
         mainCtx.beginPath();
@@ -793,6 +831,29 @@
       x: (e.clientX - rect.left) / state.scale,
       y: (e.clientY - rect.top) / state.scale
     };
+  }
+
+  /**
+   * 在指定位置添加文本
+   * @param {object} pos - 文本起始位置{x, y}
+   */
+  function addTextAtPosition(pos) {
+    // 弹出输入框获取文本
+    const text = prompt('请输入文本内容:', '');
+    if (!text) return; // 取消输入
+
+    // 设置文本样式
+    mainCtx.save();
+    mainCtx.font = `${state.text.fontWeight} ${state.text.fontStyle} ${state.text.fontSize}px ${state.text.fontFamily}`;
+    mainCtx.fillStyle = state.brush.color;
+    mainCtx.globalAlpha = state.brush.opacity;
+    
+    // 绘制文本
+    mainCtx.fillText(text, pos.x, pos.y);
+    mainCtx.restore();
+    
+    // 保存到历史记录
+    saveToHistory();
   }
 
   /**
