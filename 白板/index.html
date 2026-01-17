@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>白板</title>
   <!-- 豆包生成2026.1.2 叫豆包改好多次还是有一个bug：笔画太快到边缘会空一段、形状到边缘会卡住再随便画一下，卡在的形状会消失、橡皮擦划出边缘后会擦不掉 要重新在里面擦-->
+  <!-- 2026.1.17 叫Trae实现了文本功能和修复选颜色 拖拽色板历史颜色会全部改变bug-->
   <style>
     /* 全局样式重置 */
     * {
@@ -273,6 +274,9 @@
   const state = {
     currentTool: 'pencil',          // 当前选中工具
     isDrawing: false,               // 是否正在绘制
+    isDragging: false,              // 是否正在拖动（文本或形状）
+    isResizing: false,              // 是否正在调整大小
+    resizeHandle: null,             // 正在调整的控制点位置（topLeft, topRight, bottomRight, bottomLeft）
     startPos: {x: 0, y: 0},       // 绘制起始坐标
     currentPos: {x: 0, y: 0},     // 绘制当前坐标
     scale: 1,                       // 画布缩放比例
@@ -290,12 +294,21 @@
       fontWeight: 'normal',         // 默认字重
       fontStyle: 'normal'           // 默认字体样式
     },
+    // 文本对象列表
+    textObjects: [],                // 存储所有文本对象
+    selectedTextId: null,           // 当前选中的文本对象ID
     // 最近使用的颜色（最多5个）
     recentColors: [],
     // 历史记录相关
     history: [],                    // 画布状态历史（存储dataURL）
     currentStep: -1                 // 当前历史步骤
   };
+
+  // 文本对象ID生成器
+  let textObjectId = 0;
+  function generateTextId() {
+    return `text_${textObjectId++}`;
+  }
 
   // ========== DOM元素获取 ==========
   const elements = {
@@ -346,6 +359,11 @@
         elements.rectRadiusControl.style.display = state.currentTool === 'rect' ? 'flex' : 'none';
         // 显示/隐藏文本样式控制
         elements.textStyleControl.style.display = state.currentTool === 'text' ? 'flex' : 'none';
+        
+        // 修复：切换工具时取消文本选中状态，隐藏聚焦框
+        state.selectedTextId = null;
+        redrawCanvas();
+        
         // 更新笔画预览和光标样式
         updateBrushPreview();
         updateBrushCursorStyle();
@@ -354,9 +372,13 @@
 
     // 2. 颜色拾取器事件
     elements.colorPicker.addEventListener('input', (e) => {
-      updateBrushStyle('color', e.target.value);
+      const color = e.target.value;
+      updateBrushStyle('color', color);
       updateBrushPreview(); // 更新预览
       updateBrushCursorStyle(); // 新增：更新光标样式
+      
+      // 更新选中文本对象的颜色
+      updateSelectedTextColor(color);
     });
     // 颜色拾取器确认事件（仅在确认选择时添加到最近颜色）
     elements.colorPicker.addEventListener('change', (e) => {
@@ -379,6 +401,9 @@
       elements.opacityValue.textContent = value.toFixed(1);
       updateBrushPreview(); // 更新预览透明度
       updateBrushCursorStyle(); // 新增：更新光标透明度
+      
+      // 更新选中文本对象的透明度
+      updateSelectedTextOpacity(value);
     });
 
     // 5. 矩形圆角调整事件
@@ -393,6 +418,9 @@
       const value = Number(e.target.value);
       state.text.fontSize = value;
       elements.fontSizeValue.textContent = `${value}px`;
+      
+      // 更新选中文本对象的字体大小
+      updateSelectedTextFontSize(value);
     });
 
     // 6. 编辑按钮事件绑定
@@ -425,6 +453,29 @@
     // 初始化笔画预览和光标
     updateBrushPreview();
     updateBrushCursorStyle();
+    
+    // 添加键盘删除事件监听
+    document.addEventListener('keydown', (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedTextId) {
+        deleteSelectedText();
+      }
+    });
+  }
+
+  /**
+   * 删除选中的文本对象
+   */
+  function deleteSelectedText() {
+    if (!state.selectedTextId) return;
+    
+    // 从文本对象列表中移除
+    state.textObjects = state.textObjects.filter(t => t.id !== state.selectedTextId);
+    state.selectedTextId = null;
+    
+    // 重绘画布
+    redrawCanvas();
+    // 保存到历史记录
+    saveToHistory();
   }
 
   // ========== 模块2：绘制逻辑（drawHandlers） ==========
@@ -432,18 +483,51 @@
    * 绑定画布鼠标/触摸事件，处理绘制逻辑
    */
   function bindCanvasEvents() {
-    // 鼠标按下：开始绘制
+    // 鼠标按下：开始绘制或选择文本
     elements.mainCanvas.addEventListener('mousedown', (e) => {
       // 获取缩放后的实际坐标
       state.startPos = getScaledCanvasPos(e);
       state.currentPos = {...state.startPos};
-      // 清空临时画布
-      clearTempCanvas();
 
-      // 文本工具特殊处理：点击画布弹出输入框
-      if (state.currentTool === 'text') {
+      // 检查是否点击到调整大小控制点
+      const resizeInfo = checkResizeHandleAtPosition(state.startPos);
+      if (resizeInfo) {
+        // 开始调整大小
+        state.selectedTextId = resizeInfo.textId;
+        state.isResizing = true;
+        state.resizeHandle = resizeInfo.handle;
+        redrawCanvas();
+        return;
+      }
+
+      // 检查是否点击到文本对象
+      const clickedText = getTextObjectAtPosition(state.startPos);
+      
+      if (clickedText) {
+        // 选择文本对象
+        state.selectedTextId = clickedText.id;
+        state.isDragging = true;
+        redrawCanvas();
+        return;
+      }
+
+      // 修复：只有在非拖动状态下，文本工具点击才创建新文本
+      // 防止双击时第二下mousedown错误创建新文本
+      if (state.currentTool === 'text' && !state.isDragging && !state.isResizing) {
         addTextAtPosition(state.startPos);
         return;
+      }
+
+      // 非文本工具开始绘画时，取消文本选中状态，隐藏功能边框
+      if (state.currentTool !== 'text' && state.selectedTextId) {
+        state.selectedTextId = null;
+      }
+
+      // 只有在非文本工具绘制时才清空临时画布，并且清空后要重新绘制文本
+      if (state.currentTool !== 'text') {
+        clearTempCanvas();
+        // 重新绘制文本对象，防止被清除
+        redrawCanvas();
       }
 
       state.isDrawing = true;
@@ -463,10 +547,23 @@
       }
     });
 
-    // 鼠标移动：绘制过程
+    // 鼠标移动：绘制过程或拖拽文本
     elements.mainCanvas.addEventListener('mousemove', (e) => {
-      if (!state.isDrawing) return;
       state.currentPos = getScaledCanvasPos(e);
+      
+      // 如果正在调整大小
+      if (state.isResizing && state.selectedTextId) {
+        resizeSelectedText();
+        return;
+      }
+      
+      // 如果正在拖拽文本对象
+      if (state.isDragging && state.selectedTextId) {
+        dragSelectedText();
+        return;
+      }
+
+      if (!state.isDrawing) return;
 
       switch (state.currentTool) {
         case 'pencil':
@@ -485,8 +582,21 @@
       }
     });
 
-    // 鼠标抬起：结束绘制
+    // 鼠标抬起：结束绘制或拖拽
     elements.mainCanvas.addEventListener('mouseup', () => {
+      if (state.isResizing) {
+        state.isResizing = false;
+        state.resizeHandle = null;
+        saveToHistory();
+        return;
+      }
+      
+      if (state.isDragging) {
+        state.isDragging = false;
+        saveToHistory();
+        return;
+      }
+      
       if (!state.isDrawing) return;
       state.isDrawing = false;
 
@@ -505,13 +615,205 @@
       saveToHistory();
     });
 
-    // 鼠标移出画布：结束绘制
+    // 鼠标移出画布：结束绘制或拖拽
     elements.mainCanvas.addEventListener('mouseout', () => {
+      if (state.isResizing) {
+        state.isResizing = false;
+        state.resizeHandle = null;
+        saveToHistory();
+      }
+      
+      if (state.isDragging) {
+        state.isDragging = false;
+        saveToHistory();
+      }
+      
       if (state.isDrawing && state.currentTool === 'eraser') {
         mainCtx.restore(); // 恢复上下文
       }
       state.isDrawing = false;
     });
+    
+    // 双击画布：编辑文本
+    elements.mainCanvas.addEventListener('dblclick', (e) => {
+      const pos = getScaledCanvasPos(e);
+      const clickedText = getTextObjectAtPosition(pos);
+      if (clickedText) {
+        editTextObject(clickedText);
+      }
+    });
+  }
+
+  /**
+   * 获取指定位置的文本对象
+   * @param {object} pos - 位置坐标{x, y}
+   * @returns {object|null} - 文本对象或null
+   */
+  function getTextObjectAtPosition(pos) {
+    return state.textObjects.find(textObj => {
+      const margin = 10;
+      return pos.x >= textObj.x - margin &&
+             pos.x <= textObj.x + textObj.width + margin &&
+             pos.y >= textObj.y - textObj.style.fontSize - margin &&
+             pos.y <= textObj.y + margin;
+    });
+  }
+
+  /**
+   * 拖拽选中的文本对象
+   */
+  function dragSelectedText() {
+    const textObj = state.textObjects.find(t => t.id === state.selectedTextId);
+    if (!textObj) return;
+    
+    // 计算位移
+    const dx = state.currentPos.x - state.startPos.x;
+    const dy = state.currentPos.y - state.startPos.y;
+    
+    // 更新文本位置
+    textObj.x += dx;
+    textObj.y += dy;
+    
+    // 更新起始位置
+    state.startPos = {...state.currentPos};
+    
+    // 重绘画布
+    redrawCanvas();
+  }
+
+  /**
+   * 编辑文本对象
+   * @param {object} textObj - 文本对象
+   */
+  function editTextObject(textObj) {
+    // 弹出输入框获取新文本
+    const newContent = prompt('编辑文本:', textObj.content);
+    if (newContent !== null) {
+      textObj.content = newContent;
+      redrawCanvas();
+      saveToHistory();
+    }
+  }
+
+  /**
+   * 检查指定位置是否在调整大小控制点上
+   * @param {object} pos - 位置坐标{x, y}
+   * @returns {object|null} - 包含textId和handle的对象，或null
+   */
+  function checkResizeHandleAtPosition(pos) {
+    const handleSize = 12; // 控制点大小
+    
+    for (const textObj of state.textObjects) {
+      // 计算四个控制点的位置
+      // 修复：底部控制点的Y坐标应该是文本框底部位置
+      const handles = {
+        topLeft: {x: textObj.x - 5, y: textObj.y - textObj.style.fontSize},
+        topRight: {x: textObj.x + textObj.width + 5, y: textObj.y - textObj.style.fontSize},
+        bottomRight: {x: textObj.x + textObj.width + 5, y: textObj.y + textObj.height},
+        bottomLeft: {x: textObj.x - 5, y: textObj.y + textObj.height}
+      };
+      
+      // 检查每个控制点
+      for (const [handleName, handlePos] of Object.entries(handles)) {
+        if (Math.abs(pos.x - handlePos.x) <= handleSize &&
+            Math.abs(pos.y - handlePos.y) <= handleSize) {
+          return {
+            textId: textObj.id,
+            handle: handleName
+          };
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * 调整选中的文本对象大小
+   */
+  function resizeSelectedText() {
+    const textObj = state.textObjects.find(t => t.id === state.selectedTextId);
+    if (!textObj) return;
+    
+    // 计算位移
+    const dx = state.currentPos.x - state.startPos.x;
+    const dy = state.currentPos.y - state.startPos.y;
+    
+    // 根据不同的控制点调整大小和位置
+    switch (state.resizeHandle) {
+      case 'topLeft':
+        // 左上角控制点：调整宽度、高度和位置
+        textObj.width = Math.max(50, textObj.width - dx);
+        textObj.height = Math.max(20, textObj.height - dy);
+        textObj.x += dx;
+        textObj.y += dy;
+        break;
+      case 'topRight':
+        // 右上角控制点：调整宽度和高度
+        textObj.width = Math.max(50, textObj.width + dx);
+        textObj.height = Math.max(20, textObj.height - dy);
+        textObj.y += dy;
+        break;
+      case 'bottomRight':
+        // 右下角控制点：调整宽度和高度
+        textObj.width = Math.max(50, textObj.width + dx);
+        textObj.height = Math.max(20, textObj.height + dy);
+        break;
+      case 'bottomLeft':
+        // 左下角控制点：调整宽度和高度
+        textObj.width = Math.max(50, textObj.width - dx);
+        textObj.height = Math.max(20, textObj.height + dy);
+        textObj.x += dx;
+        break;
+    }
+    
+    // 更新起始位置
+    state.startPos = {...state.currentPos};
+    
+    // 重绘画布
+    redrawCanvas();
+  }
+
+  /**
+   * 更新选中文本对象的颜色
+   * @param {string} color - 颜色值
+   */
+  function updateSelectedTextColor(color) {
+    if (!state.selectedTextId) return;
+    
+    const textObj = state.textObjects.find(t => t.id === state.selectedTextId);
+    if (textObj) {
+      textObj.style.color = color;
+      redrawCanvas();
+    }
+  }
+
+  /**
+   * 更新选中文本对象的透明度
+   * @param {number} opacity - 透明度值（0-1）
+   */
+  function updateSelectedTextOpacity(opacity) {
+    if (!state.selectedTextId) return;
+    
+    const textObj = state.textObjects.find(t => t.id === state.selectedTextId);
+    if (textObj) {
+      textObj.style.opacity = opacity;
+      redrawCanvas();
+    }
+  }
+
+  /**
+   * 更新选中文本对象的字体大小
+   * @param {number} fontSize - 字体大小（像素）
+   */
+  function updateSelectedTextFontSize(fontSize) {
+    if (!state.selectedTextId) return;
+    
+    const textObj = state.textObjects.find(t => t.id === state.selectedTextId);
+    if (textObj) {
+      textObj.style.fontSize = fontSize;
+      redrawCanvas();
+    }
   }
 
   /**
@@ -676,6 +978,7 @@
 
   /**
    * 恢复指定步骤的画布状态
+   * 修复：恢复历史状态后重新绘制文本对象
    */
   function restoreHistory() {
     const img = new Image();
@@ -684,6 +987,8 @@
       // 清空主画布并恢复历史状态
       mainCtx.clearRect(0, 0, elements.mainCanvas.width, elements.mainCanvas.height);
       mainCtx.drawImage(img, 0, 0);
+      // 重新绘制文本对象，确保文本显示在画布上
+      redrawCanvas();
     };
   }
 
@@ -834,26 +1139,187 @@
   }
 
   /**
-   * 在指定位置添加文本
+   * 创建文本对象并添加到画布
    * @param {object} pos - 文本起始位置{x, y}
    */
   function addTextAtPosition(pos) {
-    // 弹出输入框获取文本
-    const text = prompt('请输入文本内容:', '');
-    if (!text) return; // 取消输入
-
-    // 设置文本样式
-    mainCtx.save();
-    mainCtx.font = `${state.text.fontWeight} ${state.text.fontStyle} ${state.text.fontSize}px ${state.text.fontFamily}`;
-    mainCtx.fillStyle = state.brush.color;
-    mainCtx.globalAlpha = state.brush.opacity;
+    // 创建文本对象
+    const textObject = {
+      id: generateTextId(),
+      content: '双击编辑文本',
+      x: pos.x,
+      y: pos.y,
+      width: 200, // 初始宽度
+      height: 50, // 初始高度
+      style: {
+        fontSize: state.text.fontSize,
+        fontFamily: state.text.fontFamily,
+        fontWeight: state.text.fontWeight,
+        fontStyle: state.text.fontStyle,
+        color: state.brush.color,
+        opacity: state.brush.opacity
+      },
+      isEditing: false
+    };
     
-    // 绘制文本
-    mainCtx.fillText(text, pos.x, pos.y);
-    mainCtx.restore();
+    // 添加到文本对象列表
+    state.textObjects.push(textObject);
+    state.selectedTextId = textObject.id;
     
+    // 重绘画布
+    redrawCanvas();
     // 保存到历史记录
     saveToHistory();
+  }
+
+  /**
+   * 重绘画布（包含所有文本对象）
+   * 修复：彻底解决拖动时产生拖尾的问题
+   * 使用分层绘制：将文本对象绘制在临时画布上，避免与非文本内容混合
+   */
+  function redrawCanvas() {
+    // 文本对象现在绘制在tempCanvas上，主画布只用于非文本内容
+    // 这样拖动文本时不会影响主画布的内容，从而避免拖尾
+    
+    // 1. 清空临时画布
+    tempCtx.clearRect(0, 0, elements.tempCanvas.width, elements.tempCanvas.height);
+    
+    // 2. 在临时画布上绘制所有文本对象
+    drawAllTextObjectsOnTempCanvas();
+  }
+
+  /**
+   * 在临时画布上绘制所有文本对象
+   */
+  function drawAllTextObjectsOnTempCanvas() {
+    state.textObjects.forEach(textObj => {
+      drawTextObjectOnTempCanvas(textObj);
+    });
+  }
+
+  /**
+   * 在临时画布上绘制单个文本对象
+   * @param {object} textObj - 文本对象
+   */
+  function drawTextObjectOnTempCanvas(textObj) {
+    tempCtx.save();
+    
+    // 设置文本样式
+    tempCtx.font = `${textObj.style.fontWeight} ${textObj.style.fontStyle} ${textObj.style.fontSize}px ${textObj.style.fontFamily}`;
+    tempCtx.fillStyle = textObj.style.color;
+    tempCtx.globalAlpha = textObj.style.opacity;
+    
+    // 绘制文本
+    tempCtx.fillText(textObj.content, textObj.x, textObj.y);
+    
+    // 如果是选中状态，绘制边框
+    if (state.selectedTextId === textObj.id) {
+      drawSelectionBoxOnTempCanvas(textObj);
+    }
+    
+    tempCtx.restore();
+  }
+
+  /**
+   * 在临时画布上绘制选中框
+   * @param {object} textObj - 文本对象
+   */
+  function drawSelectionBoxOnTempCanvas(textObj) {
+    tempCtx.save();
+    tempCtx.strokeStyle = '#28a745';
+    tempCtx.lineWidth = 2;
+    tempCtx.setLineDash([5, 5]);
+    // 绘制边框
+    tempCtx.strokeRect(textObj.x - 5, textObj.y - textObj.style.fontSize, textObj.width + 10, textObj.height + textObj.style.fontSize);
+    // 绘制调整大小的控制点
+    drawResizeHandlesOnTempCanvas(textObj);
+    tempCtx.restore();
+  }
+
+  /**
+   * 在临时画布上绘制调整大小的控制点
+   * @param {object} textObj - 文本对象
+   */
+  function drawResizeHandlesOnTempCanvas(textObj) {
+    const handleSize = 8;
+    const handles = [
+      {x: textObj.x - 5, y: textObj.y - textObj.style.fontSize}, // 左上
+      {x: textObj.x + textObj.width + 5, y: textObj.y - textObj.style.fontSize}, // 右上
+      {x: textObj.x + textObj.width + 5, y: textObj.y + textObj.height}, // 右下
+      {x: textObj.x - 5, y: textObj.y + textObj.height} // 左下
+    ];
+    
+    tempCtx.fillStyle = '#28a745';
+    handles.forEach(handle => {
+      tempCtx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+    });
+  }
+
+  /**
+   * 绘制所有文本对象
+   */
+  function drawAllTextObjects() {
+    state.textObjects.forEach(textObj => {
+      drawTextObject(textObj);
+    });
+  }
+
+  /**
+   * 绘制单个文本对象
+   * @param {object} textObj - 文本对象
+   */
+  function drawTextObject(textObj) {
+    mainCtx.save();
+    
+    // 设置文本样式
+    mainCtx.font = `${textObj.style.fontWeight} ${textObj.style.fontStyle} ${textObj.style.fontSize}px ${textObj.style.fontFamily}`;
+    mainCtx.fillStyle = textObj.style.color;
+    mainCtx.globalAlpha = textObj.style.opacity;
+    
+    // 绘制文本
+    mainCtx.fillText(textObj.content, textObj.x, textObj.y);
+    
+    // 如果是选中状态，绘制边框
+    if (state.selectedTextId === textObj.id) {
+      drawSelectionBox(textObj);
+    }
+    
+    mainCtx.restore();
+  }
+
+  /**
+   * 绘制选中框
+   * @param {object} textObj - 文本对象
+   */
+  function drawSelectionBox(textObj) {
+    mainCtx.save();
+    mainCtx.strokeStyle = '#28a745';
+    mainCtx.lineWidth = 2;
+    mainCtx.setLineDash([5, 5]);
+    // 绘制边框
+    mainCtx.strokeRect(textObj.x - 5, textObj.y - textObj.style.fontSize, textObj.width + 10, textObj.height + textObj.style.fontSize);
+    // 绘制调整大小的控制点
+    drawResizeHandles(textObj);
+    mainCtx.restore();
+  }
+
+  /**
+   * 绘制调整大小的控制点
+   * @param {object} textObj - 文本对象
+   */
+  function drawResizeHandles(textObj) {
+    const handleSize = 8;
+    const handles = [
+      {x: textObj.x - 5, y: textObj.y - textObj.style.fontSize}, // 左上
+      {x: textObj.x + textObj.width + 5, y: textObj.y - textObj.style.fontSize}, // 右上
+      {x: textObj.x + textObj.width + 5, y: textObj.y + textObj.height}, // 右下
+      {x: textObj.x - 5, y: textObj.y + textObj.height} // 左下
+    ];
+    
+    mainCtx.fillStyle = '#28a745';
+    handles.forEach(handle => {
+      mainCtx.fillRect(handle.x - handleSize/2, handle.y - handleSize/2, handleSize, handleSize);
+    });
   }
 
   /**
