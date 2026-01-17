@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.1, maximum-scale=5.0">
   <title>AI二维码欣赏</title>
   <link rel="stylesheet" href="./index.css">
 </head>
@@ -76,7 +76,9 @@
   let currentIndex = 0;
   let scale = 1;
   let isDragging = false;
-  let startX, startY, initialX, initialY;
+  let startX, startY;
+  let initialTouchDistance = 0;
+  let initialTouchScale = 1;
 
   const imageList = document.getElementById('imageList');
   const modal = document.getElementById('imageModal');
@@ -133,23 +135,45 @@
     dragImage.style.transform = `scale(${scale}) translateX(${translateX}px) translateY(${translateY}px)`;
   }
 
+  function calculateDistance(touch1, touch2) {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
   function startDrag(e) {
     isDragging = true;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    startX = clientX - (parseInt(dragImage.style.transform.match(/translateX\(([^)]+)\)/)?.[1] || 0) || 0);
-    startY = clientY - (parseInt(dragImage.style.transform.match(/translateY\(([^)]+)\)/)?.[1] || 0) || 0);
+    if (e.touches && e.touches.length === 2) {
+      initialTouchDistance = calculateDistance(e.touches[0], e.touches[1]);
+      initialTouchScale = scale;
+    } else {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      startX = clientX - (parseInt(dragImage.style.transform.match(/translateX\(([^)]+)\)/)?.[1] || 0) || 0);
+      startY = clientY - (parseInt(dragImage.style.transform.match(/translateY\(([^)]+)\)/)?.[1] || 0) || 0);
+    }
     e.preventDefault();
   }
 
   function drag(e) {
     if (!isDragging) return;
     e.preventDefault();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const offsetX = clientX - startX;
-    const offsetY = clientY - startY;
-    dragImage.style.transform = `scale(${scale}) translateX(${offsetX}px) translateY(${offsetY}px)`;
+    
+    if (e.touches && e.touches.length === 2) {
+      const currentDistance = calculateDistance(e.touches[0], e.touches[1]);
+      const scaleFactor = currentDistance / initialTouchDistance;
+      scale = Math.max(0.1, Math.min(5, initialTouchScale * scaleFactor));
+      const currentTransform = dragImage.style.transform;
+      const translateX = parseInt(currentTransform.match(/translateX\(([^)]+)\)/)?.[1] || 0) || 0;
+      const translateY = parseInt(currentTransform.match(/translateY\(([^)]+)\)/)?.[1] || 0) || 0;
+      dragImage.style.transform = `scale(${scale}) translateX(${translateX}px) translateY(${translateY}px)`;
+    } else {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const offsetX = clientX - startX;
+      const offsetY = clientY - startY;
+      dragImage.style.transform = `scale(${scale}) translateX(${offsetX}px) translateY(${offsetY}px)`;
+    }
   }
 
   function stopDrag() {
@@ -169,7 +193,7 @@
   };
 
   window.onkeydown = (e) => {
-    if (modal.style.display === 'block') {
+    if (modal.style.display === 'flex') {
       if (e.key === 'Escape') closeModal();
       if (e.key === 'ArrowLeft') changeImage(-1);
       if (e.key === 'ArrowRight') changeImage(1);
@@ -181,7 +205,7 @@
   document.addEventListener('mousemove', drag);
   document.addEventListener('mouseup', stopDrag);
   dragImage.addEventListener('touchstart', startDrag);
-  document.addEventListener('touchmove', drag);
+  document.addEventListener('touchmove', drag, { passive: false });
   document.addEventListener('touchend', stopDrag);
 </script>
 </body>
