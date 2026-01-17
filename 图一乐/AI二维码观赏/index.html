@@ -18,8 +18,10 @@
   <a class="prev">&#10094;</a>
   <div class="drag-image" id="dragImage">
     <img class="modal-content" id="modalImage">
+    <div class="image-container" id="imageContainer" style="display: none;"></div>
   </div>
   <a class="next">&#10095;</a>
+  <div class="image-index" id="imageIndex"></div>
 </div>
 
 <script>
@@ -79,14 +81,31 @@
   let startX, startY;
   let initialTouchDistance = 0;
   let initialTouchScale = 1;
+  let isMobile = false;
+  let touchStartX = 0;
+  let touchEndX = 0;
+  let touchStartY = 0;
+  let touchEndY = 0;
+  let lastTapTime = 0;
+  let indexTimeout = null;
+  let containerStartX = 0;
+  
+  // 检测是否为手机端
+  function detectMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+  
+  isMobile = detectMobile();
 
   const imageList = document.getElementById('imageList');
   const modal = document.getElementById('imageModal');
+  const dragImage = document.getElementById('dragImage');
   const modalImage = document.getElementById('modalImage');
+  const imageContainer = document.getElementById('imageContainer');
   const closeBtn = document.getElementsByClassName('close')[0];
   const prevBtn = document.getElementsByClassName('prev')[0];
   const nextBtn = document.getElementsByClassName('next')[0];
-  const dragImage = document.getElementById('dragImage');
+  const imageIndex = document.getElementById('imageIndex');
 
   function renderImages() {
     images.forEach((src, index) => {
@@ -100,8 +119,23 @@
   function openModal(index) {
     currentIndex = index;
     modal.style.display = 'flex';
-    modalImage.src = images[currentIndex];
-    resetImage();
+    
+    if (isMobile) {
+      // 手机端：使用滑动方式
+      modalImage.style.display = 'none';
+      imageContainer.style.display = 'flex';
+      loadImagesToContainer();
+      updateImagePosition();
+    } else {
+      // 电脑端：使用原始方式
+      modalImage.style.display = 'block';
+      imageContainer.style.display = 'none';
+      modalImage.src = images[currentIndex];
+      resetImage();
+    }
+    
+    // 显示图片索引
+    showImageIndex();
   }
 
   function closeModal() {
@@ -112,6 +146,7 @@
   function resetImage() {
     scale = 1;
     dragImage.style.transform = 'scale(1) translateX(0px) translateY(0px)';
+    updateImagePosition();
   }
 
   function changeImage(n) {
@@ -121,8 +156,37 @@
     } else if (currentIndex >= images.length) {
       currentIndex = 0;
     }
-    modalImage.src = images[currentIndex];
-    resetImage();
+    
+    if (isMobile) {
+      // 手机端：使用滑动方式，更新位置
+      updateImagePosition();
+    } else {
+      // 电脑端：直接更新图片
+      modalImage.src = images[currentIndex];
+      resetImage();
+    }
+    
+    showImageIndex();
+  }
+  
+  function loadImagesToContainer() {
+    // 清空容器
+    imageContainer.innerHTML = '';
+    
+    // 加载所有图片
+    images.forEach((src, index) => {
+      const img = document.createElement('img');
+      img.src = src;
+      img.className = 'modal-content';
+      img.dataset.index = index;
+      imageContainer.appendChild(img);
+    });
+  }
+  
+  function updateImagePosition() {
+    // 更新图片容器位置
+    const translateX = -currentIndex * 100 + '%';
+    imageContainer.style.transform = `translateX(${translateX})`;
   }
 
   function handleWheel(event) {
@@ -179,6 +243,108 @@
   function stopDrag() {
     isDragging = false;
   }
+  
+  function showImageIndex() {
+    imageIndex.textContent = `${currentIndex + 1}/${images.length}`;
+    imageIndex.classList.add('visible');
+    
+    // 清除之前的定时器
+    if (indexTimeout) {
+      clearTimeout(indexTimeout);
+    }
+    
+    // 1秒后隐藏图片索引
+    indexTimeout = setTimeout(() => {
+      imageIndex.classList.remove('visible');
+    }, 1000);
+  }
+  
+  function handleMobileTouchStart(e) {
+    if (!isMobile) return;
+    
+    if (e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      // 移除过渡效果，实现跟随滑动
+      imageContainer.style.transition = 'none';
+    } else if (e.touches.length === 2) {
+      // 双指触摸，计算初始距离
+      initialTouchDistance = calculateDistance(e.touches[0], e.touches[1]);
+      initialTouchScale = scale;
+    }
+  }
+  
+  function handleMobileTouchMove(e) {
+    if (!isMobile) return;
+    
+    if (e.touches.length === 1) {
+      touchEndX = e.touches[0].clientX;
+      touchEndY = e.touches[0].clientY;
+      
+      // 计算滑动距离
+      const deltaX = touchEndX - touchStartX;
+      
+      // 实现图片跟随滑动效果
+      const currentPosition = -currentIndex * 100;
+      const newPosition = currentPosition + (deltaX / window.innerWidth) * 100;
+      imageContainer.style.transform = `translateX(${newPosition}%)`;
+    } else if (e.touches.length === 2) {
+      // 双指缩放
+      e.preventDefault();
+      const currentDistance = calculateDistance(e.touches[0], e.touches[1]);
+      const scaleFactor = currentDistance / initialTouchDistance;
+      scale = Math.max(0.1, Math.min(5, initialTouchScale * scaleFactor));
+      dragImage.style.transform = `scale(${scale}) translateX(0px) translateY(0px)`;
+    }
+  }
+  
+  function handleMobileTouchEnd(e) {
+    if (!isMobile) return;
+    
+    if (e.touches.length === 0) {
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      
+      // 添加过渡效果，实现平滑切换
+      imageContainer.style.transition = 'transform 0.3s ease';
+      
+      // 判断是滑动还是点击
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 80) {
+        // 左右滑动，翻页
+        e.preventDefault();
+        if (deltaX > 0) {
+          // 向右滑动，上一张
+          changeImage(-1);
+        } else {
+          // 向左滑动，下一张
+          changeImage(1);
+        }
+        // 显示图片索引
+        showImageIndex();
+      } else if (Math.abs(deltaX) < 30 && Math.abs(deltaY) < 30) {
+        // 点击，使用时间间隔判断是单击还是双击
+        const now = Date.now();
+        const tapInterval = now - lastTapTime;
+        
+        if (tapInterval < 300) {
+          // 双击，放大/缩小
+          if (scale > 1) {
+            // 已放大，恢复原始大小
+            scale = 1;
+          } else {
+            // 原始大小，放大
+            scale = 2;
+          }
+          dragImage.style.transform = `scale(${scale}) translateX(0px) translateY(0px)`;
+        } 
+        // 无论单击还是双击，都不执行退出操作，由专门的点击事件处理
+        lastTapTime = now;
+      } else {
+        // 滑动距离不足，恢复原位
+        updateImagePosition();
+      }
+    }
+  }
 
   renderImages();
 
@@ -200,13 +366,31 @@
     }
   };
 
+  // 为电脑端恢复原始的滚轮缩放功能
   modalImage.addEventListener('wheel', handleWheel);
-  dragImage.addEventListener('mousedown', startDrag);
-  document.addEventListener('mousemove', drag);
-  document.addEventListener('mouseup', stopDrag);
-  dragImage.addEventListener('touchstart', startDrag);
-  document.addEventListener('touchmove', drag, { passive: false });
-  document.addEventListener('touchend', stopDrag);
+  
+  // 根据设备类型绑定不同的事件
+  if (isMobile) {
+    // 手机端事件处理
+    dragImage.addEventListener('touchstart', handleMobileTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleMobileTouchMove, { passive: false });
+    document.addEventListener('touchend', handleMobileTouchEnd, { passive: true });
+    
+    // 添加明确的单击退出机制
+    imageContainer.addEventListener('click', (e) => {
+      if (e.target.tagName === 'IMG') {
+        closeModal();
+      }
+    });
+  } else {
+    // 电脑端事件处理 - 恢复原始功能
+    dragImage.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+    
+    // 电脑端不需要点击退出功能，移除所有相关事件监听
+    // 确保电脑端可以正常拖拽和缩放
+  }
 </script>
 </body>
 </html>
