@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!-- from：豆包  time：2026年3月3日 10:13:58-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>命名格式转换工具（下划线↔驼峰）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            padding: 50px 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        /* 转换类型切换标签 */
+        .tab-group {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #666;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            border-bottom-color: #409eff;
+            color: #409eff;
+        }
+        /* 大小写选择区域（仅驼峰转下划线显示） */
+        .case-option {
+            margin-bottom: 15px;
+            display: none;
+        }
+        .case-option.show {
+            display: block;
+        }
+        .case-option label {
+            display: inline-block;
+            margin-right: 20px;
+            cursor: pointer;
+        }
+        .case-option input[type="radio"] {
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .input-group, .result-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+            min-height: 100px;
+        }
+        textarea:focus {
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #copyBtn {
+            background-color: #67c23a;
+            color: white;
+            flex: 1;
+        }
+        #copyBtn:hover {
+            background-color: #85ce61;
+        }
+        #clearBtn {
+            background-color: #909399;
+            color: white;
+            flex: 1;
+        }
+        #clearBtn:hover {
+            background-color: #a6a9ad;
+        }
+        .tip {
+            color: #999;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .success-tip {
+            color: #67c23a;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        /* 只读文本域样式 */
+        #resultText {
+            background-color: #f8f9fa;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>命名格式转换工具</h1>
+        
+        <!-- 转换类型切换标签 -->
+        <div class="tab-group">
+            <div class="tab active" data-type="underscore-to-camel">下划线 → 小驼峰</div>
+            <div class="tab" data-type="camel-to-underscore">小驼峰 → 下划线</div>
+        </div>
+
+        <!-- 大小写选择（仅驼峰转下划线显示） -->
+        <div class="case-option" id="caseOption">
+            <label>下划线结果格式：</label>
+            <label><input type="radio" name="caseType" value="upper" checked> 全大写（如 USER_NAME）</label>
+            <label><input type="radio" name="caseType" value="lower"> 全小写（如 user_name）</label>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-group">
+            <label for="inputText" id="inputLabel">请输入下划线命名的文本：</label>
+            <textarea id="inputText" placeholder="例如：
+user_name
+order_id
+goods_info_list"></textarea>
+            <div class="tip" id="inputTip">提示：支持多行输入，输入内容时自动转换，保留换行格式</div>
+        </div>
+
+        <!-- 按钮区域 -->
+        <div class="btn-group">
+            <button id="copyBtn">复制结果</button>
+            <button id="clearBtn">清空内容</button>
+        </div>
+
+        <!-- 结果区域 -->
+        <div class="result-group">
+            <label for="resultText" id="resultLabel">转换结果（小驼峰）：</label>
+            <textarea id="resultText" readonly></textarea>
+            <div class="success-tip" id="successTip">✓ 复制成功！</div>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const tabs = document.querySelectorAll('.tab');
+        const caseOption = document.getElementById('caseOption');
+        const inputLabel = document.getElementById('inputLabel');
+        const inputTip = document.getElementById('inputTip');
+        const resultLabel = document.getElementById('resultLabel');
+        const inputText = document.getElementById('inputText');
+        const resultText = document.getElementById('resultText');
+        const copyBtn = document.getElementById('copyBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const successTip = document.getElementById('successTip');
+        const caseRadios = document.querySelectorAll('input[name="caseType"]');
+        
+        // 当前激活的转换类型（默认：下划线转小驼峰）
+        let activeType = 'underscore-to-camel';
+
+        // ========== 核心转换函数 ==========
+        // 1. 下划线转小驼峰
+        function underscoreToCamelCase(str) {
+            if (!str || str.trim() === '') return '';
+            let lowerStr = str.trim().toLowerCase();
+            let camelStr = lowerStr.replace(/_([a-zA-Z])/g, (match, letter) => {
+                return letter.toUpperCase();
+            });
+            return camelStr.charAt(0).toLowerCase() + camelStr.slice(1);
+        }
+
+        // 2. 小驼峰转下划线（支持大小写选择）
+        function camelToUnderscore(str, caseType = 'upper') {
+            if (!str || str.trim() === '') return '';
+            // 匹配大写字母，在前面加下划线
+            let underscoreStr = str.trim().replace(/([A-Z])/g, '_$1');
+            // 去除开头可能的下划线（如 UserName → _user_name → user_name）
+            underscoreStr = underscoreStr.replace(/^_/, '');
+            // 根据选择返回全大写/全小写
+            return caseType === 'upper' ? underscoreStr.toUpperCase() : underscoreStr.toLowerCase();
+        }
+
+        // ========== 通用处理函数 ==========
+        // 处理多行转换
+        function handleMultiLineConvert(input, convertFn, ...args) {
+            const lines = input.split('\n');
+            const resultLines = lines.map(line => convertFn(line, ...args));
+            return resultLines.join('\n');
+        }
+
+        // 实时转换主函数
+        function realtimeConvert() {
+            const input = inputText.value;
+            let result = '';
+            
+            // 根据当前转换类型执行对应逻辑
+            if (activeType === 'underscore-to-camel') {
+                result = handleMultiLineConvert(input, underscoreToCamelCase);
+            } else {
+                // 获取选中的大小写类型
+                const selectedCase = document.querySelector('input[name="caseType"]:checked').value;
+                result = handleMultiLineConvert(input, camelToUnderscore, selectedCase);
+            }
+            
+            resultText.value = result;
+            successTip.style.display = 'none';
+        }
+
+        // ========== 交互逻辑 ==========
+        // 切换转换类型标签
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 移除所有标签的激活状态
+                tabs.forEach(t => t.classList.remove('active'));
+                // 激活当前标签
+                tab.classList.add('active');
+                // 更新当前转换类型
+                activeType = tab.dataset.type;
+
+                // 根据类型切换界面文案和显示状态
+                if (activeType === 'underscore-to-camel') {
+                    // 下划线转小驼峰
+                    caseOption.classList.remove('show');
+                    inputLabel.textContent = '请输入下划线命名的文本：';
+                    inputTip.textContent = '提示：支持多行输入，输入内容时自动转换，保留换行格式';
+                    resultLabel.textContent = '转换结果（小驼峰）：';
+                    inputText.placeholder = '例如：\nuser_name\norder_id\ngoods_info_list';
+                } else {
+                    // 小驼峰转下划线
+                    caseOption.classList.add('show');
+                    inputLabel.textContent = '请输入小驼峰命名的文本：';
+                    inputTip.textContent = '提示：支持多行输入，输入内容时自动转换，保留换行格式';
+                    resultLabel.textContent = '转换结果（下划线）：';
+                    inputText.placeholder = '例如：\nuserName\norderId\ngoodsInfoList';
+                }
+
+                // 重新触发转换
+                realtimeConvert();
+            });
+        });
+
+        // 绑定实时转换事件
+        inputText.addEventListener('input', realtimeConvert);
+        inputText.addEventListener('paste', realtimeConvert);
+        inputText.addEventListener('change', realtimeConvert);
+        // 大小写切换时也触发转换
+        caseRadios.forEach(radio => {
+            radio.addEventListener('change', realtimeConvert);
+        });
+
+        // 复制按钮（支持复制多行文本）
+        copyBtn.addEventListener('click', () => {
+            if (!resultText.value) {
+                alert('暂无转换结果可复制！');
+                return;
+            }
+            resultText.select();
+            navigator.clipboard.writeText(resultText.value).then(() => {
+                successTip.style.display = 'block';
+                setTimeout(() => {
+                    successTip.style.display = 'none';
+                }, 3000);
+            }).catch(() => {
+                document.execCommand('copy');
+                successTip.style.display = 'block';
+                setTimeout(() => {
+                    successTip.style.display = 'none';
+                }, 3000);
+            });
+        });
+
+        // 清空按钮
+        clearBtn.addEventListener('click', () => {
+            inputText.value = '';
+            resultText.value = '';
+            successTip.style.display = 'none';
+        });
+
+        // 快捷键触发
+        inputText.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                realtimeConvert();
+            }
+        });
+    </script>
+</body>
+</html>
