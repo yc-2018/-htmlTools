@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>高德排线数据渲染工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .input-panel {
+            width: 400px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .input-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .panel-header {
+            padding: 20px;
+            background: #0069FF;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #444;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #0069FF;
+        }
+        
+        button {
+            background-color: #0069FF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: block;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background-color: #0052d4;
+        }
+        
+        .error {
+            color: #e53935;
+            font-size: 14px;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 6px;
+            border-left: 4px solid #e53935;
+            display: none;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background-color: #f0f7ff;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0069FF;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .legend-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+        
+        .color-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 6px;
+        }
+        
+        .amap-info-content {
+            font-size: 14px;
+            padding: 10px;
+        }
+        
+        .info-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+        }
+        
+        .info-label {
+            color: #666;
+            margin-right: 10px;
+        }
+        
+        .info-value {
+            font-weight: 500;
+        }
+        
+        .panel-footer {
+            padding: 15px 20px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+        }
+        
+        .color-array-info {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+        
+        .route-marker {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #0069FF;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .warehouse-marker {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #000;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .instructions {
+            background-color: #f0f7ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+        
+        .instructions ul {
+            margin-left: 16px;
+            margin-top: 6px;
+        }
+        
+        .instructions li {
+            margin-bottom: 3px;
+        }
+        
+        @media (max-width: 768px) {
+            .input-panel {
+                width: 100%;
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+            
+        }
+    </style>
+    <link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="input-panel" id="inputPanel">
+            <div class="panel-header">
+                <h1>高德排线数据渲染工具</h1>
+                <p class="subtitle">输入高德API请求和响应JSON，可视化路径规划结果</p>
+            </div>
+            
+            <div class="input-content">
+                <h3 class="section-title">输入JSON数据</h3>
+                
+                <div class="input-group">
+                    <label for="requestInput">请求参数 (Request)</label>
+                    <textarea id="requestInput" placeholder="粘贴高德请求JSON数据...">{
+    "sortRule": 1,
+    "routeOption": 2,
+    "isBack": 0,
+    "infiniteVehicle": 1,
+    "depots": [
+        {
+            "location": "112.940263,22.763561",
+            "vehicleGroups": [
+                {
+                    "deliveryType": 0,
+                    "vehicleModelId": "2-6.075",
+                    "vehicleCount": 1,
+                    "capacity": {
+                        "weight": 112,
+                        "volume": 116.075
+                    }
+                }
+            ]
+        }
+    ],
+    "servicePoints": [
+        {
+            "location": "113.292772,23.089041",
+            "name": "点1",
+            "demand": {
+                "weight": 0.12,
+                "volume": 13.567800000000005
+            }
+        },
+        {
+            "location": "111.96205,21.846797",
+            "name": "点2",
+            "demand": {
+                "weight": 0,
+                "volume": 4.32
+            }
+        },
+        {
+            "location": "113.638084,23.092726",
+            "name": "点3",
+            "demand": {
+                "weight": 0.009,
+                "volume": 13.3654
+            }
+        }
+    ],
+    "deliveryCapacity": 0
+}</textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label for="responseInput">响应参数 (Response)</label>
+                    <textarea id="responseInput" placeholder="粘贴高德响应JSON数据...">{
+    "errcode": 10000,
+    "errmsg": "OK",
+    "data": [
+        {
+            "depotLocation": "112.940263,22.763561",
+            "totalTime": 795,
+            "timeAll": 795,
+            "totalDistance": 577995,
+            "loading": {
+                "weight": "0.129/112.0",
+                "volume": "31.253/116.075",
+                "count": "0.0/0.0"
+            },
+            "routes": [
+                {
+                    "time": 795,
+                    "timeInclude": 795,
+                    "distance": 577995,
+                    "deliveryType": 0,
+                    "vehicleModelId": "2-6.075",
+                    "loading": {
+                        "weight": "0.129/112.0",
+                        "volume": "31.253/116.075",
+                        "count": "0.0/0.0"
+                    },
+                    "queue": [
+                        {
+                            "startIndex": 0,
+                            "startPoint": "112.940263,22.763561",
+                            "endIndex": 1,
+                            "endPoint": "113.292772,23.089041",
+                            "endName": "点1",
+                            "distance": 71071,
+                            "duration": 114,
+                            "scheduleTime": 114
+                        },
+                        {
+                            "startIndex": 1,
+                            "startPoint": "113.292772,23.089041",
+                            "endIndex": 3,
+                            "endPoint": "113.638084,23.092726",
+                            "endName": "点3",
+                            "distance": 51529,
+                            "duration": 88,
+                            "scheduleTime": 202
+                        },
+                        {
+                            "startIndex": 3,
+                            "startPoint": "113.638084,23.092726",
+                            "endIndex": 2,
+                            "endPoint": "111.96205,21.846797",
+                            "endName": "点2",
+                            "distance": 285376,
+                            "duration": 382,
+                            "scheduleTime": 584
+                        },
+                        {
+                            "startIndex": 2,
+                            "startPoint": "111.96205,21.846797",
+                            "endIndex": 0,
+                            "endPoint": "112.940263,22.763561",
+                            "endName": "仓1",
+                            "distance": 170019,
+                            "duration": 211,
+                            "scheduleTime": 795
+                        }
+                    ]
+                }
+            ],
+            "vehiclePlans": [
+                {
+                    "vehicleModelId": "2-6.075",
+                    "totalCount": 1,
+                    "assignedCount": 1,
+                    "avgDistance": 577995.0,
+                    "avgTime": 795.0
+                }
+            ],
+            "unassignedCount": 0,
+            "count": 1,
+            "depotIndex": 1,
+            "vehicleCount": 1,
+            "assignedVehicleCount": 1,
+            "unassignedVehicleCount": 0
+        }
+    ]
+}</textarea>
+                </div>
+                
+                <button id="visualizeBtn">可视化路径规划</button>
+                
+                <div id="errorMessage" class="error"></div>
+                
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalRoutes">0</div>
+                        <div class="stat-label">路径组数</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalPoints">0</div>
+                        <div class="stat-label">服务点数</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalDistance">0</div>
+                        <div class="stat-label">总距离(m)</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalTime">0</div>
+                        <div class="stat-label">总时间(s)</div>
+                    </div>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-title">图例说明</div>
+                    <div class="legend-items">
+                        <div class="legend-item">
+                            <div class="color-box" style="background-color: #000;"></div>
+                            <span>仓库</span>
+                        </div>
+                        <div id="routeLegend"></div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <h3>使用说明：</h3>
+                    <ul>
+                        <li>在输入框中分别粘贴高德路径规划API的请求和响应JSON数据</li>
+                        <li>点击"可视化路径规划"按钮，在地图上显示仓库位置和服务点路径</li>
+                        <li>仓库位置显示为黑色标记，不同路径组的服务点用不同颜色标记</li>
+                        <li>点击地图上的标记可以查看详细信息</li>
+                        <li>可以修改JSON数据重新可视化不同的路径规划结果</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="panel-footer">
+                <div class="color-array-info">已加载39种颜色用于区分路径组</div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script src="https://webapi.amap.com/maps?v=2.0&key=cafae5119d26f1dd5a0ed0aaff58b66f"></script>
+    <script>
+        // 颜色数组
+        const myColors = [
+            '#0069FF',
+            '#EF233C',
+            '#20BF55',
+            '#07BEB8',
+            '#ff6c20',
+            '#523F38',
+            '#be20ff',
+            '#086375',
+            '#A9E5BB',
+            '#8F2D56',
+            '#004E98',
+            '#5D576B',
+            '#248232',
+            '#9A031E',
+            '#8E443D',
+            '#F15152',
+            '#F79256',
+            '#640D14',
+            '#3F88C5',
+            '#0FA3B1',
+            '#1f339b',
+            '#7c1f9b',
+            '#420457',
+            '#5f1547',
+            '#700808',
+            '#253b26',
+            '#155249',
+            '#383146',
+            '#392338',
+            '#76457a',
+            '#a30202',
+            '#9302a3',
+            '#3633a8',
+            '#33a896',
+            '#93a833',
+            '#a87533',
+            '#33a858',
+            '#752d20',
+            '#43137e',
+        ];
+        
+        // 全局变量
+        let map = null;
+        let markers = [];
+        let routePolylines = [];
+        let infoWindow = null;
+        let legendContainer = null;
+        let routeColors = {};
+        
+        // 初始化地图
+        function initMap(centerLngLat) {
+            if (!centerLngLat) {
+                // 默认中心点设为广州
+                centerLngLat = [113.264, 23.129];
+            }
+            
+            // 如果地图已存在，重新设置中心点
+            if (map) {
+                map.setCenter(centerLngLat);
+                map.setZoom(10);
+                // 清除所有覆盖物
+                map.clearMap();
+            } else {
+                // 创建新地图
+                map = new AMap.Map('map', {
+                    center: centerLngLat,
+                    zoom: 10,
+                    viewMode: '2D',
+                    resizeEnable: true
+                });
+                
+                // 创建信息窗口
+                infoWindow = new AMap.InfoWindow({
+                    offset: new AMap.Pixel(0, -30)
+                });
+            }
+            
+            // 清空标记数组
+            markers = [];
+            routePolylines = [];
+            routeColors = {};
+            
+            // 重置统计信息
+            document.getElementById('totalRoutes').textContent = '0';
+            document.getElementById('totalPoints').textContent = '0';
+            document.getElementById('totalDistance').textContent = '0';
+            document.getElementById('totalTime').textContent = '0';
+            
+            // 清空图例
+            if (legendContainer) {
+                legendContainer.innerHTML = '';
+            }
+        }
+        
+        // 创建自定义标记
+        function createCustomMarker(color, text, isWarehouse = false) {
+            const size = isWarehouse ? 36 : 30;
+            const className = isWarehouse ? 'warehouse-marker' : 'route-marker';
+            
+            return new AMap.Marker({
+                content: `<div class="${className}" style="background-color: ${color};">${text}</div>`,
+                offset: new AMap.Pixel(-size/2, -size/2)
+            });
+        }
+        
+        // 创建信息窗口内容
+        function createInfoWindowContent(title, content) {
+            return `<div class="amap-info-content">
+                <div class="info-title">${title}</div>
+                ${content}
+            </div>`;
+        }
+        
+        // 解析坐标字符串
+        function parseCoordinate(coordStr) {
+            const [lng, lat] = coordStr.split(',').map(Number);
+            return [lng, lat];
+        }
+        
+        // 可视化路径规划
+        function visualizePathPlanning() {
+            const requestInput = document.getElementById('requestInput').value;
+            const responseInput = document.getElementById('responseInput').value;
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // 清空错误信息
+            errorMessage.style.display = 'none';
+            errorMessage.textContent = '';
+            
+            let requestData, responseData;
+            
+            try {
+                requestData = JSON.parse(requestInput);
+                responseData = JSON.parse(responseInput);
+            } catch (error) {
+                errorMessage.textContent = 'JSON解析错误: ' + error.message;
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            // 验证数据
+            if (!requestData.depots || !Array.isArray(requestData.depots) || requestData.depots.length === 0) {
+                errorMessage.textContent = '请求数据中缺少depots信息';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            if (!responseData.data || !Array.isArray(responseData.data) || responseData.data.length === 0) {
+                errorMessage.textContent = '响应数据中缺少data信息';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            // 获取仓库坐标
+            const depotLocation = requestData.depots[0].location;
+            const depotLngLat = parseCoordinate(depotLocation);
+            
+            // 获取服务点信息
+            const servicePoints = requestData.servicePoints || [];
+            
+            // 初始化地图
+            initMap(depotLngLat);
+            
+            // 添加仓库标记
+            const warehouseMarker = createCustomMarker('#000', '仓', true);
+            warehouseMarker.setPosition(depotLngLat);
+            warehouseMarker.setMap(map);
+            
+            // 添加仓库标记点击事件
+            warehouseMarker.on('click', function() {
+                const content = createInfoWindowContent(
+                    '仓库位置',
+                    `<div class="info-row">
+                        <span class="info-label">坐标:</span>
+                        <span class="info-value">${depotLocation}</span>
+                    </div>`
+                );
+                infoWindow.setContent(content);
+                infoWindow.open(map, depotLngLat);
+            });
+            
+            markers.push(warehouseMarker);
+            
+            // 处理响应数据
+            const routeData = responseData.data[0];
+            const routes = routeData.routes || [];
+            
+            // 更新统计信息
+            document.getElementById('totalRoutes').textContent = routes.length;
+            document.getElementById('totalDistance').textContent = routeData.totalDistance ? routeData.totalDistance.toLocaleString() : '0';
+            document.getElementById('totalTime').textContent = routeData.totalTime || '0';
+            
+            // 记录已处理的服务点
+            const processedPoints = new Set();
+            
+            // 处理每个路径组
+            routes.forEach((route, routeIndex) => {
+                const routeColor = myColors[routeIndex % myColors.length];
+                
+                // 存储路径组颜色
+                routeColors[routeIndex] = routeColor;
+                
+                // 更新图例
+                updateLegend(routeIndex, routeColor);
+                
+                // 处理路径连接线
+                const pathPoints = [];
+                
+                // 处理每个路径点
+                if (route.queue && Array.isArray(route.queue)) {
+                    let pointIndex = 1;
+                    
+                    route.queue.forEach((queueItem, queueIndex) => {
+                        // 添加起始点（如果是第一个点，起始点是仓库）
+                        if (queueIndex === 0) {
+                            pathPoints.push(depotLngLat);
+                        }
+                        
+                        // 获取服务点索引 (响应中的endIndex-1对应请求中的servicePoints索引)
+                        const servicePointIndex = queueItem.endIndex - 1;
+                        
+                        if (servicePointIndex >= 0 && servicePointIndex < servicePoints.length) {
+                            const servicePoint = servicePoints[servicePointIndex];
+                            const pointLngLat = parseCoordinate(servicePoint.location);
+                            
+                            // 添加到路径点
+                            pathPoints.push(pointLngLat);
+                            
+                            // 创建标记
+                            const marker = createCustomMarker(routeColor, pointIndex.toString());
+                            marker.setPosition(pointLngLat);
+                            marker.setMap(map);
+                            
+                            // 添加标记点击事件
+                            marker.on('click', function() {
+                                const content = createInfoWindowContent(
+                                    servicePoint.name || '点' + (servicePointIndex + 1),
+                                    `<div class="info-row">
+                                        <span class="info-label">路径组:</span>
+                                        <span class="info-value">${routeIndex + 1}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">序号:</span>
+                                        <span class="info-value">${pointIndex}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">坐标:</span>
+                                        <span class="info-value">${servicePoint.location}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">重量需求:</span>
+                                        <span class="info-value">${servicePoint.demand?.weight || 0}</span>
+                                    </div>
+                                    <div class="info-row">
+                                        <span class="info-label">体积需求:</span>
+                                        <span class="info-value">${servicePoint.demand?.volume || 0}</span>
+                                    </div>`
+                                );
+                                infoWindow.setContent(content);
+                                infoWindow.open(map, pointLngLat);
+                            });
+                            
+                            markers.push(marker);
+                            
+                            // 添加到已处理点集合
+                            processedPoints.add(servicePointIndex);
+                            
+                            pointIndex++;
+                        }
+                    });
+                    
+                    // 添加路径连接线
+                    if (pathPoints.length > 1) {
+                        const polyline = new AMap.Polyline({
+                            path: pathPoints,
+                            strokeColor: routeColor,
+                            strokeWeight: 4,
+                            strokeOpacity: 0.8,
+                            lineJoin: 'round',
+                            lineCap: 'round'
+                        });
+                        polyline.setMap(map);
+                        routePolylines.push(polyline);
+                    }
+                }
+            });
+            
+            // 更新服务点统计
+            document.getElementById('totalPoints').textContent = processedPoints.size;
+            
+            // 调整地图显示范围，包含所有标记
+            if (markers.length > 0) {
+                const bounds = new AMap.Bounds();
+                markers.forEach(marker => {
+                    const position = marker.getPosition();
+                    if (position) {
+                        bounds.extend(position);
+                    }
+                });
+                map.setBounds(bounds);
+            }
+        }
+        
+        // 更新图例
+        function updateLegend(routeIndex, color) {
+            const legendContainer = document.getElementById('routeLegend');
+            
+            const legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            legendItem.innerHTML = `
+                <div class="color-box" style="background-color: ${color};"></div>
+                <span>路径组 ${routeIndex + 1}</span>
+            `;
+            
+            legendContainer.appendChild(legendItem);
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 绑定按钮点击事件
+            document.getElementById('visualizeBtn').addEventListener('click', visualizePathPlanning);
+            
+            // 设置图例容器引用
+            legendContainer = document.getElementById('routeLegend');
+            
+            // 页面加载后自动可视化示例数据
+            setTimeout(visualizePathPlanning, 1000);
+            
+            // 响应窗口大小变化
+            window.addEventListener('resize', function() {
+                if (map) {
+                    setTimeout(() => {
+                        map.setFitView();
+                    }, 100);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
