@@ -1,5 +1,17 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+<!-- 叫豆包、阿里、DeepSeek、小艺、元宝 写 就元宝写的能用。。。
+ 这个是高德请求排线参数{"sortRule": 1,"routeOption": 2,"isBack": 0,"infiniteVehicle": 1,"depots": [{"location": "112.940263,22.763561","vehicleGroups": [{"deliveryType": 0,"vehicleModelId": "2-6.075","vehicleCount": 1,"capacity": {"weight": 112,"volume": 116.075}}]}],"servicePoints": [{"location": "113.292772,23.089041","name": "点1","demand": {"weight": 0.12,"volume": 13.567800000000005}},{"location": "111.96205,21.846797","name": "点2","demand": {"weight": 0,"volume": 4.32}},{"location": "113.638084,23.092726","name": "点3","demand": {"weight": 0.009,"volume": 13.3654}}],"deliveryCapacity": 0}
+————————
+这个是高德响应参数{"errcode": 10000,"errmsg": "OK","data": [{"depotLocation": "112.940263,22.763561","totalTime": 795,"timeAll": 795,"totalDistance": 577995,"loading": {"weight": "0.129/112.0","volume": "31.253/116.075","count": "0.0/0.0"},"routes": [{"time": 795,"timeInclude": 795,"distance": 577995,"deliveryType": 0,"vehicleModelId": "2-6.075","loading": {"weight": "0.129/112.0","volume": "31.253/116.075","count": "0.0/0.0"},"queue": [{"startIndex": 0,"startPoint": "112.940263,22.763561","endIndex": 1,"endPoint": "113.292772,23.089041","endName": "点1","distance": 71071,"duration": 114,"scheduleTime": 114},{"startIndex": 1,"startPoint": "113.292772,23.089041","endIndex": 3,"endPoint": "113.638084,23.092726","endName": "点3","distance": 51529,"duration": 88,"scheduleTime": 202},{"startIndex": 3,"startPoint": "113.638084,23.092726","endIndex": 2,"endPoint": "111.96205,21.846797","endName": "点2","distance": 285376,"duration": 382,"scheduleTime": 584},{"startIndex": 2,"startPoint": "111.96205,21.846797","endIndex": 0,"endPoint": "112.940263,22.763561","endName": "仓1","distance": 170019,"duration": 211,"scheduleTime": 795}]}],"vehiclePlans": [{"vehicleModelId": "2-6.075","totalCount": 1,"assignedCount": 1,"avgDistance": 577995.0,"avgTime": 795.0}],"unassignedCount": 0,"count": 1,"depotIndex": 1,"vehicleCount": 1,"assignedVehicleCount": 1,"unassignedVehicleCount": 0}]}
+——————————————
+现在我需要你写一个HTML，
+1、2个输入框，让用户输入 请求和响应 输入后可以点击确定
+2、读取请求参数.depots[0].location来渲染仓库坐标、读取请求参数.servicePoints 记好他们的索引
+3、读取响应参数.data[0].routes,这个可能会有很多个组，routes.queue.endIndex-1 对应请求参数.servicePoints的索引，routes.queue.endPoint就是坐标点，如果 routes.queue.endIndex===0 那么它就是仓库坐标 忽略它。
+4、仓库单独渲染到地图上用自定义坐标<div style="cl=#fff;bg=#000;...">仓</div>    按响应参数.data[0].routes分的组数据渲染到高德地图上，都只渲染点坐标 每个组点坐标用不同的颜色显示 并显示序号，高德点坐标支持用div来渲染，锚点anchor="center"，渲染的地图宽高都占满屏幕 ，高德key：cafae5119d26f1dd5a0ed0aaff58b66f
+const myColors = [ '#0069FF','#EF233C','#20BF55','#07BEB8','#ff6c20','#523F38','#be20ff','#086375','#A9E5BB','#8F2D56','#004E98','#5D576B','#248232','#9A031E','#8E443D','#F15152','#F79256','#640D14','#3F88C5','#0FA3B1','#1f339b','#7c1f9b','#420457','#5f1547','#700808','#253b26','#155249','#383146','#392338','#76457a','#a30202','#9302a3','#3633a8','#33a896','#93a833','#a87533','#33a858','#752d20','#43137e',];
+ -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
