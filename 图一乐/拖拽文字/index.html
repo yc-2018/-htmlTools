@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>textstring</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #f5f0e8; touch-action: none; }
+    #container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 20px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .letter {
+      position: absolute;
+      top: 0; left: 0;
+      will-change: transform;
+      font-family: 'Georgia', serif;
+      font-size: 20px;
+      line-height: 1;
+      color: #4a4a4a;
+      pointer-events: none;
+    }
+    .letter.draggable {
+      pointer-events: auto;
+      cursor: grab;
+      z-index: 10;
+      touch-action: none;
+    }
+    .letter.dragging {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script type="module">
+    import { prepareWithSegments, layoutWithLines } from './pretext.js';
+
+    const FULL_TEXT = "中分头，背带裤，我是ikun你记住。山外青山楼外楼，唱跳RAP打篮球。黄昏见证虔诚的信徒，巅峰诞生虚伪的拥护,一个男人和一个男孩最大的区别是，一个真正的man，一个真正的男人他清楚自己要做什么，他清楚自己要往什么样的方向去努力，也许是他的事业，也许是保护他的家人，也许是爱他的人。他让自己变强壮，让自己有能力，用各种各样的方式能够去保护别人，保护他自己的那颗心，自己喜欢的事业，自己喜欢的东西，我觉得这是一个真正的男人。我觉得一个男人不一定非得说拥有多么强壮的肌肉，如果你真的想要看这个人是一个男孩还是一个男人，不要去看他的body，看他的心".split('').join(' ');
+    const SHORT_TEXT = "一个男人和一个男孩最大的区别是，一个真正的man，一个真正的男人他清楚自己要做什么，他清楚自己要往什么样的方向去努力，也许是他的事业，也许是保护他的家人，也许是爱他的人。他让自己变强壮，让自己有能力，用各种各样的方式能够去保护别人，保护他自己的那颗心，自己喜欢的事业，自己喜欢的东西，我觉得这是一个真正的男人。我觉得一个男人不一定非得说拥有多么强壮的肌肉，如果你真的想要看这个人是一个男孩还是一个男人，不要去看他的body，看他的心。 ".split('').join(' '); // 靠空格分词的，英文不用这样，但是中文不这样会有bug
+    const TEXT = window.innerWidth < 600 ? SHORT_TEXT : FULL_TEXT;
+    const FONT = '20px Georgia';
+    const LINE_HEIGHT = 28;
+    const CONSTRAINT_DIST = 1.2;
+    const UNLOCK_THRESHOLD = 1;
+    const ITERATIONS = 12;
+    const DAMPING = 0.97;
+    const GRAVITY = 0.15;
+    let gravityOn = true;
+    let unraveling = false;
+    let unravelIdx = -1;
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'f' || e.key === 'F') {
+        gravityOn = !gravityOn;
+        if (gravityOn && !unraveling) {
+          unraveling = true;
+          hint.style.opacity = '0';
+          unravelIdx = letters.length - 1;
+          while (unravelIdx >= 0 && !letters[unravelIdx].locked) unravelIdx--;
+        }
+      }
+    });
+
+    const container = document.getElementById('container');
+    const measureCtx = document.createElement('canvas').getContext('2d');
+    measureCtx.font = FONT;
+
+    // Prepare text once with pretext
+    const prepared = prepareWithSegments(TEXT, FONT);
+    const MARGIN = 20;
+    const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+
+    function getMaxWidth() {
+      return container.getBoundingClientRect().width - MARGIN * 2;
+    }
+
+    // Measure all graphemes once — these never change
+    const allGraphemes = [...segmenter.segment(TEXT)].map(s => s.segment);
+    const graphemeWidths = allGraphemes.map(g => measureCtx.measureText(g).width);
+
+    // Get reading-order positions for each grapheme at a given width.
+    // We do our own word-wrap using pretext's measured widths as ground truth,
+    // but track every grapheme including trailing spaces so the count always
+    // matches allGraphemes.length.
+    function layoutPositions(maxWidth) {
+      // First pass: compute line breaks to get total height
+      const rawPositions = [];
+      let x = 0;
+      let lineY = 0;
+
+      for (let gi = 0; gi < allGraphemes.length; gi++) {
+        const g = allGraphemes[gi];
+        const w = graphemeWidths[gi];
+
+        if (g === ' ' && x > 0) {
+          let wordW = 0;
+          for (let j = gi + 1; j < allGraphemes.length && allGraphemes[j] !== ' '; j++) {
+            wordW += graphemeWidths[j];
+          }
+          if (x + w + wordW > maxWidth) {
+            rawPositions.push({ x: x + MARGIN, y: lineY, w });
+            x = 0;
+            lineY += LINE_HEIGHT;
+            continue;
+          }
+        }
+
+        rawPositions.push({ x: x + MARGIN, y: lineY, w });
+        x += w;
+      }
+
+      // Vertical center offset
+      const totalHeight = lineY + LINE_HEIGHT;
+      const containerRect = container.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const offsetY = Math.max(0, (viewportHeight - containerRect.top - totalHeight) * 0.3);
+
+      return rawPositions.map(p => ({ x: p.x, y: p.y + offsetY, w: p.w }));
+    }
+
+    // Initial layout — compute positions and zig-zag ordering once
+    let positions = layoutPositions(getMaxWidth());
+
+    // Build zig-zag string order mapping (reading index -> string index) based on initial layout
+    // This mapping is fixed — it never changes on resize
+    function buildZigzagMapping(maxWidth) {
+      const { lines } = layoutWithLines(prepared, maxWidth, LINE_HEIGHT);
+
+      // Build per-line reading indices
+      const lineIndices = [];
+      let gi = 0;
+      for (let li = 0; li < lines.length; li++) {
+        const lineGraphemes = [...segmenter.segment(lines[li].text)].map(s => s.segment);
+        const indices = [];
+        for (let j = 0; j < lineGraphemes.length; j++) {
+          indices.push(gi++);
+        }
+        lineIndices.push(indices);
+      }
+
+      // Zig-zag: snake so last line goes L->R
+      const lastLineIdx = lineIndices.length - 1;
+      const needFlip = lastLineIdx % 2 === 1;
+      const stringOrder = []; // stringOrder[stringIdx] = readingIdx
+      for (let li = 0; li < lineIndices.length; li++) {
+        const reversed = needFlip ? (li % 2 === 0) : (li % 2 === 1);
+        if (reversed) {
+          stringOrder.push(...[...lineIndices[li]].reverse());
+        } else {
+          stringOrder.push(...lineIndices[li]);
+        }
+      }
+
+      return stringOrder;
+    }
+
+    const stringOrder = buildZigzagMapping(getMaxWidth());
+
+    // Build letters array in string order
+    const letters = stringOrder.map(ri => {
+      const p = positions[ri];
+      return {
+        ch: allGraphemes[ri],
+        w: p.w,
+        x: p.x, y: p.y,
+        ox: p.x, oy: p.y,
+        px: p.x, py: p.y,
+        readingIdx: ri,
+        locked: true
+      };
+    });
+
+    // Compute rest lengths in string order
+    function computeRestLengths() {
+      const rests = [];
+      for (let i = 0; i < letters.length - 1; i++) {
+        const a = letters[i], b = letters[i + 1];
+        const dist = Math.hypot(
+          (b.ox + b.w / 2) - (a.ox + a.w / 2),
+          (b.oy + LINE_HEIGHT / 2) - (a.oy + LINE_HEIGHT / 2)
+        );
+        rests.push(dist * CONSTRAINT_DIST);
+      }
+      return rests;
+    }
+
+    let restLengths = computeRestLengths();
+
+    // DOM elements
+    const els = [];
+    for (const l of letters) {
+      const span = document.createElement('span');
+      span.className = 'letter';
+      span.textContent = l.ch;
+      container.appendChild(span);
+      els.push(span);
+    }
+
+    // Unlock last 6
+    const lastIdx = letters.length - 1;
+    for (let i = lastIdx; i > lastIdx - 6; i--) {
+      letters[i].locked = false;
+      els[i].classList.add('draggable');
+    }
+
+    // "DRAG ME" hint
+    const hint = document.createElement('img');
+    hint.src = 'drag.png';
+    hint.style.cssText = 'position:absolute;top:0;left:0;width:60px;pointer-events:none;opacity:0;transition:opacity 0.8s;';
+    container.appendChild(hint);
+    function positionHint() {
+      const last = letters[lastIdx];
+      hint.style.transform = `translate(${last.ox - 30}px, ${last.oy + LINE_HEIGHT + 2}px)`;
+    }
+    positionHint();
+    setTimeout(() => { hint.style.opacity = '1'; }, 500);
+
+    // Resize: relayout locked letters using their fixed reading-order index
+    window.addEventListener('resize', () => {
+      const newPositions = layoutPositions(getMaxWidth());
+      for (let i = 0; i < letters.length; i++) {
+        const np = newPositions[letters[i].readingIdx];
+        if (letters[i].locked) {
+          letters[i].x = np.x;
+          letters[i].y = np.y;
+          letters[i].ox = np.x;
+          letters[i].oy = np.y;
+          letters[i].px = np.x;
+          letters[i].py = np.y;
+        } else {
+          letters[i].ox = np.x;
+          letters[i].oy = np.y;
+        }
+      }
+      // Rest lengths stay fixed — the string doesn't change length
+      positionHint();
+    });
+
+    // Drag state — multitouch: map pointerId -> { idx, offsetX, offsetY }
+    const drags = new Map();
+
+    function isDragged(idx) {
+      for (const d of drags.values()) if (d.idx === idx) return true;
+      return false;
+    }
+
+    container.addEventListener('pointerdown', (e) => {
+      const idx = els.indexOf(e.target);
+      if (idx === -1 || letters[idx].locked) return;
+      // Don't allow two fingers on the same letter
+      if (isDragged(idx)) return;
+      const rect = container.getBoundingClientRect();
+      drags.set(e.pointerId, {
+        idx,
+        offsetX: e.clientX - rect.left - letters[idx].x,
+        offsetY: e.clientY - rect.top - letters[idx].y
+      });
+      els[idx].classList.add('dragging');
+      e.target.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      const d = drags.get(e.pointerId);
+      if (!d) return;
+      const rect = container.getBoundingClientRect();
+      const l = letters[d.idx];
+      l.x = e.clientX - rect.left - d.offsetX;
+      l.y = e.clientY - rect.top - d.offsetY;
+      l.px = l.x;
+      l.py = l.y;
+      l.locked = false;
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      const d = drags.get(e.pointerId);
+      if (!d) return;
+      els[d.idx].classList.remove('dragging');
+      drags.delete(e.pointerId);
+    });
+
+    window.addEventListener('pointercancel', (e) => {
+      const d = drags.get(e.pointerId);
+      if (!d) return;
+      els[d.idx].classList.remove('dragging');
+      drags.delete(e.pointerId);
+    });
+
+    // Physics
+    function simulate() {
+      // Unravel step (one letter per fixed tick)
+      if (unraveling) {
+        if (!gravityOn || unravelIdx < 0) { unraveling = false; }
+        else if (letters[unravelIdx].locked) {
+          letters[unravelIdx].locked = false;
+          letters[unravelIdx].px = letters[unravelIdx].x;
+          letters[unravelIdx].py = letters[unravelIdx].y - 0.5;
+          unravelIdx--;
+        } else {
+          unravelIdx--;
+        }
+      }
+
+      // Unlock propagation
+      for (let i = letters.length - 2; i >= 0; i--) {
+        if (letters[i].locked && !letters[i + 1].locked) {
+          const a = letters[i], b = letters[i + 1];
+          const dx = (b.x + b.w / 2) - (a.ox + a.w / 2);
+          const dy = (b.y + LINE_HEIGHT / 2) - (a.oy + LINE_HEIGHT / 2);
+          const dist = Math.hypot(dx, dy);
+          if (dist > restLengths[i] + UNLOCK_THRESHOLD) {
+            a.locked = false;
+            a.px = a.x;
+            a.py = a.y;
+            hint.style.opacity = '0';
+          }
+        }
+      }
+
+      // Verlet
+      for (let i = 0; i < letters.length; i++) {
+        const l = letters[i];
+        if (l.locked || isDragged(i)) continue;
+        const vx = (l.x - l.px) * DAMPING;
+        const vy = (l.y - l.py) * DAMPING;
+        l.px = l.x;
+        l.py = l.y;
+        l.x += vx;
+        l.y += vy + (gravityOn ? GRAVITY : 0);
+      }
+
+      // Distance constraints
+      for (let iter = 0; iter < ITERATIONS; iter++) {
+        for (let i = 0; i < letters.length - 1; i++) {
+          const a = letters[i], b = letters[i + 1];
+          if (a.locked && b.locked) continue;
+          const ax = a.x + a.w / 2, ay = a.y + LINE_HEIGHT / 2;
+          const bx = b.x + b.w / 2, by = b.y + LINE_HEIGHT / 2;
+          const dx = bx - ax, dy = by - ay;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          const diff = (dist - restLengths[i]) / dist;
+          const aFixed = a.locked || isDragged(i);
+          const bFixed = b.locked || isDragged(i + 1);
+          if (aFixed && !bFixed) {
+            b.x -= dx * diff; b.y -= dy * diff;
+          } else if (!aFixed && bFixed) {
+            a.x += dx * diff; a.y += dy * diff;
+          } else if (!aFixed && !bFixed) {
+            a.x += dx * diff * 0.5; a.y += dy * diff * 0.5;
+            b.x -= dx * diff * 0.5; b.y -= dy * diff * 0.5;
+          }
+        }
+      }
+
+      // Letter collision
+      const RADIUS = 7;
+      for (let i = 0; i < letters.length; i++) {
+        if (letters[i].locked) continue;
+        const a = letters[i];
+        const acx = a.x + a.w / 2, acy = a.y + LINE_HEIGHT / 2;
+        for (let j = i + 1; j < letters.length; j++) {
+          if (letters[j].locked) continue;
+          if (Math.abs(i - j) === 1) continue;
+          const b = letters[j];
+          const bcx = b.x + b.w / 2, bcy = b.y + LINE_HEIGHT / 2;
+          const dx = bcx - acx, dy = bcy - acy;
+          const dist = Math.hypot(dx, dy) || 0.001;
+          const minDist = RADIUS * 2;
+          if (dist < minDist) {
+            const overlap = (minDist - dist) / dist * 0.5;
+            const aD = isDragged(i);
+            const bD = isDragged(j);
+            if (aD) { b.x += dx * overlap; b.y += dy * overlap; }
+            else if (bD) { a.x -= dx * overlap; a.y -= dy * overlap; }
+            else { a.x -= dx * overlap; a.y -= dy * overlap; b.x += dx * overlap; b.y += dy * overlap; }
+          }
+        }
+      }
+
+      // Boundary
+      const cRect = container.getBoundingClientRect();
+      const minX = -cRect.left;
+      const minY = -cRect.top;
+      const maxX = window.innerWidth - cRect.left;
+      const maxY = window.innerHeight - cRect.top;
+      const bounce = 0.4;
+      for (let i = 0; i < letters.length; i++) {
+        const l = letters[i];
+        if (l.locked || isDragged(i)) continue;
+        if (l.x < minX) { l.x = minX; l.px = l.x + (l.x - l.px) * bounce; }
+        if (l.x + l.w > maxX) { l.x = maxX - l.w; l.px = l.x + (l.x - l.px) * bounce; }
+        if (l.y < minY) { l.y = minY; l.py = l.y + (l.y - l.py) * bounce; }
+        if (l.y + LINE_HEIGHT > maxY) { l.y = maxY - LINE_HEIGHT; l.py = l.y + (l.y - l.py) * bounce; }
+      }
+    }
+
+    // Fixed-timestep loop: simulate at 60Hz regardless of display refresh rate
+    const FIXED_DT = 1 / 120;
+    const MAX_STEPS = 4; // cap to avoid spiral of death
+    let accumulator = 0;
+    let lastTime = -1;
+
+    function render(now) {
+      if (lastTime < 0) { lastTime = now; requestAnimationFrame(render); return; }
+      const dt = Math.min((now - lastTime) / 1000, MAX_STEPS * FIXED_DT);
+      lastTime = now;
+      accumulator += dt;
+
+      while (accumulator >= FIXED_DT) {
+        simulate();
+        accumulator -= FIXED_DT;
+      }
+
+      for (let i = 0; i < letters.length; i++) {
+        if (!letters[i].locked) els[i].classList.add('draggable');
+        els[i].style.transform = `translate(${letters[i].x}px, ${letters[i].y}px)`;
+      }
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  </script>
+</body>
+</html>
