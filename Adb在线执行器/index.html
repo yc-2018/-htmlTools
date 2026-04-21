@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adb 在线执行器</title>
+  <script src="./webAdb.js"></script>
+  <style>
+    :root {
+      --bg: #edf2ff;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-strong: #ffffff;
+      --line: rgba(17, 24, 39, 0.08);
+      --line-strong: rgba(17, 24, 39, 0.14);
+      --text: #15233f;
+      --muted: #60708a;
+      --primary: #3f5efb;
+      --primary-2: #6a7dff;
+      --accent: #1fc8a4;
+      --danger: #e15261;
+      --warn: #ffb443;
+      --shadow: 0 26px 60px rgba(32, 58, 119, 0.14);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Trebuchet MS", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(63, 94, 251, 0.18), transparent 32%),
+        radial-gradient(circle at right top, rgba(31, 200, 164, 0.18), transparent 24%),
+        linear-gradient(180deg, #eef2ff 0%, #edf3f7 50%, #f6f7fb 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.35) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.35) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 82%);
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1240px, calc(100vw - 28px));
+      margin: 22px auto 40px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.18fr) minmax(300px, 0.82fr);
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.56);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      border-radius: var(--radius-xl);
+    }
+
+    .hero-main {
+      padding: 34px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-main::after {
+      content: "ADB";
+      position: absolute;
+      right: -14px;
+      bottom: -38px;
+      font-size: clamp(96px, 16vw, 168px);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: rgba(63, 94, 251, 0.08);
+      pointer-events: none;
+    }
+
+    .hero-side {
+      padding: 28px;
+      background:
+        linear-gradient(140deg, rgba(21, 35, 63, 0.98), rgba(21, 35, 63, 0.86)),
+        linear-gradient(135deg, var(--primary), var(--accent));
+      color: #eff5ff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(63, 94, 251, 0.08);
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      box-shadow: 0 0 0 6px rgba(63, 94, 251, 0.08);
+    }
+
+    h1 {
+      margin: 18px 0 14px;
+      font-size: clamp(34px, 5vw, 52px);
+      line-height: 1.04;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-main p,
+    .hero-side p,
+    .section-desc,
+    .subtle,
+    .support-list li,
+    .command-desc {
+      color: var(--muted);
+      line-height: 1.72;
+    }
+
+    .hero-side p {
+      color: rgba(239, 245, 255, 0.76);
+    }
+
+    .badge-row,
+    .quick-grid,
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .badge-row {
+      margin-top: 22px;
+    }
+
+    .badge-row span,
+    .mini-card,
+    .ghost-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 15px;
+      border-radius: 999px;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      background: rgba(255, 255, 255, 0.76);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .stats {
+      margin-top: 20px;
+    }
+
+    .mini-card {
+      min-width: calc(50% - 6px);
+      flex-direction: column;
+      align-items: flex-start;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.08);
+      color: #f7fbff;
+    }
+
+    .mini-card strong {
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .mini-card span {
+      color: rgba(239, 245, 255, 0.72);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+      gap: 20px;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 0;
+    }
+
+    .panel {
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.56);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      border-radius: var(--radius-lg);
+    }
+
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .section-kicker::before {
+      content: "";
+      width: 18px;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+    }
+
+    .section-title {
+      margin: 14px 0 10px;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+
+    .alert {
+      display: none;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .alert.show {
+      display: block;
+    }
+
+    .alert-danger {
+      background: rgba(225, 82, 97, 0.1);
+      border-color: rgba(225, 82, 97, 0.18);
+      color: #b62d3c;
+    }
+
+    .alert-info {
+      background: rgba(63, 94, 251, 0.08);
+      border-color: rgba(63, 94, 251, 0.14);
+      color: #3550d6;
+    }
+
+    .alert-success {
+      background: rgba(31, 200, 164, 0.1);
+      border-color: rgba(31, 200, 164, 0.18);
+      color: #0f8f75;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 12px;
+      margin-top: 18px;
+      align-items: center;
+    }
+
+    .input,
+    .select,
+    .textarea {
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid rgba(17, 24, 39, 0.1);
+      background: rgba(255, 255, 255, 0.94);
+      padding: 14px 16px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .textarea {
+      min-height: 108px;
+      resize: vertical;
+    }
+
+    .input:focus,
+    .select:focus,
+    .textarea:focus {
+      border-color: rgba(63, 94, 251, 0.32);
+      box-shadow: 0 0 0 4px rgba(63, 94, 251, 0.1);
+    }
+
+    .button {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 18px;
+      cursor: pointer;
+      transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .button-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff;
+      box-shadow: 0 14px 26px rgba(63, 94, 251, 0.2);
+    }
+
+    .button-secondary {
+      background: rgba(63, 94, 251, 0.08);
+      color: var(--primary);
+    }
+
+    .button-danger {
+      background: rgba(225, 82, 97, 0.12);
+      color: var(--danger);
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .status-card {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(17, 24, 39, 0.08);
+    }
+
+    .status-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .status-card strong {
+      font-size: 22px;
+      letter-spacing: -0.04em;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .preset-card {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .preset-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(63, 94, 251, 0.22);
+      box-shadow: 0 12px 24px rgba(63, 94, 251, 0.08);
+    }
+
+    .preset-card.active {
+      border-color: rgba(63, 94, 251, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(63, 94, 251, 0.14);
+      background: linear-gradient(135deg, rgba(63, 94, 251, 0.1), rgba(31, 200, 164, 0.08));
+    }
+
+    .preset-card h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+    }
+
+    .preset-card p {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .mode-tab {
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .mode-tab.active {
+      background: rgba(63, 94, 251, 0.1);
+      color: var(--primary);
+      border-color: rgba(63, 94, 251, 0.18);
+    }
+
+    .command-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 18px;
+      background: #0d1527;
+      color: #d9e6ff;
+      font-family: Consolas, "Courier New", monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 76px;
+      border: 1px solid rgba(63, 94, 251, 0.12);
+    }
+
+    .field {
+      margin-top: 16px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .output {
+      margin-top: 16px;
+      padding: 18px;
+      border-radius: 18px;
+      background: #09101d;
+      color: #d9e6ff;
+      min-height: 240px;
+      max-height: 560px;
+      overflow: auto;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.72;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid rgba(63, 94, 251, 0.12);
+    }
+
+    .support-list {
+      margin: 18px 0 0;
+      padding-left: 18px;
+    }
+
+    .support-list li + li {
+      margin-top: 10px;
+    }
+
+    .helper-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .helper-card {
+      padding: 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(17, 24, 39, 0.08);
+    }
+
+    .helper-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100vw - 16px, 1240px);
+        margin: 12px auto 24px;
+      }
+
+      .hero-main,
+      .hero-side,
+      .panel {
+        padding: 18px;
+        border-radius: 20px;
+      }
+
+      .preset-grid,
+      .helper-grid,
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section-title {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="card hero-main">
+        <span class="eyebrow">WebUSB · Local ADB</span>
+        <h1>Adb 在线执行器</h1>
+        <p>
+          参考 <a href="https://adb.http.gs/" target="_blank" rel="noreferrer">adb.http.gs</a> 的单卡片激活工具结构，
+          做成更完整的本地版工作页：保留“浏览器直连设备 + 一键执行预设命令 + 自定义 shell 指令”的核心流程，
+          同时补上命令预览、连接状态、输出日志和使用说明。
+        </p>
+        <div class="badge-row">
+          <span>支持 WebUSB 直连</span>
+          <span>预设激活命令</span>
+          <span>可执行自定义 shell</span>
+          <span>全部在浏览器本地完成</span>
+        </div>
+      </div>
+      <div class="card hero-side">
+        <div>
+          <h2 style="margin:0 0 10px; font-size:24px; letter-spacing:-0.03em;">页面结构参考点</h2>
+          <p>左侧保留参考站点的“快速执行”思路，右侧扩展为状态与说明面板，适合你放进工具箱里单独使用。</p>
+          <div class="stats">
+            <div class="mini-card">
+              <strong>WebUSB</strong>
+              <span>浏览器设备授权</span>
+            </div>
+            <div class="mini-card">
+              <strong>ADB</strong>
+              <span>本地 shell 执行</span>
+            </div>
+            <div class="mini-card">
+              <strong>预设</strong>
+              <span>一键激活常见场景</span>
+            </div>
+            <div class="mini-card">
+              <strong>自定义</strong>
+              <span>执行自己的命令</span>
+            </div>
+          </div>
+        </div>
+        <div class="badge-row">
+          <span class="ghost-chip">Chrome / Edge</span>
+          <span class="ghost-chip">安卓开发者模式</span>
+          <span class="ghost-chip">USB 调试</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <div class="stack">
+        <div class="panel">
+          <span class="section-kicker">Connection</span>
+          <h2 class="section-title">连接设备并执行命令</h2>
+          <p class="section-desc">整体交互参考原站的“选择方案 + 点击激活”，但这里拆成了连接、模式、命令预览和输出日志四个层次，信息更清楚。</p>
+
+          <div class="alert alert-danger" id="supportAlert">
+            当前浏览器不支持 WebUSB API，请优先使用最新版 Chrome 或 Edge。
+          </div>
+          <div class="alert alert-info show" id="messageAlert">
+            先点“连接设备”，在浏览器弹窗中选择已开启 USB 调试的安卓设备。
+          </div>
+          <div class="alert alert-success" id="resultAlert"></div>
+
+          <div class="toolbar">
+            <button class="button button-primary" id="connectButton" type="button">连接设备</button>
+            <button class="button button-secondary" id="runButton" type="button">执行命令</button>
+            <button class="button button-danger" id="stopButton" type="button" disabled>停止读取</button>
+          </div>
+
+          <div class="status-grid">
+            <div class="status-card">
+              <span>浏览器支持</span>
+              <strong id="supportValue">检测中</strong>
+            </div>
+            <div class="status-card">
+              <span>当前设备</span>
+              <strong id="deviceValue">未连接</strong>
+            </div>
+            <div class="status-card">
+              <span>执行状态</span>
+              <strong id="processValue">空闲</strong>
+            </div>
+          </div>
+
+          <div class="mode-tabs">
+            <button class="mode-tab active" type="button" data-mode="preset">预设方案</button>
+            <button class="mode-tab" type="button" data-mode="custom">自定义命令</button>
+          </div>
+
+          <div id="presetSection">
+            <div class="preset-grid" id="presetGrid"></div>
+          </div>
+
+          <div id="customSection" style="display:none;">
+            <div class="field">
+              <label for="manualCommand">输入非交互型 ADB shell 命令</label>
+              <textarea class="textarea" id="manualCommand" placeholder="例如：pm list packages | findstr shizuku&#10;uname -a&#10;getprop ro.product.model"></textarea>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>将执行的命令</label>
+            <div class="command-box" id="commandPreview">请选择一个预设方案，或切换到自定义命令模式。</div>
+          </div>
+
+          <div class="field">
+            <label for="outputLog">执行输出</label>
+            <pre class="output" id="outputLog">等待执行命令...</pre>
+          </div>
+
+          <div class="footer-note">
+            说明：这里执行的是设备上的 <code>shell:</code> 指令，适合非交互型命令。若命令本身会一直常驻或等待输入，请使用“停止读取”中断当前会话。
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="panel">
+          <span class="section-kicker">Guide</span>
+          <h2 class="section-title">使用前准备</h2>
+          <ul class="support-list">
+            <li>手机需打开开发者选项，并启用 USB 调试。</li>
+            <li>首次连接时，需要在手机上确认“允许 USB 调试”。</li>
+            <li>Windows 通常还需要安装对应厂商 USB 驱动。</li>
+            <li>浏览器建议使用最新版 Chrome 或 Edge，Safari / Firefox 通常不支持 WebUSB。</li>
+          </ul>
+
+          <div class="helper-grid">
+            <div class="helper-card">
+              <strong>适合做什么</strong>
+              <div class="command-desc">激活 Shizuku、执行 pm / am / settings / getprop 等常用非交互命令。</div>
+            </div>
+            <div class="helper-card">
+              <strong>不适合做什么</strong>
+              <div class="command-desc">需要持续交互输入、需要终端控制、或依赖复杂 TTY 行为的命令。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <span class="section-kicker">Reference</span>
+          <h2 class="section-title">这版页面借鉴了什么</h2>
+          <div class="helper-grid">
+            <div class="helper-card">
+              <strong>卡片式核心操作</strong>
+              <div class="command-desc">保留参考站点一眼就能看到“选命令 + 点击执行”的主流程。</div>
+            </div>
+            <div class="helper-card">
+              <strong>支持检测提示</strong>
+              <div class="command-desc">同样在首屏提醒 WebUSB 支持情况，避免用户点了才发现浏览器不兼容。</div>
+            </div>
+            <div class="helper-card">
+              <strong>命令预览</strong>
+              <div class="command-desc">把即将运行的 shell 清楚展示出来，执行前就能确认。</div>
+            </div>
+            <div class="helper-card">
+              <strong>更完整的结果区</strong>
+              <div class="command-desc">新增输出日志和状态卡，适合你的本地工具目录长期使用。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const presets = [
+      {
+        id: "shizuku",
+        name: "Shizuku 激活",
+        description: "执行 Shizuku 常见启动脚本。",
+        command: "sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh"
+      },
+      {
+        id: "stopapp",
+        name: "小黑屋 / StopApp",
+        description: "执行 web1n.stopapp 的 starter 脚本。",
+        command: "sh /storage/emulated/0/Android/data/web1n.stopapp/files/starter.sh"
+      },
+      {
+        id: "icebox",
+        name: "冰箱激活",
+        description: "授予冰箱设备管理员所需的 adb 权限。",
+        command: "dpm set-device-owner com.catchingnow.icebox/.receiver.DPMReceiver"
+      },
+      {
+        id: "device-info",
+        name: "读取设备信息",
+        description: "快速确认当前 shell 通路和设备型号。",
+        command: "getprop ro.product.model && getprop ro.build.version.release"
+      }
+    ];
+
+    const state = {
+      support: "usb" in navigator,
+      mode: "preset",
+      selectedPresetId: presets[0].id,
+      adbClient: null,
+      transport: null,
+      currentStream: null,
+      processing: false
+    };
+
+    const supportAlert = document.getElementById("supportAlert");
+    const messageAlert = document.getElementById("messageAlert");
+    const resultAlert = document.getElementById("resultAlert");
+    const supportValue = document.getElementById("supportValue");
+    const deviceValue = document.getElementById("deviceValue");
+    const processValue = document.getElementById("processValue");
+    const outputLog = document.getElementById("outputLog");
+    const commandPreview = document.getElementById("commandPreview");
+    const presetGrid = document.getElementById("presetGrid");
+    const presetSection = document.getElementById("presetSection");
+    const customSection = document.getElementById("customSection");
+    const manualCommand = document.getElementById("manualCommand");
+    const connectButton = document.getElementById("connectButton");
+    const runButton = document.getElementById("runButton");
+    const stopButton = document.getElementById("stopButton");
+
+    init();
+
+    function init() {
+      supportValue.textContent = state.support ? "已支持" : "不支持";
+      if (!state.support) {
+        supportAlert.classList.add("show");
+      }
+
+      renderPresets();
+      renderModeTabs();
+      refreshCommandPreview();
+
+      connectButton.addEventListener("click", connectDevice);
+      runButton.addEventListener("click", executeCommand);
+      stopButton.addEventListener("click", stopCurrentStream);
+      manualCommand.addEventListener("input", refreshCommandPreview);
+    }
+
+    function renderPresets() {
+      presetGrid.innerHTML = presets.map((preset) => `
+        <button class="preset-card${preset.id === state.selectedPresetId ? " active" : ""}" type="button" data-id="${preset.id}">
+          <h3>${escapeHtml(preset.name)}</h3>
+          <p>${escapeHtml(preset.description)}</p>
+        </button>
+      `).join("");
+
+      presetGrid.querySelectorAll(".preset-card").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.selectedPresetId = button.dataset.id;
+          renderPresets();
+          refreshCommandPreview();
+        });
+      });
+    }
+
+    function renderModeTabs() {
+      document.querySelectorAll(".mode-tab").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.mode === state.mode);
+        tab.addEventListener("click", () => {
+          state.mode = tab.dataset.mode;
+          document.querySelectorAll(".mode-tab").forEach((item) => item.classList.toggle("active", item === tab));
+          presetSection.style.display = state.mode === "preset" ? "" : "none";
+          customSection.style.display = state.mode === "custom" ? "" : "none";
+          refreshCommandPreview();
+        });
+      });
+    }
+
+    function getSelectedPreset() {
+      return presets.find((preset) => preset.id === state.selectedPresetId) || presets[0];
+    }
+
+    function getCurrentCommand() {
+      if (state.mode === "custom") {
+        return manualCommand.value.trim();
+      }
+      return getSelectedPreset().command;
+    }
+
+    function refreshCommandPreview() {
+      const command = getCurrentCommand();
+      commandPreview.textContent = command || "请选择一个预设方案，或切换到自定义命令模式。";
+    }
+
+    async function connectDevice() {
+      if (!state.support) {
+        setMessage("当前浏览器不支持 WebUSB，请换用 Chrome 或 Edge。", "danger");
+        return;
+      }
+
+      if (state.processing) return;
+
+      connectButton.disabled = true;
+      setProcess("连接中");
+      setMessage("正在请求浏览器设备授权，请在弹窗中选择你的安卓设备。", "info");
+
+      try {
+        const transport = await Adb.open("WebUSB");
+        const adbClient = await transport.connectAdb("host::");
+        state.transport = transport;
+        state.adbClient = adbClient;
+        deviceValue.textContent = transport.device.productName || "已连接设备";
+        setProcess("已连接");
+        setMessage("设备连接成功，现在可以执行预设命令或自定义命令。", "success");
+        setResult(`已连接设备：${transport.device.productName || "未知设备"}`);
+      } catch (error) {
+        console.error(error);
+        setProcess("连接失败");
+        setMessage(`连接失败：${error.message || error}`, "danger");
+      } finally {
+        connectButton.disabled = false;
+      }
+    }
+
+    async function executeCommand() {
+      const command = getCurrentCommand();
+      if (!command) {
+        setMessage("请先选择一个预设方案，或输入自定义命令。", "danger");
+        return;
+      }
+
+      if (!state.adbClient) {
+        await connectDevice();
+        if (!state.adbClient) return;
+      }
+
+      state.processing = true;
+      runButton.disabled = true;
+      connectButton.disabled = true;
+      stopButton.disabled = false;
+      setProcess("执行中");
+      setMessage("命令已开始执行，正在读取设备输出。", "info");
+      outputLog.textContent = `$ ${command}\n\n`;
+
+      try {
+        state.currentStream = await state.adbClient.shell(command);
+        const output = await readStreamOutput(state.currentStream);
+        outputLog.textContent = `$ ${command}\n\n${output || "[命令已完成，无输出内容]"}`;
+        setProcess("执行完成");
+        setMessage("命令执行完成。", "success");
+        setResult(`命令执行成功：${truncateText(command, 64)}`);
+      } catch (error) {
+        console.error(error);
+        outputLog.textContent += `\n[执行错误]\n${error.message || error}`;
+        setProcess("执行失败");
+        setMessage(`执行失败：${error.message || error}`, "danger");
+      } finally {
+        state.processing = false;
+        runButton.disabled = false;
+        connectButton.disabled = false;
+        stopButton.disabled = true;
+        state.currentStream = null;
+      }
+    }
+
+    async function readStreamOutput(stream) {
+      const decoder = new TextDecoder();
+      let output = "";
+
+      while (true) {
+        const response = await stream.receive();
+        if (response.cmd === "WRTE") {
+          if (response.data) {
+            output += decoder.decode(response.data);
+          }
+          await stream.send("OKAY");
+          continue;
+        }
+
+        if (response.cmd === "CLSE") {
+          try {
+            await stream.close();
+          } catch (error) {
+            console.warn(error);
+          }
+          break;
+        }
+
+        if (response.cmd === "FAIL") {
+          throw new Error("设备返回 FAIL。");
+        }
+      }
+
+      return output.trim();
+    }
+
+    async function stopCurrentStream() {
+      if (!state.currentStream || !state.processing) return;
+      try {
+        if (typeof state.currentStream.abort === "function") {
+          await state.currentStream.abort();
+        } else {
+          await state.currentStream.close();
+        }
+        setMessage("当前会话已手动停止。", "info");
+      } catch (error) {
+        console.error(error);
+        setMessage(`停止会话时发生错误：${error.message || error}`, "danger");
+      }
+    }
+
+    function setMessage(text, tone) {
+      messageAlert.textContent = text;
+      messageAlert.className = `alert show alert-${tone}`;
+    }
+
+    function setResult(text) {
+      resultAlert.textContent = text;
+      resultAlert.classList.add("show");
+    }
+
+    function setProcess(text) {
+      processValue.textContent = text;
+    }
+
+    function truncateText(text, maxLength) {
+      return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+  </script>
+</body>
+</html>
