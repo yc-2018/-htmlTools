@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSS 生成器 - webcode.tools 中文版</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body class="generator-page">
+  <div class="site-shell">
+    <div class="nav-row">
+      <div class="breadcrumbs">
+        <a href="./index.html">首页</a>
+        <span>/</span>
+        <span>CSS 生成器</span>
+      </div>
+      <div class="action-row">
+        <a class="nav-button" href="./index.html">返回首页</a>
+        <a class="nav-button" href="./html-generator.html">查看 HTML 生成器</a>
+      </div>
+    </div>
+
+    <section class="generator-layout">
+      <aside class="panel sidebar-panel">
+        <span class="section-kicker">目录</span>
+        <h2 style="color:#fff;">CSS</h2>
+        <div class="sidebar-scroll" id="categoryNav"></div>
+      </aside>
+
+      <div class="generator-main-scroll">
+        <div class="panel">
+          <span class="section-kicker">参数</span>
+          <h2 id="toolTitle">CSS 生成器</h2>
+          <p class="tool-desc" id="toolDesc"></p>
+          <div class="field-grid" id="fieldGrid"></div>
+        </div>
+
+        <div class="panel" style="margin-top:20px;">
+          <span class="section-kicker">预览</span>
+          <h2>预览与代码</h2>
+          <div class="preview-stage">
+            <div class="preview-wrap" id="previewWrap"></div>
+          </div>
+
+          <div class="code-toolbar">
+            <h3>生成的 CSS</h3>
+            <button class="copy-button" id="copyButton" type="button">复制 CSS</button>
+          </div>
+          <pre class="code-block" id="codeBlock"></pre>
+          <div class="message" id="copyMessage">复制后可直接粘贴到样式表中使用。</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="./css-generator.js"></script>
+</body>
+</html>
