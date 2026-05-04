@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>消消乐</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #1a0a2e; touch-action: none; user-select: none; -webkit-user-select: none; font-family: 'Segoe UI', sans-serif; }
+#header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.08); }
+#header span { color: #fff; font-size: 16px; }
+#scoreVal { color: #ff0; font-weight: bold; font-size: 20px; }
+#combo { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #ff0; font: bold 32px sans-serif; text-shadow: 0 0 15px #f80; opacity: 0; pointer-events: none; z-index: 5; }
+#movesVal { color: #5ef; font-weight: bold; font-size: 20px; }
+canvas { display: block; margin: 0 auto; }
+#startScreen, #gameOverScreen {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(26,10,46,0.92); z-index: 10;
+}
+#startScreen h1, #gameOverScreen h1 { color: #fff; font-size: 36px; margin-bottom: 16px; }
+#startScreen p, #gameOverScreen p { color: #ccc; font-size: 15px; margin-bottom: 28px; text-align: center; line-height: 1.8; }
+#finalScore { color: #ff0; font: bold 24px sans-serif; margin-bottom: 16px; }
+.btn {
+  padding: 14px 48px; font: bold 18px sans-serif; color: #fff;
+  background: linear-gradient(135deg, #e040a0, #a020d0); border: none; border-radius: 30px;
+  cursor: pointer; box-shadow: 0 4px 15px rgba(224,64,160,0.4);
+}
+.btn:active { transform: scale(0.95); }
+#targetInfo { color: #aaa; font-size: 13px; text-align: center; padding: 6px; }
+</style>
+</head>
+<body>
+<div id="header">
+  <span>分数: <span id="scoreVal">0</span></span>
+  <span>步数: <span id="movesVal">30</span></span>
+</div>
+<div id="targetInfo">交换相邻元素，匹配3个及以上消除</div>
+<canvas id="game"></canvas>
+<div id="combo"></div>
+<div id="startScreen">
+  <h1>消消乐</h1>
+  <p>滑动交换相邻宝石<br>匹配3个及以上即可消除<br>连锁消除获得高分！<br>30步内挑战最高分</p>
+  <button class="btn" id="startBtn">开始游戏</button>
+</div>
+<div id="gameOverScreen" style="display:none">
+  <h1>游戏结束</h1>
+  <div id="finalScore"></div>
+  <p id="endMsg"></p>
+  <button class="btn" id="restartBtn">再来一局</button>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreVal = document.getElementById('scoreVal');
+const movesVal = document.getElementById('movesVal');
+const comboEl = document.getElementById('combo');
+const startScreen = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const finalScoreEl = document.getElementById('finalScore');
+const endMsg = document.getElementById('endMsg');
+
+const COLS = 8, ROWS = 8;
+const COLORS = ['#f44','#4c4','#48f','#fa0','#c4f','#4df'];
+const GEM_NAMES = ['红宝石','绿宝石','蓝宝石','黄宝石','紫水晶','钻石'];
+let GRID = 8; // grid size in px (computed)
+let PAD_X, PAD_Y, CELL;
+let grid = [];
+let score = 0, moves = 30, combo = 0;
+let gameRunning = false;
+let selected = null; // {r, c}
+let animating = false;
+let animCells = []; // cells with animation state
+let hintTimer = 0;
+let hintCells = null;
+let fallingCells = []; // {r, c, fromY, toY, progress}
+let removingCells = []; // {r, c, progress}
+let swapAnim = null; // {r1,c1,r2,c2,progress,dir}
+let particleList = [];
+
+function resize() {
+  let W = window.innerWidth, H = window.innerHeight;
+  let maxBoard = Math.min(W - 16, H - 140);
+  CELL = Math.floor(maxBoard / COLS);
+  canvas.width = CELL * COLS;
+  canvas.height = CELL * ROWS;
+  PAD_X = (W - canvas.width) / 2;
+  canvas.style.marginLeft = PAD_X + 'px';
+  canvas.style.marginTop = '10px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+function createGrid() {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      let color;
+      do {
+        color = Math.floor(Math.random() * COLORS.length);
+      } while (
+        (c >= 2 && grid[r][c-1] === color && grid[r][c-2] === color) ||
+        (r >= 2 && grid[r-1][c] === color && grid[r-2][c] === color)
+      );
+      grid[r][c] = color;
+    }
+  }
+  // 确保有可用移动
+  if (!hasValidMoves()) createGrid();
+}
+
+function hasValidMoves() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      // 试右换
+      if (c < COLS - 1) {
+        swap(r, c, r, c + 1);
+        if (findMatches().length > 0) { swap(r, c, r, c + 1); return true; }
+        swap(r, c, r, c + 1);
+      }
+      // 试下换
+      if (r < ROWS - 1) {
+        swap(r, c, r + 1, c);
+        if (findMatches().length > 0) { swap(r, c, r + 1, c); return true; }
+        swap(r, c, r + 1, c);
+      }
+    }
+  }
+  return false;
+}
+
+function swap(r1, c1, r2, c2) {
+  let t = grid[r1][c1]; grid[r1][c1] = grid[r2][c2]; grid[r2][c2] = t;
+}
+
+function findMatches() {
+  let matched = new Set();
+  // 横向
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 2; c++) {
+      if (grid[r][c] >= 0 && grid[r][c] === grid[r][c+1] && grid[r][c] === grid[r][c+2]) {
+        let end = c + 2;
+        while (end + 1 < COLS && grid[r][end+1] === grid[r][c]) end++;
+        for (let k = c; k <= end; k++) matched.add(r * COLS + k);
+      }
+    }
+  }
+  // 纵向
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS - 2; r++) {
+      if (grid[r][c] >= 0 && grid[r][c] === grid[r+1][c] && grid[r][c] === grid[r+2][c]) {
+        let end = r + 2;
+        while (end + 1 < ROWS && grid[end+1][c] === grid[r][c]) end++;
+        for (let k = r; k <= end; k++) matched.add(k * COLS + c);
+      }
+    }
+  }
+  return [...matched].map(i => ({ r: Math.floor(i / COLS), c: i % COLS }));
+}
+
+function drawCell(r, c, x, y, size, alpha) {
+  let color = grid[r][c];
+  if (color < 0) return;
+  let s = size || CELL;
+  let cx = x + s / 2, cy = y + s / 2;
+  let radius = s * 0.38;
+
+  ctx.save();
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  // 宝石主体 - 圆形
+  ctx.fillStyle = COLORS[color];
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 内圈深色
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 再画一层原色（制造层次感）
+  ctx.fillStyle = COLORS[color];
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius * 0.65, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 高光
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(cx - radius * 0.2, cy - radius * 0.2, radius * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 外边框
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawGrid() {
+  // 背景格子
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let x = c * CELL, y = r * CELL;
+      ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)';
+      ctx.fillRect(x, y, CELL, CELL);
+    }
+  }
+
+  // 选中高亮
+  if (selected) {
+    ctx.fillStyle = 'rgba(255,255,100,0.2)';
+    ctx.fillRect(selected.c * CELL, selected.r * CELL, CELL, CELL);
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(selected.c * CELL + 2, selected.r * CELL + 2, CELL - 4, CELL - 4);
+  }
+
+  // 提示闪烁
+  if (hintCells && !animating) {
+    let alpha = 0.15 + Math.sin(Date.now() / 200) * 0.1;
+    for (let h of hintCells) {
+      ctx.fillStyle = `rgba(255,255,100,${alpha})`;
+      ctx.fillRect(h.c * CELL, h.r * CELL, CELL, CELL);
+    }
+  }
+
+  // 绘制宝石
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] < 0) continue;
+
+      // 检查是否在动画中
+      let fallCell = fallingCells.find(f => f.r === r && f.c === c);
+      let remCell = removingCells.find(m => m.r === r && m.c === c);
+      let swapInfo = null;
+      if (swapAnim) {
+        if (r === swapAnim.r1 && c === swapAnim.c1) swapInfo = { dir: -1 };
+        if (r === swapAnim.r2 && c === swapAnim.c2) swapInfo = { dir: 1 };
+      }
+
+      let x = c * CELL, y = r * CELL;
+      let alpha = 1;
+
+      if (remCell) {
+        alpha = 1 - remCell.progress;
+        let s = CELL * (1 - remCell.progress * 0.3);
+        let off = (CELL - s) / 2;
+        drawCell(r, c, x + off, y + off, s, alpha);
+        continue;
+      }
+
+      if (fallCell) {
+        let fy = fallCell.fromY + (fallCell.toY - fallCell.fromY) * fallCell.progress;
+        drawCell(r, c, x, fy, CELL, 1);
+        continue;
+      }
+
+      if (swapAnim && swapInfo) {
+        let offset = (1 - swapAnim.progress) * CELL * swapInfo.dir;
+        if (swapInfo.dir === -1) {
+          // r1,c1 moving toward r2,c2
+          let dx = (swapAnim.c2 - swapAnim.c1) * offset;
+          let dy = (swapAnim.r2 - swapAnim.r1) * offset;
+          drawCell(r, c, x + dx, y + dy);
+          continue;
+        } else {
+          let dx = (swapAnim.c1 - swapAnim.c2) * offset;
+          let dy = (swapAnim.r1 - swapAnim.r2) * offset;
+          drawCell(r, c, x + dx, y + dy);
+          continue;
+        }
+      }
+
+      drawCell(r, c, x, y);
+    }
+  }
+}
+
+function drawParticles() {
+  for (let p of particleList) {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function spawnParticles(r, c) {
+  let cx = c * CELL + CELL / 2, cy = r * CELL + CELL / 2;
+  let color = COLORS[grid[r][c]];
+  for (let i = 0; i < 8; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let speed = 80 + Math.random() * 120;
+    particleList.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.5 + Math.random() * 0.3,
+      maxLife: 0.5 + Math.random() * 0.3,
+      size: 3 + Math.random() * 4,
+      color: color
+    });
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 背景
+  let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grad.addColorStop(0, '#1a0a3e');
+  grad.addColorStop(1, '#0a1a3e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawGrid();
+  drawParticles();
+}
+
+// 异步处理匹配和下落
+async function processMatches() {
+  animating = true;
+  let chainCombo = 0;
+
+  while (true) {
+    let matches = findMatches();
+    if (matches.length === 0) break;
+
+    chainCombo++;
+    combo = chainCombo;
+
+    // 消除动画
+    removingCells = matches.map(m => ({ r: m.r, c: m.c, progress: 0 }));
+    let matchedColor = grid[matches[0].r][matches[0].c];
+
+    // 分数：基础分 * 连锁倍数 * 消除数量加成
+    let baseScore = matches.length * 20;
+    let chainBonus = chainCombo > 1 ? chainCombo * 1.5 : 1;
+    let gained = Math.floor(baseScore * chainBonus);
+    score += gained;
+    scoreVal.textContent = score;
+
+    // 粒子
+    for (let m of matches) spawnParticles(m.r, m.c);
+
+    // 显示连锁
+    if (chainCombo > 1) {
+      comboEl.textContent = chainCombo + '连锁！x' + chainBonus.toFixed(1);
+      comboEl.style.opacity = 1;
+      comboEl.style.color = chainCombo >= 4 ? '#f44' : chainCombo >= 3 ? '#fa0' : '#ff0';
+      setTimeout(() => comboEl.style.opacity = 0, 800);
+    }
+
+    // 播放消除动画
+    await animate(300, (t) => {
+      for (let m of removingCells) m.progress = t;
+    });
+
+    // 清除匹配的宝石
+    for (let m of matches) grid[m.r][m.c] = -1;
+    removingCells = [];
+
+    // 下落填充
+    await dropAndFill();
+
+    // 小延迟
+    await delay(100);
+  }
+
+  animating = false;
+
+  // 检查是否有可用移动
+  if (!hasValidMoves()) {
+    // 洗牌
+    await shuffleBoard();
+  }
+
+  hintTimer = 3;
+  hintCells = null;
+}
+
+async function dropAndFill() {
+  fallingCells = [];
+
+  for (let c = 0; c < COLS; c++) {
+    let emptySlots = 0;
+    // 从下往上扫描
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (grid[r][c] < 0) {
+        emptySlots++;
+      } else if (emptySlots > 0) {
+        // 这个宝石要往下落
+        grid[r + emptySlots][c] = grid[r][c];
+        grid[r][c] = -1;
+        fallingCells.push({
+          r: r + emptySlots, c: c,
+          fromY: r * CELL,
+          toY: (r + emptySlots) * CELL,
+          progress: 0
+        });
+      }
+    }
+    // 顶部空位生成新宝石
+    for (let i = 0; i < emptySlots; i++) {
+      grid[i][c] = Math.floor(Math.random() * COLORS.length);
+      fallingCells.push({
+        r: i, c: c,
+        fromY: (i - emptySlots) * CELL,
+        toY: i * CELL,
+        progress: 0
+      });
+    }
+  }
+
+  if (fallingCells.length > 0) {
+    await animate(350, (t) => {
+      let ease = 1 - Math.pow(1 - t, 2); // ease out
+      for (let f of fallingCells) f.progress = ease;
+    });
+    fallingCells = [];
+  }
+}
+
+async function shuffleBoard() {
+  // 洗牌动画
+  let cells = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      cells.push({ r, c, color: grid[r][c] });
+
+  // Fisher-Yates
+  for (let i = cells.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    let t = cells[i]; cells[i] = cells[j]; cells[j] = t;
+  }
+
+  for (let i = 0; i < cells.length; i++) {
+    let r = Math.floor(i / COLS), c = i % COLS;
+    grid[r][c] = cells[i].color;
+  }
+
+  // 如果洗完还是没可用移动，重新洗
+  if (!hasValidMoves()) {
+    createGrid();
+  }
+
+  comboEl.textContent = '洗牌！';
+  comboEl.style.opacity = 1;
+  comboEl.style.color = '#5ef';
+  setTimeout(() => comboEl.style.opacity = 0, 1000);
+}
+
+function animate(duration, fn) {
+  return new Promise(resolve => {
+    let start = performance.now();
+    function step(ts) {
+      let t = Math.min((ts - start) / duration, 1);
+      fn(t);
+      draw();
+      if (t < 1) requestAnimationFrame(step);
+      else resolve();
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function trySwap(r1, c1, r2, c2) {
+  if (animating) return;
+  if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return;
+
+  // 交换动画
+  animating = true;
+  swapAnim = { r1, c1, r2, c2, progress: 0 };
+
+  await animate(200, (t) => {
+    swapAnim.progress = t;
+  });
+
+  swapAnim = null;
+  swap(r1, c1, r2, c2);
+
+  let matches = findMatches();
+  if (matches.length === 0) {
+    // 没有匹配，交换回来
+    swapAnim = { r1, c1, r2, c2, progress: 0 };
+    await animate(200, (t) => {
+      swapAnim.progress = t;
+    });
+    swapAnim = null;
+    swap(r1, c1, r2, c2);
+    animating = false;
+    return;
+  }
+
+  // 有效移动
+  moves--;
+  movesVal.textContent = moves;
+  if (moves <= 5) movesVal.style.color = '#f44';
+
+  animating = false;
+  await processMatches();
+
+  // 检查游戏结束
+  if (moves <= 0) {
+    setTimeout(() => endGame(), 500);
+  }
+}
+
+function endGame() {
+  gameRunning = false;
+  finalScoreEl.textContent = '最终得分: ' + score;
+  if (score >= 5000) endMsg.textContent = '太厉害了！你是消消乐大师！';
+  else if (score >= 3000) endMsg.textContent = '很棒！继续加油！';
+  else if (score >= 1000) endMsg.textContent = '不错的成绩，再来一局？';
+  else endMsg.textContent = '加油，下次一定能更高分！';
+  gameOverScreen.style.display = 'flex';
+}
+
+function startGame() {
+  score = 0; moves = 30; combo = 0;
+  scoreVal.textContent = 0;
+  movesVal.textContent = moves;
+  movesVal.style.color = '#5ef';
+  selected = null;
+  animating = false;
+  fallingCells = [];
+  removingCells = [];
+  particleList = [];
+  hintCells = null;
+  hintTimer = 3;
+  createGrid();
+  startScreen.style.display = 'none';
+  gameOverScreen.style.display = 'none';
+  gameRunning = true;
+  draw();
+}
+
+// 触摸/鼠标
+function getCell(px, py) {
+  let rect = canvas.getBoundingClientRect();
+  let x = px - rect.left, y = py - rect.top;
+  let c = Math.floor(x / CELL), r = Math.floor(y / CELL);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+  return { r, c };
+}
+
+let startPos = null, startCell = null, swiped = false;
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!gameRunning || animating) return;
+  let t = e.touches[0];
+  let cell = getCell(t.clientX, t.clientY);
+  if (!cell) return;
+  startPos = { x: t.clientX, y: t.clientY };
+  startCell = cell;
+  swiped = false;
+  hintTimer = 5;
+  hintCells = null;
+});
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!startPos || !startCell || swiped) return;
+  let t = e.touches[0];
+  let dx = t.clientX - startPos.x, dy = t.clientY - startPos.y;
+  if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+  swiped = true;
+  let r2, c2;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    r2 = startCell.r; c2 = startCell.c + (dx > 0 ? 1 : -1);
+  } else {
+    r2 = startCell.r + (dy > 0 ? 1 : -1); c2 = startCell.c;
+  }
+  if (r2 >= 0 && r2 < ROWS && c2 >= 0 && c2 < COLS) {
+    selected = null;
+    trySwap(startCell.r, startCell.c, r2, c2);
+  }
+});
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (!startPos || !startCell) return;
+  if (!swiped && gameRunning && !animating) {
+    // 点击
+    if (selected) {
+      let dr = Math.abs(selected.r - startCell.r), dc = Math.abs(selected.c - startCell.c);
+      if (dr + dc === 1) {
+        trySwap(selected.r, selected.c, startCell.r, startCell.c);
+        selected = null;
+      } else {
+        selected = startCell;
+      }
+    } else {
+      selected = startCell;
+    }
+    draw();
+  }
+  startPos = null; startCell = null; swiped = false;
+});
+
+// 鼠标支持
+let mDown = false, mCell = null, mSwiped = false;
+canvas.addEventListener('mousedown', e => {
+  if (!gameRunning || animating) return;
+  let cell = getCell(e.clientX, e.clientY);
+  if (!cell) return;
+  mDown = true; mCell = cell; mSwiped = false;
+  hintTimer = 5; hintCells = null;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!mDown || !mCell || mSwiped) return;
+  let cell = getCell(e.clientX, e.clientY);
+  if (!cell) return;
+  let dr = Math.abs(cell.r - mCell.r), dc = Math.abs(cell.c - mCell.c);
+  if (dr + dc === 1) {
+    mSwiped = true;
+    selected = null;
+    trySwap(mCell.r, mCell.c, cell.r, cell.c);
+  }
+});
+canvas.addEventListener('mouseup', e => {
+  if (!mDown || !mCell) { mDown = false; return; }
+  if (!mSwiped && gameRunning && !animating) {
+    if (selected) {
+      let dr = Math.abs(selected.r - mCell.r), dc = Math.abs(selected.c - mCell.c);
+      if (dr + dc === 1) {
+        trySwap(selected.r, selected.c, mCell.r, mCell.c);
+        selected = null;
+      } else {
+        selected = mCell;
+      }
+    } else {
+      selected = mCell;
+    }
+    draw();
+  }
+  mDown = false; mCell = null; mSwiped = false;
+});
+
+// 粒子更新循环
+function updateParticles(dt) {
+  for (let i = particleList.length - 1; i >= 0; i--) {
+    let p = particleList[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 200 * dt; // 重力
+    p.life -= dt;
+    if (p.life <= 0) particleList.splice(i, 1);
+  }
+}
+
+// 提示系统
+function findHint() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (c < COLS - 1) {
+        swap(r, c, r, c + 1);
+        if (findMatches().length > 0) {
+          swap(r, c, r, c + 1);
+          return [{ r, c }, { r, c: c + 1 }];
+        }
+        swap(r, c, r, c + 1);
+      }
+      if (r < ROWS - 1) {
+        swap(r, c, r + 1, c);
+        if (findMatches().length > 0) {
+          swap(r, c, r + 1, c);
+          return [{ r, c }, { r: r + 1, c }];
+        }
+        swap(r, c, r + 1, c);
+      }
+    }
+  }
+  return null;
+}
+
+let lastTs = 0;
+function gameLoop(ts) {
+  let dt = Math.min((ts - lastTs) / 1000, 0.05);
+  lastTs = ts;
+
+  if (gameRunning) {
+    updateParticles(dt);
+
+    // 提示
+    if (!animating) {
+      hintTimer -= dt;
+      if (hintTimer <= 0 && !hintCells) {
+        hintCells = findHint();
+        hintTimer = 999;
+      }
+    }
+
+    draw();
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+
+resize();
+lastTs = performance.now();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
