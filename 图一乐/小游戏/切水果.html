@@ -60,7 +60,7 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
   <section class="panel">
     <div class="kicker">Fruit Slash</div>
     <h1>切水果</h1>
-    <div class="record">最高分 <strong id="menuBest">0</strong></div>
+    <div class="record">当前模式最高分 <strong id="menuBest">0</strong></div>
     <div class="segmented" id="difficulty" aria-label="难度">
       <button data-mode="easy">休闲</button>
       <button data-mode="normal" class="active">标准</button>
@@ -76,6 +76,7 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
     <h1>已暂停</h1>
     <button class="primary" id="resumeBtn">继续</button>
     <button class="ghost" id="pauseRestartBtn">重新开始</button>
+    <button class="ghost" id="pauseMenuBtn">返回菜单</button>
   </section>
 </div>
 
@@ -85,7 +86,7 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
     <h1 id="overTitle">游戏结束</h1>
     <div class="result">
       <div><span>本局</span><strong id="finalScore">0</strong></div>
-      <div><span>最高</span><strong id="finalBest">0</strong></div>
+      <div><span>模式最高</span><strong id="finalBest">0</strong></div>
     </div>
     <button class="primary" id="restartBtn">再切一局</button>
     <button class="ghost" id="backMenuBtn">返回菜单</button>
@@ -109,11 +110,13 @@ const overTitleEl = document.getElementById('overTitle');
 const startBtn = document.getElementById('startBtn');
 const resumeBtn = document.getElementById('resumeBtn');
 const pauseRestartBtn = document.getElementById('pauseRestartBtn');
+const pauseMenuBtn = document.getElementById('pauseMenuBtn');
 const restartBtn = document.getElementById('restartBtn');
 const backMenuBtn = document.getElementById('backMenuBtn');
 const difficultyEl = document.getElementById('difficulty');
 
-const BEST_KEY = 'fruit_slash_best_v1';
+const BEST_KEY = 'fruit_slash_best_by_mode_v1';
+const LEGACY_BEST_KEY = 'fruit_slash_best_v1';
 const gravity = 920;
 const modes = {
   easy: {spawn:.98, speed:.88, bomb:.08, lives:10},
@@ -140,7 +143,6 @@ let score = 0;
 let lives = 3;
 let combo = 0;
 let comboTimer = 0;
-let best = Number(localStorage.getItem(BEST_KEY) || 0);
 let shake = 0;
 let flash = 0;
 let slowMo = 0;
@@ -207,6 +209,36 @@ function updateHud() {
   comboEl.textContent = combo;
 }
 
+function readBestScores() {
+  const scores = {easy: 0, normal: 0, hard: 0};
+  try {
+    const saved = JSON.parse(localStorage.getItem(BEST_KEY) || '{}');
+    for (const key of Object.keys(scores)) {
+      scores[key] = Number(saved[key] || 0);
+    }
+  } catch (e) {
+    localStorage.removeItem(BEST_KEY);
+  }
+  const legacyBest = Number(localStorage.getItem(LEGACY_BEST_KEY) || 0);
+  if (legacyBest > scores.normal) scores.normal = legacyBest;
+  return scores;
+}
+
+function getBest(currentMode = mode) {
+  return readBestScores()[currentMode] || 0;
+}
+
+function saveBest(currentMode, value) {
+  const scores = readBestScores();
+  scores[currentMode] = Math.max(scores[currentMode] || 0, value);
+  localStorage.setItem(BEST_KEY, JSON.stringify(scores));
+  return scores[currentMode];
+}
+
+function updateMenuBest() {
+  menuBestEl.textContent = getBest(mode);
+}
+
 function resetGame() {
   fruits.length = 0;
   halves.length = 0;
@@ -235,8 +267,7 @@ function startGame() {
 
 function showMenu() {
   state = 'menu';
-  best = Number(localStorage.getItem(BEST_KEY) || 0);
-  menuBestEl.textContent = best;
+  updateMenuBest();
   setScreens('menu');
   updateHud();
 }
@@ -261,11 +292,10 @@ function resumeGame() {
 
 function endGame(title) {
   state = 'over';
-  best = Math.max(best, score);
-  localStorage.setItem(BEST_KEY, String(best));
+  const modeBest = saveBest(mode, score);
   finalScoreEl.textContent = score;
-  finalBestEl.textContent = best;
-  menuBestEl.textContent = best;
+  finalBestEl.textContent = modeBest;
+  menuBestEl.textContent = modeBest;
   overTitleEl.textContent = title || (score >= 800 ? '刀法不错' : '游戏结束');
   setScreens('over');
 }
@@ -736,11 +766,13 @@ difficultyEl.addEventListener('click', e => {
   if (!btn) return;
   mode = btn.dataset.mode;
   difficultyEl.querySelectorAll('button').forEach(item => item.classList.toggle('active', item === btn));
+  updateMenuBest();
 });
 
 startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', startGame);
 pauseRestartBtn.addEventListener('click', startGame);
+pauseMenuBtn.addEventListener('click', showMenu);
 resumeBtn.addEventListener('click', resumeGame);
 backMenuBtn.addEventListener('click', showMenu);
 pauseBtn.addEventListener('click', () => {
