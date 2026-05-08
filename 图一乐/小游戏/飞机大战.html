@@ -39,12 +39,19 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
 .result div{padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(255,255,255,.06)}
 .result span{display:block;color:#a9b3c9;font-size:12px}
 .result strong{display:block;margin-top:3px;font-size:24px;color:#fff}
+#pauseScreen{z-index:20;background:linear-gradient(180deg,rgba(21,19,25,.58),rgba(21,19,25,.92))}
+#pauseScreen .panel{padding:24px 20px;background:rgba(31,27,38,.88);box-shadow:0 28px 86px rgba(0,0,0,.44)}
+#pauseScreen .kicker{color:#7de1d1;font-weight:900}
+#pauseScreen h1{text-shadow:0 0 26px rgba(255,209,102,.22)}
+#pauseScreen .primary{background:linear-gradient(135deg,#ffd166,#7de1d1);color:#211705;box-shadow:0 14px 34px rgba(125,225,209,.2)}
+#pauseScreen .ghost{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#fff}
 @media (max-width:420px){
   .hud{top:calc(8px + env(safe-area-inset-top));left:8px;right:8px}
   .meter{min-width:64px;padding:6px 8px}
   .meter strong{font-size:16px}
   .icon-btn{width:38px;height:38px}
   .panel{padding:22px 18px}
+  #pauseScreen .panel{padding:22px 18px}
   h1{font-size:36px}
 }
 </style>
@@ -72,7 +79,7 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
   <section class="panel">
     <div class="kicker">Arcade Air Raid</div>
     <h1>飞机大战</h1>
-    <div class="record">最高分 <strong id="menuBest">0</strong></div>
+    <div class="record">当前模式最高分 <strong id="menuBest">0</strong></div>
     <div class="segmented" id="difficulty" aria-label="难度">
       <button data-mode="easy">休闲</button>
       <button data-mode="normal" class="active">标准</button>
@@ -88,6 +95,7 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
     <h1>已暂停</h1>
     <button class="primary" id="resumeBtn">继续</button>
     <button class="ghost" id="pauseRestartBtn">重新开始</button>
+    <button class="ghost" id="pauseMenuBtn">返回菜单</button>
   </section>
 </div>
 
@@ -97,7 +105,7 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
     <h1 id="overTitle">任务结束</h1>
     <div class="result">
       <div><span>本局</span><strong id="finalScore">0</strong></div>
-      <div><span>最高</span><strong id="finalBest">0</strong></div>
+      <div><span>模式最高</span><strong id="finalBest">0</strong></div>
     </div>
     <button class="primary" id="restartBtn">再来一局</button>
     <button class="ghost" id="backMenuBtn">返回菜单</button>
@@ -123,16 +131,55 @@ const overTitleEl = document.getElementById('overTitle');
 const startBtn = document.getElementById('startBtn');
 const resumeBtn = document.getElementById('resumeBtn');
 const pauseRestartBtn = document.getElementById('pauseRestartBtn');
+const pauseMenuBtn = document.getElementById('pauseMenuBtn');
 const restartBtn = document.getElementById('restartBtn');
 const backMenuBtn = document.getElementById('backMenuBtn');
 const difficultyEl = document.getElementById('difficulty');
 
-const BEST_KEY = 'plane_war_best_v1';
+const BEST_KEY = 'plane_war_best_by_mode_v1';
+const LEGACY_BEST_KEY = 'plane_war_best_v1';
 const modes = {
   easy: {spawn:1.18, enemySpeed:.84, enemyHp:.85, fire:.72, label:'休闲'},
   normal: {spawn:1, enemySpeed:1, enemyHp:1, fire:1, label:'标准'},
   hard: {spawn:.78, enemySpeed:1.18, enemyHp:1.28, fire:1.28, label:'炼狱'}
 };
+
+function readBestScores() {
+  const scores = {easy: 0, normal: 0, hard: 0};
+  try {
+    const saved = JSON.parse(localStorage.getItem(BEST_KEY) || '{}');
+    for (const key of Object.keys(scores)) {
+      scores[key] = Number(saved[key] || 0);
+    }
+  } catch (e) {
+    localStorage.removeItem(BEST_KEY);
+  }
+  const legacyBest = Number(localStorage.getItem(LEGACY_BEST_KEY) || 0);
+  if (legacyBest > scores.normal) scores.normal = legacyBest;
+  return scores;
+}
+
+function getBest(currentMode = mode) {
+  return readBestScores()[currentMode] || 0;
+}
+
+function saveBest(currentMode, value) {
+  const scores = readBestScores();
+  scores[currentMode] = Math.max(scores[currentMode] || 0, value);
+  localStorage.setItem(BEST_KEY, JSON.stringify(scores));
+  return scores[currentMode];
+}
+
+function recordProgressBest() {
+  if (!['playing','paused','over'].includes(state)) return getBest(mode);
+  const modeBest = saveBest(mode, score);
+  menuBestEl.textContent = modeBest;
+  return modeBest;
+}
+
+function updateMenuBest() {
+  menuBestEl.textContent = getBest(mode);
+}
 
 let W = 0;
 let H = 0;
@@ -149,7 +196,6 @@ let nextBossScore = 900;
 let spawnTimer = 0;
 let shake = 0;
 let flash = 0;
-let best = Number(localStorage.getItem(BEST_KEY) || 0);
 let pointerDown = false;
 let keyboardX = 0;
 let keyboardY = 0;
@@ -279,9 +325,9 @@ function startGame() {
 }
 
 function showMenu() {
+  recordProgressBest();
   state = 'menu';
-  best = Number(localStorage.getItem(BEST_KEY) || 0);
-  menuBestEl.textContent = best;
+  updateMenuBest();
   setScreens('menu');
   updateHud();
 }
@@ -289,9 +335,6 @@ function showMenu() {
 function pauseGame() {
   if (state !== 'playing') return;
   state = 'paused';
-  pauseBtn.textContent = '▶';
-  pauseBtn.title = '继续';
-  pauseBtn.setAttribute('aria-label', '继续');
   setScreens('paused');
   updateHud();
 }
@@ -308,11 +351,10 @@ function resumeGame() {
 
 function endGame() {
   state = 'over';
-  best = Math.max(best, score);
-  localStorage.setItem(BEST_KEY, String(best));
+  const modeBest = saveBest(mode, score);
   finalScoreEl.textContent = score;
-  finalBestEl.textContent = best;
-  menuBestEl.textContent = best;
+  finalBestEl.textContent = modeBest;
+  menuBestEl.textContent = modeBest;
   overTitleEl.textContent = score >= 3000 ? '王牌归航' : '任务结束';
   setScreens('over');
   updateHud();
@@ -973,18 +1015,20 @@ difficultyEl.addEventListener('click', e => {
   if (!btn) return;
   mode = btn.dataset.mode;
   difficultyEl.querySelectorAll('button').forEach(item => item.classList.toggle('active', item === btn));
+  updateMenuBest();
 });
 
 startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', startGame);
-pauseRestartBtn.addEventListener('click', startGame);
+pauseRestartBtn.addEventListener('click', () => {
+  recordProgressBest();
+  startGame();
+});
+pauseMenuBtn.addEventListener('click', showMenu);
 resumeBtn.addEventListener('click', resumeGame);
 backMenuBtn.addEventListener('click', showMenu);
 bombBtn.addEventListener('click', useBomb);
-pauseBtn.addEventListener('click', () => {
-  if (state === 'playing') pauseGame();
-  else if (state === 'paused') resumeGame();
-});
+pauseBtn.addEventListener('click', pauseGame);
 
 window.addEventListener('resize', resize);
 resize();

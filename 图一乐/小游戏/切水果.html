@@ -34,12 +34,19 @@ h1{margin-top:8px;font-size:42px;line-height:1.04;letter-spacing:0;font-weight:9
 .result div{padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(255,255,255,.06)}
 .result span{display:block;color:#b4bed0;font-size:12px}
 .result strong{display:block;margin-top:3px;font-size:24px;color:#fff}
+#pauseScreen{z-index:20;background:linear-gradient(180deg,rgba(21,19,25,.58),rgba(21,19,25,.92))}
+#pauseScreen .panel{padding:24px 20px;background:rgba(31,27,38,.88);box-shadow:0 28px 86px rgba(0,0,0,.44)}
+#pauseScreen .kicker{color:#7de1d1;font-weight:900}
+#pauseScreen h1{text-shadow:0 0 26px rgba(255,209,102,.22)}
+#pauseScreen .primary{background:linear-gradient(135deg,#ffd166,#7de1d1);color:#211705;box-shadow:0 14px 34px rgba(125,225,209,.2)}
+#pauseScreen .ghost{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#fff}
 @media (max-width:420px){
   .hud{top:calc(8px + env(safe-area-inset-top));left:8px;right:8px}
   .box{min-width:66px;padding:6px 8px}
   .box strong{font-size:16px}
   .icon-btn{width:38px;height:38px}
   .panel{padding:22px 18px}
+  #pauseScreen .panel{padding:22px 18px}
   h1{font-size:36px}
 }
 </style>
@@ -239,6 +246,13 @@ function updateMenuBest() {
   menuBestEl.textContent = getBest(mode);
 }
 
+function recordProgressBest() {
+  if (!['playing','paused','over'].includes(state)) return getBest(mode);
+  const modeBest = saveBest(mode, score);
+  menuBestEl.textContent = modeBest;
+  return modeBest;
+}
+
 function resetGame() {
   fruits.length = 0;
   halves.length = 0;
@@ -266,6 +280,7 @@ function startGame() {
 }
 
 function showMenu() {
+  recordProgressBest();
   state = 'menu';
   updateMenuBest();
   setScreens('menu');
@@ -275,9 +290,6 @@ function showMenu() {
 function pauseGame() {
   if (state !== 'playing') return;
   state = 'paused';
-  pauseBtn.textContent = '▶';
-  pauseBtn.title = '继续';
-  pauseBtn.setAttribute('aria-label', '继续');
   setScreens('paused');
 }
 
@@ -771,14 +783,14 @@ difficultyEl.addEventListener('click', e => {
 
 startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', startGame);
-pauseRestartBtn.addEventListener('click', startGame);
+pauseRestartBtn.addEventListener('click', () => {
+  recordProgressBest();
+  startGame();
+});
 pauseMenuBtn.addEventListener('click', showMenu);
 resumeBtn.addEventListener('click', resumeGame);
 backMenuBtn.addEventListener('click', showMenu);
-pauseBtn.addEventListener('click', () => {
-  if (state === 'playing') pauseGame();
-  else if (state === 'paused') resumeGame();
-});
+pauseBtn.addEventListener('click', pauseGame);
 
 window.addEventListener('resize', resize);
 resize();
