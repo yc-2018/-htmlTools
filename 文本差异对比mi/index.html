@@ -272,7 +272,7 @@
     color: #d0daf0;
   }
 
-  /* Textarea: transparent text, visible caret, above bg layer */
+  /* Textarea: transparent text + caret, above bg layer */
   textarea.editor {
     position: relative;
     z-index: 1;
@@ -282,6 +282,7 @@
     padding: 8px 12px;
     background: transparent;
     color: transparent;
+    caret-color: transparent;
     border: none;
     outline: none;
     resize: none;
@@ -291,16 +292,31 @@
     tab-size: 4;
     white-space: pre;
     overflow: hidden;
-    caret-color: #fff;
   }
 
   textarea.editor::selection {
-    background: rgba(82, 134, 239, 0.35);
+    background: rgba(82, 134, 239, 0.45);
     color: transparent;
   }
 
   textarea.editor::placeholder {
     color: var(--text-dim);
+  }
+
+  /* Custom caret rendered above overlay */
+  .custom-caret {
+    position: absolute;
+    z-index: 3;
+    width: 2px;
+    height: 21px;
+    background: #00ffcc;
+    pointer-events: none;
+    animation: caret-blink 1s step-end infinite;
+  }
+
+  @keyframes caret-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
   }
 
   .resize-handle {
@@ -350,10 +366,11 @@
       <div class="editor-wrap">
         <div class="gutter" id="leftGutter"></div>
         <div class="editor-scroll" id="leftScroll">
-          <div class="editor-content">
+          <div class="editor-content" id="leftContent">
             <div class="diff-bg" id="leftBg"></div>
             <div class="diff-overlay" id="leftOverlay"></div>
             <textarea class="editor" id="leftEditor" placeholder="在此粘贴或输入文本..." spellcheck="false"></textarea>
+            <div class="custom-caret" id="leftCaret" style="display:none"></div>
           </div>
         </div>
       </div>
@@ -369,10 +386,11 @@
       <div class="editor-wrap">
         <div class="gutter" id="rightGutter"></div>
         <div class="editor-scroll" id="rightScroll">
-          <div class="editor-content">
+          <div class="editor-content" id="rightContent">
             <div class="diff-bg" id="rightBg"></div>
             <div class="diff-overlay" id="rightOverlay"></div>
             <textarea class="editor" id="rightEditor" placeholder="在此粘贴或输入文本..." spellcheck="false"></textarea>
+            <div class="custom-caret" id="rightCaret" style="display:none"></div>
           </div>
         </div>
       </div>
@@ -391,7 +409,71 @@ const leftOverlay = document.getElementById('leftOverlay');
 const rightOverlay = document.getElementById('rightOverlay');
 const leftBg = document.getElementById('leftBg');
 const rightBg = document.getElementById('rightBg');
+const leftCaret = document.getElementById('leftCaret');
+const rightCaret = document.getElementById('rightCaret');
+const leftContent = document.getElementById('leftContent');
+const rightContent = document.getElementById('rightContent');
 let syncing = false;
+
+// ============================================================
+// Custom caret positioning
+// ============================================================
+const mirror = document.createElement('div');
+mirror.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;word-wrap:normal;overflow:hidden;';
+document.body.appendChild(mirror);
+
+function getCaretCoords(textarea) {
+  const cs = getComputedStyle(textarea);
+  const props = ['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing',
+    'textTransform','wordSpacing','textIndent','lineHeight','padding',
+    'paddingTop','paddingRight','paddingBottom','paddingLeft',
+    'border','borderTop','borderRight','borderBottom','borderLeft',
+    'boxSizing','tabSize','MozTabSize'];
+  for (const p of props) mirror.style[p] = cs[p];
+  mirror.style.width = textarea.clientWidth + 'px';
+  mirror.style.height = 'auto';
+
+  const sel = textarea.selectionStart;
+  const before = textarea.value.substring(0, sel);
+  const ch = sel < textarea.value.length ? textarea.value.charAt(sel) : ' ';
+  const after = sel < textarea.value.length ? textarea.value.substring(sel + 1) : '';
+
+  mirror.innerHTML = esc(before) + '<span id="_caret">' + esc(ch) + '</span>' + esc(after);
+  const marker = mirror.querySelector('#_caret');
+  const x = marker.offsetLeft;
+  const y = marker.offsetTop;
+  return { x, y };
+}
+
+function updateCaret(textarea, caretEl, contentEl, scrollEl) {
+  if (document.activeElement !== textarea) {
+    caretEl.style.display = 'none';
+    return;
+  }
+  const { x, y } = getCaretCoords(textarea);
+  caretEl.style.display = 'block';
+  caretEl.style.left = x + 'px';
+  caretEl.style.top = y + 'px';
+}
+
+function updateLeftCaret() { updateCaret(leftEditor, leftCaret, leftContent, leftScroll); }
+function updateRightCaret() { updateCaret(rightEditor, rightCaret, rightContent, rightScroll); }
+
+leftEditor.addEventListener('input', updateLeftCaret);
+leftEditor.addEventListener('click', updateLeftCaret);
+leftEditor.addEventListener('keyup', updateLeftCaret);
+leftEditor.addEventListener('mouseup', updateLeftCaret);
+leftEditor.addEventListener('focus', updateLeftCaret);
+leftEditor.addEventListener('blur', () => { leftCaret.style.display = 'none'; });
+leftScroll.addEventListener('scroll', updateLeftCaret);
+
+rightEditor.addEventListener('input', updateRightCaret);
+rightEditor.addEventListener('click', updateRightCaret);
+rightEditor.addEventListener('keyup', updateRightCaret);
+rightEditor.addEventListener('mouseup', updateRightCaret);
+rightEditor.addEventListener('focus', updateRightCaret);
+rightEditor.addEventListener('blur', () => { rightCaret.style.display = 'none'; });
+rightScroll.addEventListener('scroll', updateRightCaret);
 
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -445,10 +527,54 @@ function computeLineDiff(leftText, rightText) {
 }
 
 // ============================================================
-// Character-level diff (for modified line pairs)
+// Token-level diff (English words as units, Chinese chars individual)
 // ============================================================
+function tokenize(str) {
+  const tokens = [];
+  let i = 0;
+  while (i < str.length) {
+    const code = str.charCodeAt(i);
+    if (
+      (code >= 0x4e00 && code <= 0x9fff) ||
+      (code >= 0x3400 && code <= 0x4dbf) ||
+      (code >= 0x3000 && code <= 0x303f) ||
+      (code >= 0xff00 && code <= 0xffef)
+    ) {
+      tokens.push(str[i]);
+      i++;
+    } else if (
+      (code >= 0x0041 && code <= 0x005a) ||
+      (code >= 0x0061 && code <= 0x007a) ||
+      (code >= 0x0030 && code <= 0x0039) ||
+      code === 0x005f
+    ) {
+      let w = '';
+      while (i < str.length) {
+        const c = str.charCodeAt(i);
+        if (
+          (c >= 0x0041 && c <= 0x005a) ||
+          (c >= 0x0061 && c <= 0x007a) ||
+          (c >= 0x0030 && c <= 0x0039) ||
+          c === 0x005f
+        ) {
+          w += str[i];
+          i++;
+        } else {
+          break;
+        }
+      }
+      tokens.push(w);
+    } else {
+      tokens.push(str[i]);
+      i++;
+    }
+  }
+  return tokens;
+}
+
 function charDiff(a, b) {
-  const m = a.length, n = b.length;
+  const ta = tokenize(a), tb = tokenize(b);
+  const m = ta.length, n = tb.length;
   if (m === 0 && n === 0) return { left: [], right: [] };
   if (m === 0) return { left: [], right: [{ type: 'added', text: b }] };
   if (n === 0) return { left: [{ type: 'removed', text: a }], right: [] };
@@ -456,21 +582,21 @@ function charDiff(a, b) {
   const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      dp[i][j] = ta[i - 1] === tb[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
     }
   }
 
   const ops = [];
   let i = m, j = n;
   while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      ops.unshift({ type: 'same', ch: a[i - 1] });
+    if (i > 0 && j > 0 && ta[i - 1] === tb[j - 1]) {
+      ops.unshift({ type: 'same', tok: ta[i - 1] });
       i--; j--;
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      ops.unshift({ type: 'added', ch: b[j - 1] });
+      ops.unshift({ type: 'added', tok: tb[j - 1] });
       j--;
     } else {
-      ops.unshift({ type: 'removed', ch: a[i - 1] });
+      ops.unshift({ type: 'removed', tok: ta[i - 1] });
       i--;
     }
   }
@@ -483,10 +609,10 @@ function charDiff(a, b) {
       if (!relevant) continue;
       const display = (op.type === 'same') ? 'same' : 'changed';
       if (cur && cur.type === display) {
-        cur.text += op.ch;
+        cur.text += op.tok;
       } else {
         if (cur) result.push(cur);
-        cur = { type: display, text: op.ch };
+        cur = { type: display, text: op.tok };
       }
     }
     if (cur) result.push(cur);
@@ -633,6 +759,8 @@ function doDiff() {
     leftGutter.innerHTML = '';
     rightGutter.innerHTML = '';
     updateStats([], []);
+    updateLeftCaret();
+    updateRightCaret();
     return;
   }
 
@@ -646,6 +774,8 @@ function doDiff() {
   renderGutter(paired.left, leftGutter);
   renderGutter(paired.right, rightGutter);
   updateStats(paired.left, paired.right);
+  updateLeftCaret();
+  updateRightCaret();
 }
 
 // ============================================================
