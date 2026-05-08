@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diff Compare</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #1e1f22;
+    --panel-bg: #2b2d30;
+    --header-bg: #393b40;
+    --border: #43454a;
+    --text: #bcbec4;
+    --text-dim: #7a7d84;
+    --gutter-bg: #27292c;
+    --scrollbar: #43454a;
+    --scrollbar-hover: #5a5d64;
+    --accent: #5286ef;
+    --added-gutter: #2a5038;
+    --removed-gutter: #502a30;
+    /* line backgrounds */
+    --line-add: #2e4a3a;
+    --line-del: #4a2e32;
+    --line-chg: #2a3040;
+    /* character highlights */
+    --char-add: #3a7a4e;
+    --char-del: #7a3a42;
+    --char-chg: #4a60a0;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    min-height: 44px;
+  }
+
+  .toolbar h1 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+
+  .toolbar .sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+  }
+
+  .stats {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .stats .c-add { color: #6bc46d; }
+  .stats .c-del { color: #e06c75; }
+  .stats .c-chg { color: #7a9fe0; }
+
+  .toolbar-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .toolbar-actions button {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--panel-bg);
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .toolbar-actions button:hover {
+    background: var(--header-bg);
+    border-color: var(--accent);
+  }
+
+  .splitter-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  .panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--panel-bg);
+  }
+
+  .panel:first-child {
+    border-right: 2px solid var(--border);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .panel-header .label {
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .panel-header .info {
+    margin-left: 8px;
+    color: var(--text-dim);
+  }
+
+  .editor-wrap {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Gutter */
+  .gutter {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background: var(--gutter-bg);
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 21px;
+    padding: 8px 0;
+    text-align: right;
+    user-select: none;
+    overflow: hidden;
+    min-width: 50px;
+    z-index: 5;
+  }
+
+  .gutter .ln {
+    padding: 0 10px 0 8px;
+    display: block;
+    height: 21px;
+  }
+
+  .gutter .ln.g-add { background: var(--added-gutter); color: #6bc46d; }
+  .gutter .ln.g-del { background: var(--removed-gutter); color: #e06c75; }
+  .gutter .ln.g-chg { background: #2a3050; color: #7a9fe0; }
+
+  /* Scrollable area */
+  .editor-scroll {
+    flex: 1;
+    overflow: auto;
+    margin-left: 50px;
+    position: relative;
+  }
+
+  .editor-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+  .editor-scroll::-webkit-scrollbar-track { background: var(--panel-bg); }
+  .editor-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 5px; }
+  .editor-scroll::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+  /*
+   * Editor layering:
+   *   .editor-content  (relative, sizes to content)
+   *     .diff-overlay   (absolute, z-index:2, pointer-events:none) — renders highlighted text
+   *     textarea.editor (relative, z-index:1, color:transparent) — handles input + caret
+   */
+
+  .editor-content {
+    position: relative;
+    min-height: 100%;
+  }
+
+  /* Background layer: renders line backgrounds UNDER the textarea */
+  .diff-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 0;
+    pointer-events: none;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 21px;
+    white-space: pre;
+    font-family: inherit;
+    overflow: hidden;
+  }
+
+  .diff-bg .dl {
+    display: block;
+    height: 21px;
+    min-height: 21px;
+  }
+
+  .diff-bg .dl.dl-add { background: var(--line-add); }
+  .diff-bg .dl.dl-del { background: var(--line-del); }
+  .diff-bg .dl.dl-chg { background: var(--line-chg); }
+
+  /* Diff overlay: ON TOP, shows colored text only (no backgrounds) */
+  .diff-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    pointer-events: none;
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 21px;
+    white-space: pre;
+    font-family: inherit;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* Line in overlay */
+  .diff-overlay .dl {
+    display: block;
+    height: 21px;
+    min-height: 21px;
+  }
+
+  /* Character highlights */
+  .diff-overlay .ch-add {
+    background: var(--char-add);
+    border-radius: 2px;
+    color: #c8f0d0;
+  }
+
+  .diff-overlay .ch-del {
+    background: var(--char-del);
+    border-radius: 2px;
+    color: #f0c8cc;
+    text-decoration: line-through;
+    text-decoration-color: #e0a0a8;
+  }
+
+  .diff-overlay .ch-chg {
+    background: var(--char-chg);
+    border-radius: 2px;
+    color: #d0daf0;
+  }
+
+  /* Textarea: transparent text, visible caret, above bg layer */
+  textarea.editor {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    min-height: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    color: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 21px;
+    tab-size: 4;
+    white-space: pre;
+    overflow: hidden;
+    caret-color: #fff;
+  }
+
+  textarea.editor::selection {
+    background: rgba(82, 134, 239, 0.35);
+    color: transparent;
+  }
+
+  textarea.editor::placeholder {
+    color: var(--text-dim);
+  }
+
+  .resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: background 0.15s;
+    z-index: 10;
+  }
+
+  .resize-handle:hover, .resize-handle.active {
+    background: var(--accent);
+  }
+
+  @media (max-width: 768px) {
+    .splitter-container { flex-direction: column; }
+    .panel:first-child { border-right: none; border-bottom: 2px solid var(--border); }
+    .resize-handle { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar">
+    <h1>DIFF COMPARE</h1>
+    <div class="sep"></div>
+    <div class="stats">
+      <span>相同: <b id="sameCount" class="c-add">0</b></span>
+      <span>新增: <b id="addedCount" class="c-add">0</b></span>
+      <span>删除: <b id="removedCount" class="c-del">0</b></span>
+      <span>修改: <b id="changedCount" class="c-chg">0</b></span>
+    </div>
+    <div class="toolbar-actions">
+      <button onclick="swapPanels()">交换</button>
+      <button onclick="clearAll()">清空</button>
+      <button onclick="loadSample()">示例</button>
+    </div>
+  </div>
+
+  <div class="splitter-container">
+    <div class="panel" id="leftPanel">
+      <div class="panel-header">
+        <span class="label">原文</span>
+        <span class="info" id="leftInfo">0 行</span>
+      </div>
+      <div class="editor-wrap">
+        <div class="gutter" id="leftGutter"></div>
+        <div class="editor-scroll" id="leftScroll">
+          <div class="editor-content">
+            <div class="diff-bg" id="leftBg"></div>
+            <div class="diff-overlay" id="leftOverlay"></div>
+            <textarea class="editor" id="leftEditor" placeholder="在此粘贴或输入文本..." spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="resize-handle" id="resizeHandle"></div>
+
+    <div class="panel" id="rightPanel">
+      <div class="panel-header">
+        <span class="label">修改</span>
+        <span class="info" id="rightInfo">0 行</span>
+      </div>
+      <div class="editor-wrap">
+        <div class="gutter" id="rightGutter"></div>
+        <div class="editor-scroll" id="rightScroll">
+          <div class="editor-content">
+            <div class="diff-bg" id="rightBg"></div>
+            <div class="diff-overlay" id="rightOverlay"></div>
+            <textarea class="editor" id="rightEditor" placeholder="在此粘贴或输入文本..." spellcheck="false"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const leftEditor = document.getElementById('leftEditor');
+const rightEditor = document.getElementById('rightEditor');
+const leftScroll = document.getElementById('leftScroll');
+const rightScroll = document.getElementById('rightScroll');
+const leftGutter = document.getElementById('leftGutter');
+const rightGutter = document.getElementById('rightGutter');
+const leftOverlay = document.getElementById('leftOverlay');
+const rightOverlay = document.getElementById('rightOverlay');
+const leftBg = document.getElementById('leftBg');
+const rightBg = document.getElementById('rightBg');
+let syncing = false;
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function autoResize(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
+// ============================================================
+// Line-level LCS diff
+// ============================================================
+function computeLCS(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0 || n === 0) return [];
+  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  const result = [];
+  let i = m, j = n;
+  while (i > 0 && j > 0) {
+    if (a[i - 1] === b[j - 1]) { result.unshift({ left: i - 1, right: j - 1 }); i--; j--; }
+    else if (dp[i - 1][j] >= dp[i][j - 1]) i--;
+    else j--;
+  }
+  return result;
+}
+
+function computeLineDiff(leftText, rightText) {
+  const ll = leftText.split('\n');
+  const rl = rightText.split('\n');
+  const lcs = computeLCS(ll, rl);
+  const left = [], right = [];
+  let li = 0, ri = 0;
+
+  for (const m of lcs) {
+    while (li < m.left) { left.push({ type: 'removed', text: ll[li] }); li++; }
+    while (ri < m.right) { right.push({ type: 'added', text: rl[ri] }); ri++; }
+    left.push({ type: 'same', text: ll[li] });
+    right.push({ type: 'same', text: rl[ri] });
+    li++; ri++;
+  }
+  while (li < ll.length) { left.push({ type: 'removed', text: ll[li] }); li++; }
+  while (ri < rl.length) { right.push({ type: 'added', text: rl[ri] }); ri++; }
+
+  return { left, right };
+}
+
+// ============================================================
+// Character-level diff (for modified line pairs)
+// ============================================================
+function charDiff(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0 && n === 0) return { left: [], right: [] };
+  if (m === 0) return { left: [], right: [{ type: 'added', text: b }] };
+  if (n === 0) return { left: [{ type: 'removed', text: a }], right: [] };
+
+  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+
+  const ops = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      ops.unshift({ type: 'same', ch: a[i - 1] });
+      i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.unshift({ type: 'added', ch: b[j - 1] });
+      j--;
+    } else {
+      ops.unshift({ type: 'removed', ch: a[i - 1] });
+      i--;
+    }
+  }
+
+  function buildRanges(ops, side) {
+    const result = [];
+    let cur = null;
+    for (const op of ops) {
+      const relevant = (side === 'left') ? (op.type !== 'added') : (op.type !== 'removed');
+      if (!relevant) continue;
+      const display = (op.type === 'same') ? 'same' : 'changed';
+      if (cur && cur.type === display) {
+        cur.text += op.ch;
+      } else {
+        if (cur) result.push(cur);
+        cur = { type: display, text: op.ch };
+      }
+    }
+    if (cur) result.push(cur);
+    return result;
+  }
+
+  return {
+    left: buildRanges(ops, 'left'),
+    right: buildRanges(ops, 'right')
+  };
+}
+
+// ============================================================
+// Pair up removed/added lines for character diff
+// ============================================================
+function pairModified(leftLines, rightLines) {
+  const pairedLeft = [], pairedRight = [];
+  let i = 0, j = 0;
+
+  while (i < leftLines.length && j < rightLines.length) {
+    if (leftLines[i].type === 'same' && rightLines[j].type === 'same') {
+      pairedLeft.push(leftLines[i]);
+      pairedRight.push(rightLines[j]);
+      i++; j++;
+    } else if (leftLines[i].type === 'removed' && rightLines[j].type === 'added') {
+      // Pair as modified
+      const cd = charDiff(leftLines[i].text, rightLines[j].text);
+      pairedLeft.push({ type: 'changed', chars: cd.left, text: leftLines[i].text });
+      pairedRight.push({ type: 'changed', chars: cd.right, text: rightLines[j].text });
+      i++; j++;
+    } else if (leftLines[i].type === 'removed') {
+      pairedLeft.push(leftLines[i]);
+      i++;
+    } else {
+      pairedRight.push(rightLines[j]);
+      j++;
+    }
+  }
+  while (i < leftLines.length) { pairedLeft.push(leftLines[i]); i++; }
+  while (j < rightLines.length) { pairedRight.push(rightLines[j]); j++; }
+
+  return { left: pairedLeft, right: pairedRight };
+}
+
+// ============================================================
+// Render overlay (text + character highlights)
+// ============================================================
+function renderOverlay(lines, el) {
+  let html = '';
+  for (const line of lines) {
+    if (line.type === 'same') {
+      html += `<span class="dl">${esc(line.text) || ' '}</span>`;
+    } else if (line.type === 'changed' && line.chars) {
+      let inner = '';
+      for (const c of line.chars) {
+        if (c.type === 'same') {
+          inner += esc(c.text);
+        } else {
+          inner += `<span class="ch-chg">${esc(c.text)}</span>`;
+        }
+      }
+      html += `<span class="dl">${inner || ' '}</span>`;
+    } else if (line.type === 'added') {
+      html += `<span class="dl"><span class="ch-add">${esc(line.text) || ' '}</span></span>`;
+    } else if (line.type === 'removed') {
+      html += `<span class="dl"><span class="ch-del">${esc(line.text) || ' '}</span></span>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function renderBg(lines, el) {
+  let html = '';
+  for (const line of lines) {
+    if (line.type === 'same') {
+      html += `<span class="dl"></span>`;
+    } else if (line.type === 'changed') {
+      html += `<span class="dl dl-chg"></span>`;
+    } else if (line.type === 'added') {
+      html += `<span class="dl dl-add"></span>`;
+    } else if (line.type === 'removed') {
+      html += `<span class="dl dl-del"></span>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function renderGutter(lines, el) {
+  let html = '';
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    let cls = '';
+    if (l.type === 'added') cls = 'g-add';
+    else if (l.type === 'removed') cls = 'g-del';
+    else if (l.type === 'changed') cls = 'g-chg';
+    html += `<span class="ln ${cls}">${i + 1}</span>`;
+  }
+  el.innerHTML = html;
+}
+
+function updateInfo(editor, el) {
+  el.textContent = `${editor.value.split('\n').length} 行`;
+}
+
+function updateStats(leftResult, rightResult) {
+  let same = 0, added = 0, removed = 0, changed = 0;
+  for (const l of leftResult) {
+    if (l.type === 'same') same++;
+    else if (l.type === 'removed') removed++;
+    else if (l.type === 'changed') changed++;
+  }
+  for (const l of rightResult) {
+    if (l.type === 'added') added++;
+  }
+  document.getElementById('sameCount').textContent = same;
+  document.getElementById('addedCount').textContent = added;
+  document.getElementById('removedCount').textContent = removed;
+  document.getElementById('changedCount').textContent = changed;
+}
+
+// ============================================================
+// Main diff
+// ============================================================
+let debounceTimer;
+function scheduleUpdate() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(doDiff, 60);
+}
+
+function doDiff() {
+  autoResize(leftEditor);
+  autoResize(rightEditor);
+  updateInfo(leftEditor, document.getElementById('leftInfo'));
+  updateInfo(rightEditor, document.getElementById('rightInfo'));
+
+  const lt = leftEditor.value;
+  const rt = rightEditor.value;
+
+  if (!lt && !rt) {
+    leftOverlay.innerHTML = '';
+    rightOverlay.innerHTML = '';
+    leftBg.innerHTML = '';
+    rightBg.innerHTML = '';
+    leftGutter.innerHTML = '';
+    rightGutter.innerHTML = '';
+    updateStats([], []);
+    return;
+  }
+
+  const lineDiff = computeLineDiff(lt, rt);
+  const paired = pairModified(lineDiff.left, lineDiff.right);
+
+  renderOverlay(paired.left, leftOverlay);
+  renderOverlay(paired.right, rightOverlay);
+  renderBg(paired.left, leftBg);
+  renderBg(paired.right, rightBg);
+  renderGutter(paired.left, leftGutter);
+  renderGutter(paired.right, rightGutter);
+  updateStats(paired.left, paired.right);
+}
+
+// ============================================================
+// Scroll sync
+// ============================================================
+function syncSide(scrollEl, gutterEl) {
+  gutterEl.style.transform = `translateY(-${scrollEl.scrollTop}px)`;
+}
+
+leftScroll.addEventListener('scroll', () => {
+  if (syncing) return;
+  syncing = true;
+  rightScroll.scrollTop = leftScroll.scrollTop;
+  rightScroll.scrollLeft = leftScroll.scrollLeft;
+  syncSide(leftScroll, leftGutter);
+  syncSide(rightScroll, rightGutter);
+  syncing = false;
+});
+
+rightScroll.addEventListener('scroll', () => {
+  if (syncing) return;
+  syncing = true;
+  leftScroll.scrollTop = rightScroll.scrollTop;
+  leftScroll.scrollLeft = rightScroll.scrollLeft;
+  syncSide(leftScroll, leftGutter);
+  syncSide(rightScroll, rightGutter);
+  syncing = false;
+});
+
+leftEditor.addEventListener('input', scheduleUpdate);
+rightEditor.addEventListener('input', scheduleUpdate);
+
+// Tab key
+function handleTab(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+    e.target.value = e.target.value.substring(0, s) + '\t' + e.target.value.substring(end);
+    e.target.selectionStart = e.target.selectionEnd = s + 1;
+    scheduleUpdate();
+  }
+}
+leftEditor.addEventListener('keydown', handleTab);
+rightEditor.addEventListener('keydown', handleTab);
+
+// Resize handle
+const resizeHandle = document.getElementById('resizeHandle');
+const leftPanel = document.getElementById('leftPanel');
+const rightPanel = document.getElementById('rightPanel');
+let isResizing = false;
+
+resizeHandle.addEventListener('mousedown', (e) => {
+  isResizing = true;
+  resizeHandle.classList.add('active');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const container = document.querySelector('.splitter-container');
+  const rect = container.getBoundingClientRect();
+  const ratio = (e.clientX - rect.left) / rect.width;
+  const clamped = Math.min(0.8, Math.max(0.2, ratio));
+  leftPanel.style.flex = `0 0 ${clamped * 100}%`;
+  rightPanel.style.flex = `0 0 ${(1 - clamped) * 100}%`;
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    resizeHandle.classList.remove('active');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+
+// Actions
+function swapPanels() {
+  const tmp = leftEditor.value;
+  leftEditor.value = rightEditor.value;
+  rightEditor.value = tmp;
+  doDiff();
+}
+
+function clearAll() {
+  leftEditor.value = '';
+  rightEditor.value = '';
+  doDiff();
+}
+
+function loadSample() {
+  leftEditor.value = `function calculateTotal(items) {
+  let total = 0;
+  for (let i = 0; i < items.length; i++) {
+    total += items[i].price;
+  }
+  return total;
+}
+
+function formatPrice(price) {
+  return '$' + price.toFixed(2);
+}
+
+// 旧版用户验证
+function validateUser(user) {
+  if (!user.name) return false;
+  if (!user.email) return false;
+  return true;
+}
+
+const config = {
+  debug: true,
+  version: '1.0.0',
+  maxRetries: 3
+};`;
+
+  rightEditor.value = `function calculateTotal(items, taxRate = 0) {
+  let total = 0;
+  for (const item of items) {
+    total += item.price * item.quantity;
+  }
+  return total * (1 + taxRate);
+}
+
+function formatPrice(price, currency = 'USD') {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency
+  }).format(price);
+}
+
+// 新版用户验证（支持 OAuth）
+function validateUser(user) {
+  if (!user.name?.trim()) return false;
+  if (!user.email?.includes('@')) return false;
+  if (user.oauth && !user.oauth.provider) return false;
+  return true;
+}
+
+const config = {
+  debug: false,
+  version: '2.0.0',
+  maxRetries: 5,
+  timeout: 30000
+};`;
+
+  doDiff();
+}
+
+doDiff();
+</script>
+</body>
+</html>
