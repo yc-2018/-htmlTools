@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>转特殊字符</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: #172033;
+      background: #f4f7f8;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+
+    button,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+    }
+
+    .app-shell {
+      width: min(1360px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 16px 0 36px;
+    }
+
+    .text-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .text-panel,
+    .control-panel,
+    .notes-panel {
+      background: #ffffff;
+      border: 1px solid #dce4ea;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(32, 43, 54, 0.06);
+    }
+
+    .text-panel {
+      min-width: 0;
+      padding: 14px;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 30px;
+      margin-bottom: 8px;
+    }
+
+    .panel-main {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .panel-title {
+      color: #27384f;
+      font-weight: 700;
+    }
+
+    .panel-meta {
+      color: #64748b;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 300px;
+      padding: 12px;
+      resize: vertical;
+      color: #14213d;
+      border: 1px solid #cdd8e1;
+      border-radius: 8px;
+      outline: none;
+      background: #fbfdfe;
+      line-height: 1.6;
+    }
+
+    textarea:focus {
+      border-color: #0f766e;
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+
+    textarea[readonly] {
+      background: #f6f8fa;
+    }
+
+    .tool-button,
+    .style-option {
+      min-height: 40px;
+      padding: 9px 14px;
+      color: #1f2937;
+      border: 1px solid #cfd9e2;
+      border-radius: 8px;
+      background: #ffffff;
+      cursor: pointer;
+      transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    }
+
+    .tool-button:hover,
+    .style-option:hover {
+      border-color: #0f766e;
+      background: #eefaf8;
+    }
+
+    .tool-button:active,
+    .style-option:active {
+      transform: translateY(1px);
+    }
+
+    .tool-button.primary {
+      color: #ffffff;
+      border-color: #0f766e;
+      background: #0f766e;
+    }
+
+    .tool-button.warning {
+      color: #7c2d12;
+      border-color: #fed7aa;
+      background: #fff7ed;
+    }
+
+    .tool-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+      transform: none;
+    }
+
+    .panel-button {
+      min-height: 28px;
+      padding: 4px 10px;
+      font-size: 13px;
+    }
+
+    .control-panel {
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .control-row + .control-row {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e7edf2;
+    }
+
+    .style-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .style-option {
+      display: inline-flex;
+      align-items: center;
+      min-width: 58px;
+      justify-content: center;
+      white-space: nowrap;
+    }
+
+    .style-option.selected {
+      color: #ffffff;
+      border-color: #0f766e;
+      background: #0f766e;
+    }
+
+    .style-preview {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .status-line {
+      min-height: 22px;
+      margin-top: 10px;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .status-line.success {
+      color: #047857;
+    }
+
+    .status-line.warn {
+      color: #b45309;
+    }
+
+    .notes-panel {
+      margin-top: 14px;
+      padding: 16px;
+    }
+
+    .notes-panel h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .notes-panel p {
+      margin: 8px 0;
+      color: #405063;
+      line-height: 1.7;
+    }
+
+    .notes-panel a {
+      color: #0f766e;
+    }
+
+    .symbol-box {
+      display: none;
+      max-height: 320px;
+      margin-top: 12px;
+      padding: 12px;
+      overflow: auto;
+      word-break: break-all;
+      color: #243244;
+      border: 1px solid #dce4ea;
+      border-radius: 8px;
+      background: #fbfdfe;
+      line-height: 1.7;
+    }
+
+    .symbol-box.visible {
+      display: block;
+    }
+
+    @media (max-width: 920px) {
+      .text-grid {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 220px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .app-shell {
+        width: min(100% - 20px, 1360px);
+        padding: 10px 0 28px;
+      }
+
+      .style-option {
+        width: 100%;
+      }
+
+      .panel-button {
+        width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+<main class="app-shell">
+  <section class="text-grid" aria-label="文本转换区域">
+    <article class="text-panel">
+      <div class="panel-head">
+        <div class="panel-main">
+          <label class="panel-title" for="inputText">输入文本</label>
+          <button class="tool-button warning panel-button" type="button" id="clearBtn">清空</button>
+        </div>
+        <span class="panel-meta" id="inputCount">0 字符</span>
+      </div>
+      <textarea id="inputText" placeholder="输入英文字母或数字，例如：Hello 123"></textarea>
+    </article>
+
+    <article class="text-panel">
+      <div class="panel-head">
+        <div class="panel-main">
+          <label class="panel-title" for="outputText">输出文本</label>
+          <button class="tool-button panel-button" type="button" id="copyOutputBtn">复制输出</button>
+        </div>
+        <span class="panel-meta" id="outputCount">0 字符</span>
+      </div>
+      <textarea id="outputText" readonly placeholder="转换结果会实时显示在这里"></textarea>
+    </article>
+
+    <article class="text-panel">
+      <div class="panel-head">
+        <div class="panel-main">
+          <button class="tool-button primary panel-button" type="button" id="moveOutputBtn">输出过来</button>
+          <label class="panel-title" for="scratchText">乱搞文本</label>
+          <button class="tool-button panel-button" type="button" id="copyScratchBtn">复制乱搞文本</button>
+        </div>
+        <span class="panel-meta" id="scratchCount">0 字符</span>
+      </div>
+      <textarea id="scratchText" placeholder="这里可继续编辑，也可以把输出文本转过来"></textarea>
+    </article>
+  </section>
+
+  <section class="control-panel" aria-label="特殊字符选项">
+    <div class="control-row">
+      <div class="style-options" id="letterOptions"></div>
+    </div>
+    <div class="control-row">
+      <div class="style-options" id="numberOptions"></div>
+    </div>
+    <div class="status-line" id="statusLine" role="status" aria-live="polite">就绪</div>
+  </section>
+
+  <section class="notes-panel">
+    <h2>说明</h2>
+    <p><strong>乱搞文本：</strong>输出文本会跟随输入实时变化，不能直接编辑；点“输出过来”会覆盖乱搞文本。</p>
+    <p><strong>蓝字母：</strong>🇦 这组每个字符之间需要空格，手机上才会按蓝色字母显示；工具会自动补空格。</p>
+    <p><strong>更多特殊符号：</strong><a href="https://blog.csdn.net/weixin_46665865/article/details/126132912" target="_blank" rel="noopener noreferrer">CSDN 笔记</a></p>
+    <button class="tool-button" type="button" id="showSymbolsBtn">显示 10 万符号</button>
+    <div class="status-line" id="symbolProgress"></div>
+    <div class="symbol-box" id="symbolBox" aria-label="符号列表"></div>
+  </section>
+</main>
+
+<script>
+  (function () {
+    const normalLetters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const normalNumbers = '0123456789';
+    const letterStyles = [
+      { name: '粗体', chars: '𝐚𝐛𝐜𝐝𝐞𝐟𝐠𝐡𝐢𝐣𝐤𝐥𝐦𝐧𝐨𝐩𝐪𝐫𝐬𝐭𝐮𝐯𝐰𝐱𝐲𝐳𝐀𝐁𝐂𝐃𝐄𝐅𝐆𝐇𝐈𝐉𝐊𝐋𝐌𝐍𝐎𝐏𝐐𝐑𝐒𝐓𝐔𝐕𝐖𝐗𝐘𝐙' },
+      { name: '粗斜体', chars: '𝒂𝒃𝒄𝒅𝒆𝒇𝒈𝒉𝒊𝒋𝒌𝒍𝒎𝒏𝒐𝒑𝒒𝒓𝒔𝒕𝒖𝒗𝒘𝒙𝒚𝒛𝑨𝑩𝑪𝑫𝑬𝑭𝑮𝑯𝑰𝑱𝑲𝑳𝑴𝑵𝑶𝑷𝑸𝑹𝑺𝑻𝑼𝑽𝑾𝑿𝒀𝒁' },
+      { name: '双线', chars: '𝕒𝕓𝕔𝕕𝕖𝕗𝕘𝕙𝕚𝕛𝕜𝕝𝕞𝕟𝕠𝕡𝕢𝕣𝕤𝕥𝕦𝕧𝕨𝕩𝕪𝕫𝔸𝔹ℂ𝔻𝔼𝔽𝔾ℍ𝕀𝕁𝕂𝕃𝕄ℕ𝕆ℙℚℝ𝕊𝕋𝕌𝕍𝕎𝕏𝕐ℤ' },
+      { name: '斜体', chars: '𝑎𝑏𝑐𝑑𝑒𝑓𝑔𝒽𝑖𝑗𝑘𝑙𝑚𝑛𝑜𝑝𝑞𝑟𝑠𝑡𝑢𝑣𝑤𝑥𝑦𝑧𝐴𝐵𝐶𝐷𝐸𝐹𝐺𝐻𝐼𝐽𝐾𝐿𝑀𝑁𝑂𝑃𝑄𝑅𝑆𝑇𝑈𝑉𝑊𝑋𝑌𝑍' },
+      { name: '无衬线粗', chars: '𝗮𝗯𝗰𝗱𝗲𝗳𝗴𝗵𝗶𝗷𝗸𝗹𝗺𝗻𝗼𝗽𝗾𝗿𝘀𝘁𝘂𝘃𝘄𝘅𝘆𝘇𝗔𝗕𝗖𝗗𝗘𝗙𝗚𝗛𝗜𝗝𝗞𝗟𝗠𝗡𝗢𝗣𝗤𝗥𝗦𝗧𝗨𝗩𝗪𝗫𝗬𝗭' },
+      { name: '无衬线粗斜', chars: '𝙖𝙗𝙘𝙙𝙚𝙛𝙜𝙝𝙞𝙟𝙠𝙡𝙢𝙣𝙤𝙥𝙦𝙧𝙨𝙩𝙪𝙫𝙬𝙭𝙮𝙯𝘼𝘽𝘾𝘿𝙀𝙁𝙂𝙃𝙄𝙅𝙆𝙇𝙈𝙉𝙊𝙋𝙌𝙍𝙎𝙏𝙐𝙑𝙒𝙓𝙔𝙕' },
+      { name: '等宽', chars: '𝚊𝚋𝚌𝚍𝚎𝚏𝚐𝚑𝚒𝚓𝚔𝚕𝚖𝚗𝚘𝚙𝚚𝚛𝚜𝚝𝚞𝚟𝚠𝚡𝚢𝚣𝙰𝙱𝙲𝙳𝙴𝙵𝙶𝙷𝙸𝙹𝙺𝙻𝙼𝙽𝙾𝙿𝚀𝚁𝚂𝚃𝚄𝚅𝚆𝚇𝚈𝚉' },
+      { name: '无衬线斜', chars: '𝘢𝘣𝘤𝘥𝘦𝘧𝘨𝘩𝘪𝘫𝘬𝘭𝘮𝘯𝘰𝘱𝘲𝘳𝘴𝘵𝘶𝘷𝘸𝘹𝘺𝘻𝘈𝘉𝘊𝘋𝘌𝘍𝘎𝘏𝘐𝘑𝘒𝘓𝘔𝘕𝘖𝘗𝘘𝘙𝘚𝘛𝘜𝘝𝘞𝘟𝘠𝘡' },
+      { name: '无衬线', chars: '𝖺𝖻𝖼𝖽𝖾𝖿𝗀𝗁𝗂𝗃𝗄𝗅𝗆𝗇𝗈𝗉𝗊𝗋𝗌𝗍𝗎𝗏𝗐𝗑𝗒𝗓𝖠𝖡𝖢𝖣𝖤𝖥𝖦𝖧𝖨𝖩𝖪𝖫𝖬𝖭𝖮𝖯𝖰𝖱𝖲𝖳𝖴𝖵𝖶𝖷𝖸𝖹' },
+      { name: '哥特', chars: '𝖆𝖇𝖈𝖉𝖊𝖋𝖌𝖍𝖎𝖏𝖐𝖑𝖒𝖓𝖔𝖕𝖖𝖗𝖘𝖙𝖚𝖛𝖜𝖝𝖞𝖟𝕬𝕭𝕮𝕯𝕰𝕱𝕲𝕳𝕴𝕵𝕶𝕷𝕸𝕹𝕺𝕻𝕼𝕽𝕾𝕿𝖀𝖁𝖂𝖃𝖄𝖅' },
+      { name: '花体', chars: '𝒶𝒷𝒸𝒹𝑒𝒻𝑔𝒽𝒾𝒿𝓀𝓁𝓂𝓃𝑜𝓅𝓆𝓇𝓈𝓉𝓊𝓋𝓌𝓍𝓎𝓏𝒜ℬ𝒞𝒟ℰℱ𝒢ℋℐ𝒥𝒦ℒℳ𝒩𝒪𝒫𝒬ℛ𝒮𝒯𝒰𝒱𝒲𝒳𝒴𝒵' },
+      { name: '花体粗', chars: '𝓪𝓫𝓬𝓭𝓮𝓯𝓰𝓱𝓲𝓳𝓴𝓵𝓶𝓷𝓸𝓹𝓺𝓻𝓼𝓽𝓾𝓿𝔀𝔁𝔂𝔃𝓐𝓑𝓒𝓓𝓔𝓕𝓖𝓗𝓘𝓙𝓚𝓛𝓜𝓝𝓞𝓟𝓠𝓡𝓢𝓣𝓤𝓥𝓦𝓧𝓨𝓩' },
+      { name: '圆圈', chars: 'ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ' },
+      { name: '括号', chars: '⒜⒝⒞⒟⒠⒡⒢⒣⒤⒥⒦⒧⒨⒩⒪⒫⒬⒭⒮⒯⒰⒱⒲⒳⒴⒵🄐🄑🄒🄓🄔🄕🄖🄗🄘🄙🄚🄛🄜🄝🄞🄟🄠🄡🄢🄣🄤🄥🄦🄧🄨🄩' },
+      { name: '蓝字母', chars: '🇦🇧🇨🇩🇪🇫🇬🇭🇮🇯🇰🇱🇲🇳🇴🇵🇶🇷🇸🇹🇺🇻🇼🇽🇾🇿'.repeat(2), spaceAfter: true },
+      { name: '方框空心', chars: '🄰🄱🄲🄳🄴🄵🄶🄷🄸🄹🄺🄻🄼🄽🄾🄿🅀🅁🅂🅃🅄🅅🅆🅇🅈🅉'.repeat(2) },
+      { name: '方框阴文', chars: '🅐🅑🅒🅓🅔🅕🅖🅗🅘🅙🅚🅛🅜🅝🅞🅟🅠🅡🅢🅣🅤🅥🅦🅧🅨🅩'.repeat(2) },
+      { name: '方框', chars: '🅰🅱🅲🅳🅴🅵🅶🅷🅸🅹🅺🅻🅼🅽🅾🅿🆀🆁🆂🆃🆄🆅🆆🆇🆈🆉'.repeat(2) },
+      { name: '不换', chars: normalLetters, keepText: '不换' }
+    ];
+    const numberStyles = [
+      { name: '粗体', chars: '𝟎𝟏𝟐𝟑𝟒𝟓𝟔𝟕𝟖𝟗' },
+      { name: '无衬线', chars: '𝟢𝟣𝟤𝟥𝟦𝟧𝟨𝟩𝟪𝟫' },
+      { name: '双线', chars: '𝟘𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡' },
+      { name: '等宽', chars: '𝟶𝟷𝟸𝟹𝟺𝟻𝟼𝟽𝟾𝟿' },
+      { name: '无衬线粗', chars: '𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵' },
+      { name: '下标', chars: '₀₁₂₃₄₅₆₇₈₉' },
+      { name: '上标', chars: '⁰¹²³⁴⁵⁶⁷⁸⁹' },
+      { name: '不换', chars: normalNumbers, keepText: '不换' }
+    ];
+
+    const inputText = document.getElementById('inputText');
+    const outputText = document.getElementById('outputText');
+    const scratchText = document.getElementById('scratchText');
+    const inputCount = document.getElementById('inputCount');
+    const outputCount = document.getElementById('outputCount');
+    const scratchCount = document.getElementById('scratchCount');
+    const letterOptions = document.getElementById('letterOptions');
+    const numberOptions = document.getElementById('numberOptions');
+    const statusLine = document.getElementById('statusLine');
+    const moveOutputBtn = document.getElementById('moveOutputBtn');
+    const copyOutputBtn = document.getElementById('copyOutputBtn');
+    const copyScratchBtn = document.getElementById('copyScratchBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const showSymbolsBtn = document.getElementById('showSymbolsBtn');
+    const symbolBox = document.getElementById('symbolBox');
+    const symbolProgress = document.getElementById('symbolProgress');
+
+    let selectedLetterIndex = 2;
+    let selectedNumberIndex = 2;
+    let statusTimer = 0;
+    let symbolsGenerated = false;
+
+    function countChars(text) {
+      return Array.from(text).length;
+    }
+
+    function updateCounts() {
+      inputCount.textContent = countChars(inputText.value) + ' 字符';
+      outputCount.textContent = countChars(outputText.value) + ' 字符';
+      scratchCount.textContent = countChars(scratchText.value) + ' 字符';
+    }
+
+    function setStatus(text, type) {
+      window.clearTimeout(statusTimer);
+      statusLine.textContent = text;
+      statusLine.className = 'status-line' + (type ? ' ' + type : '');
+      statusTimer = window.setTimeout(function () {
+        statusLine.textContent = '就绪';
+        statusLine.className = 'status-line';
+      }, 2800);
+    }
+
+    function convertText(text) {
+      const selectedLetterStyle = letterStyles[selectedLetterIndex];
+      const selectedLetters = Array.from(selectedLetterStyle.chars);
+      const selectedNumbers = Array.from(numberStyles[selectedNumberIndex].chars);
+      const chars = Array.from(text);
+      let result = '';
+
+      for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
+        let index = normalLetters.indexOf(char);
+        if (index !== -1) {
+          const convertedLetter = selectedLetters[index] || char;
+          const nextIsLetter = normalLetters.indexOf(chars[i + 1]) !== -1;
+          result += selectedLetterStyle.spaceAfter && nextIsLetter ? convertedLetter + ' ' : convertedLetter;
+          continue;
+        }
+
+        index = normalNumbers.indexOf(char);
+        if (index !== -1) {
+          result += selectedNumbers[index] || char;
+          continue;
+        }
+
+        result += char;
+      }
+
+      return result;
+    }
+
+    function updateOutput() {
+      outputText.value = convertText(inputText.value);
+      updateCounts();
+    }
+
+    function renderOptions(container, options, selectedIndex, onSelect) {
+      options.forEach(function (option, index) {
+        const button = document.createElement('button');
+        const preview = document.createElement('span');
+        const sample = option.keepText || Array.from(option.chars).slice(0, 3).join(option.spaceAfter ? ' ' : '');
+
+        button.type = 'button';
+        button.className = 'style-option' + (index === selectedIndex ? ' selected' : '');
+        button.setAttribute('aria-pressed', String(index === selectedIndex));
+        button.title = option.name;
+        preview.className = 'style-preview';
+        preview.textContent = sample;
+        button.appendChild(preview);
+        button.addEventListener('click', function () {
+          onSelect(index);
+        });
+        container.appendChild(button);
+      });
+    }
+
+    function refreshOptionState(container, selectedIndex) {
+      Array.from(container.children).forEach(function (button, index) {
+        const isSelected = index === selectedIndex;
+        button.classList.toggle('selected', isSelected);
+        button.setAttribute('aria-pressed', String(isSelected));
+      });
+    }
+
+    function fallbackCopy(text) {
+      const copyArea = document.createElement('textarea');
+      copyArea.value = text;
+      copyArea.setAttribute('readonly', '');
+      copyArea.style.position = 'fixed';
+      copyArea.style.left = '-9999px';
+      copyArea.style.top = '0';
+      document.body.appendChild(copyArea);
+      copyArea.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(copyArea);
+      if (!copied) {
+        throw new Error('copy failed');
+      }
+    }
+
+    async function copyText(text, label) {
+      if (!text) {
+        setStatus('暂无内容可复制', 'warn');
+        return;
+      }
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          fallbackCopy(text);
+        }
+        setStatus(label + '已复制', 'success');
+      } catch (error) {
+        try {
+          fallbackCopy(text);
+          setStatus(label + '已复制', 'success');
+        } catch (fallbackError) {
+          setStatus('复制失败，请手动选择复制', 'warn');
+        }
+      }
+    }
+
+    function generateSymbols() {
+      if (symbolsGenerated) {
+        symbolBox.classList.toggle('visible');
+        showSymbolsBtn.textContent = symbolBox.classList.contains('visible') ? '隐藏 10 万符号' : '显示 10 万符号';
+        return;
+      }
+
+      if (!window.confirm('会渲染很多字符，电脑可能会卡一下。继续显示吗？')) {
+        return;
+      }
+
+      let codePoint = 32;
+      const end = 140000;
+      const chunkSize = 1800;
+      symbolsGenerated = true;
+      symbolBox.textContent = '';
+      symbolBox.classList.add('visible');
+      showSymbolsBtn.disabled = true;
+      showSymbolsBtn.textContent = '正在生成...';
+
+      function appendChunk() {
+        let chunk = '';
+        const chunkEnd = Math.min(codePoint + chunkSize, end);
+        for (; codePoint < chunkEnd; codePoint++) {
+          chunk += String.fromCodePoint(codePoint);
+        }
+        symbolBox.appendChild(document.createTextNode(chunk));
+        symbolProgress.textContent = '已生成 ' + (codePoint - 32) + ' / ' + (end - 32) + ' 个符号';
+
+        if (codePoint < end) {
+          window.requestAnimationFrame(appendChunk);
+          return;
+        }
+
+        showSymbolsBtn.disabled = false;
+        showSymbolsBtn.textContent = '隐藏 10 万符号';
+        symbolProgress.textContent = '生成完成。有很多方块是当前字体不支持显示的符号。';
+      }
+
+      window.requestAnimationFrame(appendChunk);
+    }
+
+    renderOptions(letterOptions, letterStyles, selectedLetterIndex, function (index) {
+      selectedLetterIndex = index;
+      refreshOptionState(letterOptions, selectedLetterIndex);
+      updateOutput();
+    });
+    renderOptions(numberOptions, numberStyles, selectedNumberIndex, function (index) {
+      selectedNumberIndex = index;
+      refreshOptionState(numberOptions, selectedNumberIndex);
+      updateOutput();
+    });
+
+    inputText.addEventListener('input', updateOutput);
+    scratchText.addEventListener('input', updateCounts);
+    moveOutputBtn.addEventListener('click', function () {
+      scratchText.value = outputText.value;
+      updateCounts();
+      setStatus('输出文本已覆盖到乱搞文本', 'success');
+    });
+    copyOutputBtn.addEventListener('click', function () {
+      copyText(outputText.value, '输出文本');
+    });
+    copyScratchBtn.addEventListener('click', function () {
+      copyText(scratchText.value, '乱搞文本');
+    });
+    clearBtn.addEventListener('click', function () {
+      inputText.value = '';
+      outputText.value = '';
+      scratchText.value = '';
+      updateCounts();
+      setStatus('已清空', 'success');
+    });
+    showSymbolsBtn.addEventListener('click', generateSymbols);
+
+    updateOutput();
+  })();
+</script>
+</body>
+</html>
