@@ -136,6 +136,81 @@
       display: none;
     }
 
+    .image-options {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      background: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      color: #2c3e50;
+    }
+
+    .option-check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .option-check input {
+      width: 17px;
+      height: 17px;
+      accent-color: #3498db;
+      cursor: pointer;
+    }
+
+    .option-divider {
+      width: 1px;
+      height: 22px;
+      background: #dfe6e9;
+    }
+
+    .size-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 260px;
+      flex: 1;
+      color: #34495e;
+      transition: opacity 0.2s;
+    }
+
+    .size-control.is-disabled {
+      opacity: 0.45;
+    }
+
+    .size-control input[type="range"] {
+      flex: 1;
+      min-width: 120px;
+      accent-color: #3498db;
+      cursor: pointer;
+    }
+
+    .size-control input[type="range"]:disabled {
+      cursor: not-allowed;
+    }
+
+    #max-size-output {
+      min-width: 32px;
+      color: #3498db;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .size-boundary {
+      color: #7f8c8d;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
     .history-container {
       background: white;
       border-radius: 12px;
@@ -283,6 +358,20 @@
         width: 100%;
         justify-content: center;
       }
+
+      .image-options {
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .option-divider {
+        display: none;
+      }
+
+      .size-control {
+        flex-basis: 100%;
+        min-width: 100%;
+      }
     }
   </style>
 </head>
@@ -311,6 +400,24 @@
     <div id="attempt-clipboard">尝试上传剪贴板图片</div>
   </div>
 
+  <div class="image-options" aria-label="图片处理选项">
+    <label class="option-check" for="convert-webp">
+      <input type="checkbox" id="convert-webp" checked>
+      <span>转 WebP</span>
+    </label>
+    <span class="option-divider" aria-hidden="true"></span>
+    <label class="option-check" for="compress-enabled">
+      <input type="checkbox" id="compress-enabled">
+      <span>压缩图片</span>
+    </label>
+    <div class="size-control is-disabled" id="compress-size-control">
+      <span>最大</span>
+      <span class="size-boundary">1m</span>
+      <input type="range" id="max-size-range" min="1" max="10" step="1" value="3" disabled>
+      <span class="size-boundary">10m</span>
+      <output id="max-size-output" for="max-size-range">3m</output>
+    </div>
+  </div>
 
   <div class="history-container">
     <div class="history-header">
@@ -335,9 +442,36 @@
     const notification = document.getElementById('notification');
     const progressBar = document.getElementById('progress-bar');
     const attemptClipboard = document.getElementById('attempt-clipboard');
+    const convertWebpInput = document.getElementById('convert-webp');
+    const compressEnabledInput = document.getElementById('compress-enabled');
+    const compressSizeControl = document.getElementById('compress-size-control');
+    const maxSizeRange = document.getElementById('max-size-range');
+    const maxSizeOutput = document.getElementById('max-size-output');
+    const compressibleImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
+    const imageExtMap = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/bmp': 'bmp'
+    };
 
     // 加载历史记录
     loadHistory();
+    syncCompressControls();
+
+    compressEnabledInput.addEventListener('change', syncCompressControls);
+    maxSizeRange.addEventListener('input', updateMaxSizeOutput);
+
+    function syncCompressControls() {
+      const enabled = compressEnabledInput.checked;
+      maxSizeRange.disabled = !enabled;
+      compressSizeControl.classList.toggle('is-disabled', !enabled);
+      updateMaxSizeOutput();
+    }
+
+    function updateMaxSizeOutput() {
+      maxSizeOutput.textContent = maxSizeRange.value + 'm';
+    }
 
     // 点击上传区域触发文件选择
     dropArea.addEventListener('click', function () {
@@ -371,7 +505,9 @@
     // 文件选择变化
     fileInput.addEventListener('change', function () {
       if (this.files.length > 0) {
-        uploadFile(this.files[0]);
+        const selectedFile = this.files[0];
+        this.value = '';
+        uploadFile(selectedFile);
       }
     });
 
@@ -426,14 +562,17 @@
     });
 
     // 上传文件函数
-    function uploadFile(file) {
+    async function uploadFile(file) {
       if (!file || !file.type.match('image.*')) {
         showNotification('请选择图片文件！', false);
         return;
       }
 
+      progressBar.style.width = '0%';
+      const fileForUpload = await prepareImageForUpload(file);
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', fileForUpload);
 
       // 显示进度条
       progressBar.style.width = '0%';
@@ -475,6 +614,198 @@
       };
 
       xhr.send(formData);
+    }
+
+    async function prepareImageForUpload(file) {
+      const shouldConvertWebp = convertWebpInput.checked;
+      const shouldCompress = compressEnabledInput.checked;
+
+      if (!shouldConvertWebp && !shouldCompress) {
+        return file;
+      }
+
+      if (!compressibleImageTypes.includes(file.type)) {
+        showNotification('当前图片类型不支持浏览器内处理，已按原图上传', false);
+        return file;
+      }
+
+      try {
+        const targetType = shouldConvertWebp ? 'image/webp' : getOriginalOutputType(file.type);
+        const maxSizeMb = Number(maxSizeRange.value);
+        const maxSizeBytes = maxSizeMb * 1024 * 1024;
+        let sourceFile = file;
+
+        progressBar.style.width = '8%';
+
+        if (targetType !== file.type) {
+          const convertedFile = await renderImageFile(file, targetType, 0.95);
+          if (convertedFile) {
+            sourceFile = convertedFile;
+          }
+
+          if (!shouldCompress) {
+            return sourceFile;
+          }
+
+          if (sourceFile.size <= maxSizeBytes) {
+            return sourceFile;
+          }
+        }
+
+        if (!shouldCompress || sourceFile.size <= maxSizeBytes) {
+          return sourceFile;
+        }
+
+        progressBar.style.width = '16%';
+        return await compressImageToMax(sourceFile, maxSizeMb, targetType);
+      } catch (error) {
+        console.error('图片处理失败:', error);
+        showNotification('图片处理失败，已按原图上传', false);
+        return file;
+      }
+    }
+
+    function getOriginalOutputType(type) {
+      return type === 'image/jpeg' || type === 'image/png' || type === 'image/webp'
+        ? type
+        : 'image/jpeg';
+    }
+
+    async function compressImageToMax(file, maxSizeMb, targetType) {
+      const maxSizeBytes = maxSizeMb * 1024 * 1024;
+      const sourceImage = await loadImageSource(file);
+      const originalMaxSide = Math.max(sourceImage.width, sourceImage.height);
+      let maxWidthOrHeight = Math.min(originalMaxSide, 1920);
+      let bestFile = null;
+
+      try {
+        for (let resizeRound = 0; resizeRound < 8; resizeRound++) {
+          const canvas = drawImageToCanvas(sourceImage, maxWidthOrHeight, targetType);
+          const qualityList = targetType === 'image/png'
+            ? [0.92]
+            : [0.85, 0.75, 0.65, 0.55, 0.45, 0.35];
+
+          for (const quality of qualityList) {
+            const candidate = await canvasToImageFile(canvas, file.name, targetType, quality, file.lastModified);
+            if (!candidate) {
+              continue;
+            }
+
+            if (!bestFile || candidate.size < bestFile.size) {
+              bestFile = candidate;
+            }
+
+            if (candidate.size <= maxSizeBytes) {
+              return candidate;
+            }
+          }
+
+          if (maxWidthOrHeight <= 420) {
+            break;
+          }
+          maxWidthOrHeight = Math.max(420, Math.floor(maxWidthOrHeight * 0.78));
+        }
+      } finally {
+        sourceImage.cleanup();
+      }
+
+      if (bestFile && bestFile.size < file.size) {
+        console.warn(`压缩后文件仍大于${maxSizeMb}MB:`, formatFileSize(bestFile.size));
+        return bestFile;
+      }
+
+      console.warn(`压缩未得到更小文件，保留原图:`, file.name);
+      return file;
+    }
+
+    async function renderImageFile(file, type, quality) {
+      const sourceImage = await loadImageSource(file);
+      try {
+        const canvas = drawImageToCanvas(sourceImage, null, type);
+        return await canvasToImageFile(canvas, file.name, type, quality, file.lastModified);
+      } finally {
+        sourceImage.cleanup();
+      }
+    }
+
+    async function loadImageSource(file) {
+      if ('createImageBitmap' in window) {
+        try {
+          const bitmap = await createImageBitmap(file);
+          return {
+            source: bitmap,
+            width: bitmap.width,
+            height: bitmap.height,
+            cleanup: () => bitmap.close && bitmap.close()
+          };
+        } catch (error) {
+          console.warn('createImageBitmap 读取失败，使用 Image 回退:', error);
+        }
+      }
+
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = url;
+
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('图片读取失败'));
+      });
+
+      return {
+        source: image,
+        width: image.naturalWidth || image.width,
+        height: image.naturalHeight || image.height,
+        cleanup: () => URL.revokeObjectURL(url)
+      };
+    }
+
+    function drawImageToCanvas(sourceImage, maxWidthOrHeight, outputType) {
+      const maxSide = Math.max(sourceImage.width, sourceImage.height);
+      const scale = maxWidthOrHeight ? Math.min(1, maxWidthOrHeight / maxSide) : 1;
+      const width = Math.max(1, Math.round(sourceImage.width * scale));
+      const height = Math.max(1, Math.round(sourceImage.height * scale));
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = width;
+      canvas.height = height;
+
+      if (outputType === 'image/jpeg') {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, width, height);
+      }
+
+      ctx.drawImage(sourceImage.source, 0, 0, width, height);
+      return canvas;
+    }
+
+    function canvasToImageFile(canvas, originalName, type, quality, lastModified) {
+      return new Promise(resolve => {
+        canvas.toBlob(blob => {
+          if (!blob) {
+            resolve(null);
+            return;
+          }
+
+          const actualType = blob.type || type;
+          resolve(new File(
+            [blob],
+            replaceImageExt(originalName, actualType),
+            {type: actualType, lastModified}
+          ));
+        }, type, quality);
+      });
+    }
+
+    function replaceImageExt(name, type) {
+      const ext = imageExtMap[type] || 'jpg';
+      return name.match(/\.[^.]+$/) ? name.replace(/\.[^.]+$/, `.${ext}`) : `${name}.${ext}`;
+    }
+
+    function formatFileSize(size) {
+      return (size / 1024 / 1024).toFixed(2) + 'MB';
     }
 
     // 处理上传成功
