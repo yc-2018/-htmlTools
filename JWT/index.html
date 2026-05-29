@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JWT 编码解码器</title>
+  <link rel="stylesheet" href="./vendor/codemirror/codemirror.min.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div class="title-block">
+      <h1>JWT 编码解码器</h1>
+      <p class="subtitle">本地解析 Header、Payload 和签名，支持 HS256、HS384、HS512。</p>
+    </div>
+    <div class="segmented" role="tablist" aria-label="工具模式">
+      <button id="decodeTab" class="active" type="button" role="tab" aria-selected="true">解码器</button>
+      <button id="encodeTab" type="button" role="tab" aria-selected="false">编码器</button>
+    </div>
+  </header>
+
+  <div id="status" class="status" role="status" aria-live="polite">就绪。</div>
+
+  <section id="decoderView" class="workspace" aria-label="JWT 解码器">
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">JWT</h2>
+          <p class="panel-subtitle">Encoded token</p>
+        </div>
+        <div class="panel-actions">
+          <button id="copyJwtBtn" class="button subtle icon-button" type="button" data-tooltip="复制 JWT" aria-label="复制 JWT"><span class="copy-icon"></span></button>
+          <button id="clearDecodeBtn" class="button danger" type="button">清空</button>
+        </div>
+      </div>
+      <div id="jwtInputEditor" class="token-editor">
+        <textarea id="jwtInput" class="token-textarea" spellcheck="false" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IuW8oOS4iSIsInJvbGUiOiJkZW1vIiwiZXhwIjoxODkzNDU2MDAwfQ.7tEy6SaiumHY6tt1qo9KoSeFQbHpWIsK61J1zekxxPA</textarea>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">解码结果</h2>
+          <p class="panel-subtitle">Header / Payload / Signature</p>
+        </div>
+        <div class="panel-actions">
+          <button id="useDecodedForEncodeBtn" class="button subtle" type="button">转到编码器</button>
+        </div>
+      </div>
+
+      <div class="editor-section">
+        <div class="section-heading">
+          <div class="section-name header"><span class="dot"></span><span>Header</span></div>
+          <button id="copyDecodedHeaderBtn" class="button small icon-button" type="button" data-tooltip="复制 Header" aria-label="复制 Header"><span class="copy-icon"></span></button>
+        </div>
+        <pre id="decodedHeader" class="json-output header-output"></pre>
+        <textarea id="decodedHeaderCopy" class="copy-source" tabindex="-1" aria-hidden="true"></textarea>
+      </div>
+
+      <div class="editor-section">
+        <div class="section-heading">
+          <div class="section-name payload"><span class="dot"></span><span>Payload</span></div>
+          <button id="copyDecodedPayloadBtn" class="button small icon-button" type="button" data-tooltip="复制 Payload" aria-label="复制 Payload"><span class="copy-icon"></span></button>
+        </div>
+        <pre id="decodedPayload" class="json-output payload-output"></pre>
+        <textarea id="decodedPayloadCopy" class="copy-source" tabindex="-1" aria-hidden="true"></textarea>
+      </div>
+
+      <div class="editor-section">
+        <div class="section-heading">
+          <div class="section-name signature"><span class="dot"></span><span>Signature</span></div>
+          <button id="copySignatureBtn" class="button small icon-button" type="button" data-tooltip="复制 Signature" aria-label="复制 Signature"><span class="copy-icon"></span></button>
+        </div>
+        <div class="signature-box">
+          <div class="form-grid">
+            <div class="field">
+              <label for="decodeSecret">验证密钥</label>
+              <input id="decodeSecret" type="password" autocomplete="off" placeholder="secret">
+            </div>
+            <div class="field">
+              <span class="field-label">签名验证</span>
+              <button id="verifyBtn" class="button primary" type="button">验证签名</button>
+            </div>
+          </div>
+          <label class="checkbox-line" for="decodeSecretBase64">
+            <input id="decodeSecretBase64" type="checkbox">
+            密钥为 Base64URL
+          </label>
+          <div id="signatureInfo" class="signature-meta">等待 JWT。</div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section id="encoderView" class="workspace" aria-label="JWT 编码器" hidden>
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">JSON 内容</h2>
+          <p class="panel-subtitle">Header / Payload</p>
+        </div>
+        <div class="panel-actions">
+          <button id="clearEncodeBtn" class="button danger" type="button">重置</button>
+        </div>
+      </div>
+
+      <div class="form-block">
+        <div class="form-grid">
+          <div class="field">
+            <label for="algorithmSelect">算法</label>
+            <select id="algorithmSelect">
+              <option value="HS256">HS256</option>
+              <option value="HS384">HS384</option>
+              <option value="HS512">HS512</option>
+              <option value="none">none</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="encodeSecret">编码密钥</label>
+            <input id="encodeSecret" type="password" autocomplete="off" placeholder="secret">
+          </div>
+        </div>
+        <label class="checkbox-line" for="encodeSecretBase64">
+          <input id="encodeSecretBase64" type="checkbox">
+          密钥为 Base64URL
+        </label>
+      </div>
+
+      <div class="editor-section">
+        <div class="section-heading">
+          <div class="section-name header"><span class="dot"></span><span>Header JSON</span></div>
+          <button id="formatHeaderBtn" class="button small" type="button">格式化</button>
+        </div>
+        <div class="code-shell json-shell">
+          <pre id="encodeHeaderHighlight" class="code-highlight json-highlight" aria-hidden="true"></pre>
+          <textarea id="encodeHeader" class="json-textarea code-textarea" spellcheck="false"></textarea>
+        </div>
+      </div>
+
+      <div class="editor-section">
+        <div class="section-heading">
+          <div class="section-name payload"><span class="dot"></span><span>Payload JSON</span></div>
+          <button id="formatPayloadBtn" class="button small" type="button">格式化</button>
+        </div>
+        <div class="code-shell json-shell">
+          <pre id="encodePayloadHighlight" class="code-highlight json-highlight" aria-hidden="true"></pre>
+          <textarea id="encodePayload" class="json-textarea code-textarea" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">JWT 输出</h2>
+          <p class="panel-subtitle">Encoded token</p>
+        </div>
+        <div class="panel-actions">
+          <button id="copyOutputBtn" class="button subtle icon-button" type="button" data-tooltip="复制 JWT 输出" aria-label="复制 JWT 输出"><span class="copy-icon"></span></button>
+          <button id="sendToDecoderBtn" class="button subtle" type="button">转到解码器</button>
+        </div>
+      </div>
+      <div id="jwtOutputEditor" class="token-editor">
+        <textarea id="jwtOutput" class="token-textarea" spellcheck="false" readonly></textarea>
+      </div>
+    </article>
+  </section>
+</main>
+<div id="customTooltip" class="custom-tooltip" role="tooltip" aria-hidden="true"></div>
+
+<script src="./vendor/codemirror/codemirror.min.js"></script>
+<script src="./vendor/codemirror/javascript.min.js"></script>
+<script>
+  (function () {
+    const textEncoder = new TextEncoder();
+    const textDecoder = new TextDecoder("utf-8", { fatal: true });
+    const hmacAlgorithms = {
+      HS256: "SHA-256",
+      HS384: "SHA-384",
+      HS512: "SHA-512"
+    };
+    let jwtInputEditor = null;
+    let jwtOutputEditor = null;
+    let syncingJwtInput = false;
+
+    const elements = {
+      decodeTab: document.getElementById("decodeTab"),
+      encodeTab: document.getElementById("encodeTab"),
+      decoderView: document.getElementById("decoderView"),
+      encoderView: document.getElementById("encoderView"),
+      status: document.getElementById("status"),
+      jwtInput: document.getElementById("jwtInput"),
+      decodedHeader: document.getElementById("decodedHeader"),
+      decodedHeaderCopy: document.getElementById("decodedHeaderCopy"),
+      decodedPayload: document.getElementById("decodedPayload"),
+      decodedPayloadCopy: document.getElementById("decodedPayloadCopy"),
+      decodeSecret: document.getElementById("decodeSecret"),
+      decodeSecretBase64: document.getElementById("decodeSecretBase64"),
+      signatureInfo: document.getElementById("signatureInfo"),
+      algorithmSelect: document.getElementById("algorithmSelect"),
+      encodeSecret: document.getElementById("encodeSecret"),
+      encodeSecretBase64: document.getElementById("encodeSecretBase64"),
+      encodeHeader: document.getElementById("encodeHeader"),
+      encodeHeaderHighlight: document.getElementById("encodeHeaderHighlight"),
+      encodePayload: document.getElementById("encodePayload"),
+      encodePayloadHighlight: document.getElementById("encodePayloadHighlight"),
+      jwtOutput: document.getElementById("jwtOutput"),
+      customTooltip: document.getElementById("customTooltip")
+    };
+
+    let latestDecoded = null;
+
+    function setStatus(message, type) {
+      elements.status.textContent = message;
+      elements.status.className = type ? "status " + type : "status";
+    }
+
+    function setSignatureInfo(message, type) {
+      elements.signatureInfo.textContent = message;
+      elements.signatureInfo.className = type ? "signature-meta " + type : "signature-meta";
+    }
+
+    function toPrettyJson(value) {
+      return JSON.stringify(value, null, 2);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/"/g, "&quot;");
+    }
+
+    function padTime(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function formatUnixSeconds(value) {
+      const timestamp = Number(value);
+      if (!Number.isFinite(timestamp)) {
+        return "";
+      }
+      const date = new Date(timestamp * 1000);
+      if (Number.isNaN(date.getTime())) {
+        return "";
+      }
+      return [
+        date.getFullYear(),
+        "-",
+        padTime(date.getMonth() + 1),
+        "-",
+        padTime(date.getDate()),
+        " ",
+        padTime(date.getHours()),
+        ":",
+        padTime(date.getMinutes()),
+        ":",
+        padTime(date.getSeconds())
+      ].join("");
+    }
+
+    function highlightJwt(value) {
+      const parts = value.split(".");
+      if (!value) {
+        return "";
+      }
+      return parts.map(function (part, index) {
+        const className = index === 0 ? "jwt-header-part" : index === 1 ? "jwt-payload-part" : "jwt-signature-part";
+        return '<span class="' + className + '">' + escapeHtml(part) + "</span>";
+      }).join('<span class="jwt-dot">.</span>');
+    }
+
+    function highlightJson(value) {
+      if (!value) {
+        return "";
+      }
+      let previousKey = "";
+      return escapeHtml(value).replace(/("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[{}\[\],:])/g, function (match) {
+        let className = "json-number";
+        let title = "";
+        if (/^"/.test(match)) {
+          className = /:$/.test(match) ? "json-key" : "json-string";
+          if (className === "json-key") {
+            try {
+              previousKey = JSON.parse(match.slice(0, -1));
+            } catch (error) {
+              previousKey = "";
+            }
+          }
+        } else if (/true|false|null/.test(match)) {
+          className = "json-literal";
+        } else if (/^[{}\[\],:]$/.test(match)) {
+          className = "json-punctuation";
+          if (match === "," || match === "{" || match === "[") {
+            previousKey = "";
+          }
+        } else if (previousKey === "exp") {
+          const formattedTime = formatUnixSeconds(match);
+          if (formattedTime) {
+            className += " json-exp-time";
+            title = ' data-tooltip="' + escapeAttribute(formattedTime) + '"';
+          }
+          previousKey = "";
+        }
+        return '<span class="' + className + '"' + title + ">" + match + "</span>";
+      });
+    }
+
+    function resizeTextarea(textarea, minimumHeight) {
+      textarea.style.height = "auto";
+      textarea.style.height = Math.max(textarea.scrollHeight, minimumHeight) + "px";
+    }
+
+    function syncTokenHighlight(textarea, highlightElement) {
+      highlightElement.innerHTML = highlightJwt(textarea.value);
+      resizeTextarea(textarea, textarea.classList.contains("token-textarea") ? 320 : 120);
+    }
+
+    function syncJsonHighlight(textarea, highlightElement) {
+      highlightElement.innerHTML = highlightJson(textarea.value);
+      resizeTextarea(textarea, textarea.id === "encodeHeader" ? 120 : 190);
+    }
+
+    function syncEditableHighlights() {
+      syncJsonHighlight(elements.encodeHeader, elements.encodeHeaderHighlight);
+      syncJsonHighlight(elements.encodePayload, elements.encodePayloadHighlight);
+    }
+
+    function bindHighlightScroll(textarea, highlightElement) {
+      textarea.addEventListener("scroll", function () {
+        highlightElement.scrollTop = textarea.scrollTop;
+        highlightElement.scrollLeft = textarea.scrollLeft;
+      });
+    }
+
+    function registerJwtMode() {
+      if (!window.CodeMirror || CodeMirror.modes.jwt) {
+        return;
+      }
+      CodeMirror.defineMode("jwt", function () {
+        return {
+          token: function (stream, state) {
+            if (stream.match(".")) {
+              state.part += 1;
+              return "jwt-dot";
+            }
+            if (!stream.eatWhile(/[A-Za-z0-9_-]/)) {
+              stream.next();
+              return null;
+            }
+            if (state.part === 0) {
+              return "jwt-header";
+            }
+            if (state.part === 1) {
+              return "jwt-payload";
+            }
+            return "jwt-signature";
+          },
+          startState: function () {
+            return { part: 0 };
+          }
+        };
+      });
+    }
+
+    function getJwtInputValue() {
+      return jwtInputEditor ? jwtInputEditor.getValue() : elements.jwtInput.value;
+    }
+
+    function setJwtInputValue(value) {
+      elements.jwtInput.value = value;
+      if (jwtInputEditor && jwtInputEditor.getValue() !== value) {
+        syncingJwtInput = true;
+        jwtInputEditor.setValue(value);
+        syncingJwtInput = false;
+      }
+    }
+
+    function getJwtOutputValue() {
+      return jwtOutputEditor ? jwtOutputEditor.getValue() : elements.jwtOutput.value;
+    }
+
+    function setJwtOutputValue(value) {
+      elements.jwtOutput.value = value;
+      if (jwtOutputEditor && jwtOutputEditor.getValue() !== value) {
+        jwtOutputEditor.setValue(value);
+      }
+    }
+
+    function initJwtEditors() {
+      if (!window.CodeMirror) {
+        return;
+      }
+      registerJwtMode();
+      jwtInputEditor = CodeMirror.fromTextArea(elements.jwtInput, {
+        lineWrapping: true,
+        mode: "jwt",
+        viewportMargin: Infinity
+      });
+      jwtOutputEditor = CodeMirror.fromTextArea(elements.jwtOutput, {
+        lineWrapping: true,
+        mode: "jwt",
+        readOnly: true,
+        viewportMargin: Infinity
+      });
+      jwtInputEditor.on("change", function () {
+        if (syncingJwtInput) {
+          return;
+        }
+        handleJwtInputChange();
+      });
+    }
+
+    function positionTooltip(event) {
+      const tooltip = elements.customTooltip;
+      const gap = 12;
+      const rect = tooltip.getBoundingClientRect();
+      let left = event.clientX + gap;
+      let top = event.clientY + gap;
+
+      if (left + rect.width > window.innerWidth - 8) {
+        left = event.clientX - rect.width - gap;
+      }
+      if (top + rect.height > window.innerHeight - 8) {
+        top = event.clientY - rect.height - gap;
+      }
+
+      tooltip.style.left = Math.max(8, left) + "px";
+      tooltip.style.top = Math.max(8, top) + "px";
+    }
+
+    function showTooltip(target, event) {
+      const text = target.getAttribute("data-tooltip");
+      if (!text) {
+        return;
+      }
+      elements.customTooltip.textContent = text;
+      elements.customTooltip.setAttribute("aria-hidden", "false");
+      elements.customTooltip.classList.add("visible");
+      positionTooltip(event);
+    }
+
+    function hideTooltip() {
+      elements.customTooltip.classList.remove("visible");
+      elements.customTooltip.setAttribute("aria-hidden", "true");
+    }
+
+    function setupCustomTooltip() {
+      document.addEventListener("mouseover", function (event) {
+        const target = event.target.closest && event.target.closest("[data-tooltip]");
+        if (target) {
+          showTooltip(target, event);
+        }
+      });
+
+      document.addEventListener("mousemove", function (event) {
+        if (elements.customTooltip.classList.contains("visible")) {
+          positionTooltip(event);
+        }
+      });
+
+      document.addEventListener("mouseout", function (event) {
+        if (event.target.closest && event.target.closest("[data-tooltip]")) {
+          hideTooltip();
+        }
+      });
+
+      document.addEventListener("scroll", hideTooltip, true);
+    }
+
+    function getExpTooltipText(jsonText) {
+      try {
+        const data = JSON.parse(jsonText);
+        if (!data || typeof data !== "object" || !Object.prototype.hasOwnProperty.call(data, "exp")) {
+          return "";
+        }
+        return formatUnixSeconds(data.exp);
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function getTextareaLineAtMouse(textarea, event) {
+      const rect = textarea.getBoundingClientRect();
+      const styles = window.getComputedStyle(textarea);
+      const lineHeight = Number.parseFloat(styles.lineHeight) || 22;
+      const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+      const y = event.clientY - rect.top + textarea.scrollTop - paddingTop;
+      const lineIndex = Math.max(0, Math.floor(y / lineHeight));
+      return textarea.value.split(/\r?\n/)[lineIndex] || "";
+    }
+
+    function bindJsonTextareaExpTooltip(textarea) {
+      textarea.addEventListener("mousemove", function (event) {
+        const line = getTextareaLineAtMouse(textarea, event);
+        if (!/"exp"\s*:/.test(line)) {
+          hideTooltip();
+          return;
+        }
+        const text = getExpTooltipText(textarea.value);
+        if (!text) {
+          hideTooltip();
+          return;
+        }
+        elements.customTooltip.textContent = text;
+        elements.customTooltip.setAttribute("aria-hidden", "false");
+        elements.customTooltip.classList.add("visible");
+        positionTooltip(event);
+      });
+
+      textarea.addEventListener("mouseleave", hideTooltip);
+      textarea.addEventListener("blur", hideTooltip);
+    }
+
+    function parseJson(value, label) {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        throw new Error(label + " 不是有效 JSON：" + error.message);
+      }
+    }
+
+    function bytesToBase64Url(bytes) {
+      let binary = "";
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+      }
+      return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+    }
+
+    function base64UrlToBytes(value) {
+      const clean = value.trim().replace(/\s/g, "");
+      if (!/^[A-Za-z0-9_-]*$/.test(clean)) {
+        throw new Error("Base64URL 中包含非法字符。");
+      }
+      const padded = clean.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - clean.length % 4) % 4);
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes;
+    }
+
+    function encodeText(value) {
+      return bytesToBase64Url(textEncoder.encode(value));
+    }
+
+    function decodeText(value) {
+      return textDecoder.decode(base64UrlToBytes(value));
+    }
+
+    function getSecretBytes(secret, isBase64Url) {
+      if (isBase64Url) {
+        return base64UrlToBytes(secret);
+      }
+      return textEncoder.encode(secret);
+    }
+
+    function concatBytes(left, right) {
+      const result = new Uint8Array(left.length + right.length);
+      result.set(left);
+      result.set(right, left.length);
+      return result;
+    }
+
+    function rotateRight32(value, bits) {
+      return (value >>> bits) | (value << (32 - bits));
+    }
+
+    function sha256(bytes) {
+      const constants = [
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+      ];
+      const bitLength = BigInt(bytes.length) * 8n;
+      const totalLength = Math.ceil((bytes.length + 9) / 64) * 64;
+      const padded = new Uint8Array(totalLength);
+      const words = new Uint32Array(64);
+      let h0 = 0x6a09e667;
+      let h1 = 0xbb67ae85;
+      let h2 = 0x3c6ef372;
+      let h3 = 0xa54ff53a;
+      let h4 = 0x510e527f;
+      let h5 = 0x9b05688c;
+      let h6 = 0x1f83d9ab;
+      let h7 = 0x5be0cd19;
+
+      padded.set(bytes);
+      padded[bytes.length] = 0x80;
+      for (let i = 0; i < 8; i += 1) {
+        padded[totalLength - 1 - i] = Number((bitLength >> BigInt(i * 8)) & 0xffn);
+      }
+
+      for (let offset = 0; offset < totalLength; offset += 64) {
+        for (let i = 0; i < 16; i += 1) {
+          const j = offset + i * 4;
+          words[i] = ((padded[j] << 24) | (padded[j + 1] << 16) | (padded[j + 2] << 8) | padded[j + 3]) >>> 0;
+        }
+        for (let i = 16; i < 64; i += 1) {
+          const s0 = rotateRight32(words[i - 15], 7) ^ rotateRight32(words[i - 15], 18) ^ (words[i - 15] >>> 3);
+          const s1 = rotateRight32(words[i - 2], 17) ^ rotateRight32(words[i - 2], 19) ^ (words[i - 2] >>> 10);
+          words[i] = (words[i - 16] + s0 + words[i - 7] + s1) >>> 0;
+        }
+
+        let a = h0;
+        let b = h1;
+        let c = h2;
+        let d = h3;
+        let e = h4;
+        let f = h5;
+        let g = h6;
+        let h = h7;
+
+        for (let i = 0; i < 64; i += 1) {
+          const s1 = rotateRight32(e, 6) ^ rotateRight32(e, 11) ^ rotateRight32(e, 25);
+          const ch = (e & f) ^ (~e & g);
+          const temp1 = (h + s1 + ch + constants[i] + words[i]) >>> 0;
+          const s0 = rotateRight32(a, 2) ^ rotateRight32(a, 13) ^ rotateRight32(a, 22);
+          const maj = (a & b) ^ (a & c) ^ (b & c);
+          const temp2 = (s0 + maj) >>> 0;
+          h = g;
+          g = f;
+          f = e;
+          e = (d + temp1) >>> 0;
+          d = c;
+          c = b;
+          b = a;
+          a = (temp1 + temp2) >>> 0;
+        }
+
+        h0 = (h0 + a) >>> 0;
+        h1 = (h1 + b) >>> 0;
+        h2 = (h2 + c) >>> 0;
+        h3 = (h3 + d) >>> 0;
+        h4 = (h4 + e) >>> 0;
+        h5 = (h5 + f) >>> 0;
+        h6 = (h6 + g) >>> 0;
+        h7 = (h7 + h) >>> 0;
+      }
+
+      const output = new Uint8Array(32);
+      [h0, h1, h2, h3, h4, h5, h6, h7].forEach(function (word, index) {
+        output[index * 4] = word >>> 24;
+        output[index * 4 + 1] = word >>> 16;
+        output[index * 4 + 2] = word >>> 8;
+        output[index * 4 + 3] = word;
+      });
+      return output;
+    }
+
+    const mask64 = (1n << 64n) - 1n;
+    const sha512Constants = [
+      0x428a2f98d728ae22n, 0x7137449123ef65cdn, 0xb5c0fbcfec4d3b2fn, 0xe9b5dba58189dbbcn,
+      0x3956c25bf348b538n, 0x59f111f1b605d019n, 0x923f82a4af194f9bn, 0xab1c5ed5da6d8118n,
+      0xd807aa98a3030242n, 0x12835b0145706fben, 0x243185be4ee4b28cn, 0x550c7dc3d5ffb4e2n,
+      0x72be5d74f27b896fn, 0x80deb1fe3b1696b1n, 0x9bdc06a725c71235n, 0xc19bf174cf692694n,
+      0xe49b69c19ef14ad2n, 0xefbe4786384f25e3n, 0x0fc19dc68b8cd5b5n, 0x240ca1cc77ac9c65n,
+      0x2de92c6f592b0275n, 0x4a7484aa6ea6e483n, 0x5cb0a9dcbd41fbd4n, 0x76f988da831153b5n,
+      0x983e5152ee66dfabn, 0xa831c66d2db43210n, 0xb00327c898fb213fn, 0xbf597fc7beef0ee4n,
+      0xc6e00bf33da88fc2n, 0xd5a79147930aa725n, 0x06ca6351e003826fn, 0x142929670a0e6e70n,
+      0x27b70a8546d22ffcn, 0x2e1b21385c26c926n, 0x4d2c6dfc5ac42aedn, 0x53380d139d95b3dfn,
+      0x650a73548baf63den, 0x766a0abb3c77b2a8n, 0x81c2c92e47edaee6n, 0x92722c851482353bn,
+      0xa2bfe8a14cf10364n, 0xa81a664bbc423001n, 0xc24b8b70d0f89791n, 0xc76c51a30654be30n,
+      0xd192e819d6ef5218n, 0xd69906245565a910n, 0xf40e35855771202an, 0x106aa07032bbd1b8n,
+      0x19a4c116b8d2d0c8n, 0x1e376c085141ab53n, 0x2748774cdf8eeb99n, 0x34b0bcb5e19b48a8n,
+      0x391c0cb3c5c95a63n, 0x4ed8aa4ae3418acbn, 0x5b9cca4f7763e373n, 0x682e6ff3d6b2b8a3n,
+      0x748f82ee5defb2fcn, 0x78a5636f43172f60n, 0x84c87814a1f0ab72n, 0x8cc702081a6439ecn,
+      0x90befffa23631e28n, 0xa4506cebde82bde9n, 0xbef9a3f7b2c67915n, 0xc67178f2e372532bn,
+      0xca273eceea26619cn, 0xd186b8c721c0c207n, 0xeada7dd6cde0eb1en, 0xf57d4f7fee6ed178n,
+      0x06f067aa72176fban, 0x0a637dc5a2c898a6n, 0x113f9804bef90daen, 0x1b710b35131c471bn,
+      0x28db77f523047d84n, 0x32caab7b40c72493n, 0x3c9ebe0a15c9bebcn, 0x431d67c49c100d4cn,
+      0x4cc5d4becb3e42b6n, 0x597f299cfc657e2an, 0x5fcb6fab3ad6faecn, 0x6c44198c4a475817n
+    ];
+
+    function rotateRight64(value, bits) {
+      const shift = BigInt(bits);
+      return ((value >> shift) | (value << (64n - shift))) & mask64;
+    }
+
+    function sha512(bytes, variant) {
+      let hash = variant === "SHA-384"
+        ? [
+          0xcbbb9d5dc1059ed8n, 0x629a292a367cd507n, 0x9159015a3070dd17n, 0x152fecd8f70e5939n,
+          0x67332667ffc00b31n, 0x8eb44a8768581511n, 0xdb0c2e0d64f98fa7n, 0x47b5481dbefa4fa4n
+        ]
+        : [
+          0x6a09e667f3bcc908n, 0xbb67ae8584caa73bn, 0x3c6ef372fe94f82bn, 0xa54ff53a5f1d36f1n,
+          0x510e527fade682d1n, 0x9b05688c2b3e6c1fn, 0x1f83d9abfb41bd6bn, 0x5be0cd19137e2179n
+        ];
+      const bitLength = BigInt(bytes.length) * 8n;
+      const totalLength = Math.ceil((bytes.length + 17) / 128) * 128;
+      const padded = new Uint8Array(totalLength);
+      const words = new Array(80);
+
+      padded.set(bytes);
+      padded[bytes.length] = 0x80;
+      for (let i = 0; i < 16; i += 1) {
+        padded[totalLength - 1 - i] = Number((bitLength >> BigInt(i * 8)) & 0xffn);
+      }
+
+      for (let offset = 0; offset < totalLength; offset += 128) {
+        for (let i = 0; i < 16; i += 1) {
+          let word = 0n;
+          for (let j = 0; j < 8; j += 1) {
+            word = (word << 8n) | BigInt(padded[offset + i * 8 + j]);
+          }
+          words[i] = word;
+        }
+        for (let i = 16; i < 80; i += 1) {
+          const s0 = rotateRight64(words[i - 15], 1) ^ rotateRight64(words[i - 15], 8) ^ (words[i - 15] >> 7n);
+          const s1 = rotateRight64(words[i - 2], 19) ^ rotateRight64(words[i - 2], 61) ^ (words[i - 2] >> 6n);
+          words[i] = (words[i - 16] + s0 + words[i - 7] + s1) & mask64;
+        }
+
+        let a = hash[0];
+        let b = hash[1];
+        let c = hash[2];
+        let d = hash[3];
+        let e = hash[4];
+        let f = hash[5];
+        let g = hash[6];
+        let h = hash[7];
+
+        for (let i = 0; i < 80; i += 1) {
+          const bigS1 = rotateRight64(e, 14) ^ rotateRight64(e, 18) ^ rotateRight64(e, 41);
+          const ch = (e & f) ^ ((mask64 ^ e) & g);
+          const temp1 = (h + bigS1 + ch + sha512Constants[i] + words[i]) & mask64;
+          const bigS0 = rotateRight64(a, 28) ^ rotateRight64(a, 34) ^ rotateRight64(a, 39);
+          const maj = (a & b) ^ (a & c) ^ (b & c);
+          const temp2 = (bigS0 + maj) & mask64;
+          h = g;
+          g = f;
+          f = e;
+          e = (d + temp1) & mask64;
+          d = c;
+          c = b;
+          b = a;
+          a = (temp1 + temp2) & mask64;
+        }
+
+        hash = [
+          (hash[0] + a) & mask64,
+          (hash[1] + b) & mask64,
+          (hash[2] + c) & mask64,
+          (hash[3] + d) & mask64,
+          (hash[4] + e) & mask64,
+          (hash[5] + f) & mask64,
+          (hash[6] + g) & mask64,
+          (hash[7] + h) & mask64
+        ];
+      }
+
+      const outputLength = variant === "SHA-384" ? 48 : 64;
+      const output = new Uint8Array(outputLength);
+      hash.forEach(function (word, index) {
+        for (let i = 0; i < 8 && index * 8 + i < outputLength; i += 1) {
+          output[index * 8 + i] = Number((word >> BigInt(56 - i * 8)) & 0xffn);
+        }
+      });
+      return output;
+    }
+
+    function hmacDigest(algorithm, messageBytes, secretBytes) {
+      const blockSize = algorithm === "HS256" ? 64 : 128;
+      const digest = algorithm === "HS256"
+        ? sha256
+        : function (bytes) {
+          return sha512(bytes, hmacAlgorithms[algorithm]);
+        };
+      let key = secretBytes;
+
+      if (key.length > blockSize) {
+        key = digest(key);
+      }
+
+      const paddedKey = new Uint8Array(blockSize);
+      paddedKey.set(key);
+
+      const innerPad = new Uint8Array(blockSize);
+      const outerPad = new Uint8Array(blockSize);
+      for (let i = 0; i < blockSize; i += 1) {
+        innerPad[i] = paddedKey[i] ^ 0x36;
+        outerPad[i] = paddedKey[i] ^ 0x5c;
+      }
+
+      return digest(concatBytes(outerPad, digest(concatBytes(innerPad, messageBytes))));
+    }
+
+    async function signHmac(algorithm, signingInput, secret, secretIsBase64Url) {
+      const hash = hmacAlgorithms[algorithm];
+      if (!hash) {
+        throw new Error("当前仅支持 HS256、HS384、HS512 和 none。");
+      }
+      const secretBytes = getSecretBytes(secret, secretIsBase64Url);
+      const messageBytes = textEncoder.encode(signingInput);
+
+      if (window.crypto && window.crypto.subtle) {
+        const key = await window.crypto.subtle.importKey(
+          "raw",
+          secretBytes,
+          { name: "HMAC", hash },
+          false,
+          ["sign"]
+        );
+        const signature = await window.crypto.subtle.sign("HMAC", key, messageBytes);
+        return bytesToBase64Url(new Uint8Array(signature));
+      }
+
+      return bytesToBase64Url(hmacDigest(algorithm, messageBytes, secretBytes));
+    }
+
+    function constantTimeEqual(left, right) {
+      if (left.length !== right.length) {
+        return false;
+      }
+      let diff = 0;
+      for (let i = 0; i < left.length; i += 1) {
+        diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+      }
+      return diff === 0;
+    }
+
+    function parseJwt(tokenText) {
+      const token = tokenText.trim();
+      if (!token) {
+        throw new Error("请输入 JWT。");
+      }
+      const parts = token.split(".");
+      if (parts.length !== 3) {
+        throw new Error("JWT 应由 Header、Payload、Signature 三段组成。");
+      }
+      if (!parts[0] || !parts[1]) {
+        throw new Error("Header 和 Payload 不能为空。");
+      }
+
+      const headerText = decodeText(parts[0]);
+      const payloadText = decodeText(parts[1]);
+      const header = parseJson(headerText, "Header");
+      const payload = parseJson(payloadText, "Payload");
+
+      return {
+        token,
+        header,
+        payload,
+        signature: parts[2],
+        signingInput: parts[0] + "." + parts[1],
+        parts
+      };
+    }
+
+    function extractJwtFromText(text) {
+      const input = text.trim();
+      if (!input) {
+        return input;
+      }
+      try {
+        parseJwt(input);
+        return input;
+      } catch (error) {
+        // 整段不是 JWT 时，继续从文本中提取候选 token。
+      }
+
+      const candidates = input.match(/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g) || [];
+      for (const candidate of candidates) {
+        try {
+          parseJwt(candidate);
+          return candidate;
+        } catch (error) {
+          // 继续找下一个候选 token。
+        }
+      }
+      return input;
+    }
+
+    function renderDecoded(parsed) {
+      latestDecoded = parsed;
+      const headerJson = toPrettyJson(parsed.header);
+      const payloadJson = toPrettyJson(parsed.payload);
+      elements.decodedHeader.innerHTML = highlightJson(headerJson);
+      elements.decodedHeaderCopy.value = headerJson;
+      elements.decodedPayload.innerHTML = highlightJson(payloadJson);
+      elements.decodedPayloadCopy.value = payloadJson;
+      const algorithm = parsed.header && parsed.header.alg ? parsed.header.alg : "none";
+      if (algorithm === "none") {
+        setSignatureInfo(parsed.signature ? "alg 为 none，但 Signature 不为空。" : "alg 为 none，无签名。", parsed.signature ? "warn" : "success");
+      } else if (hmacAlgorithms[algorithm]) {
+        setSignatureInfo("算法：" + algorithm + "。输入密钥后可验证签名。");
+      } else {
+        setSignatureInfo("算法：" + algorithm + "。当前页面只验证 HS 系列签名。", "warn");
+      }
+    }
+
+    function clearDecoded() {
+      latestDecoded = null;
+      elements.decodedHeader.textContent = "";
+      elements.decodedHeaderCopy.value = "";
+      elements.decodedPayload.textContent = "";
+      elements.decodedPayloadCopy.value = "";
+      setSignatureInfo("等待 JWT。");
+    }
+
+    function decodeJwt(options) {
+      const silent = options && options.silent;
+      const showErrors = options && options.showErrors;
+      const didExtract = options && options.didExtract;
+      try {
+        const tokenValue = getJwtInputValue();
+        const parsed = parseJwt(tokenValue);
+        renderDecoded(parsed);
+        if (!silent || showErrors) {
+          setStatus(didExtract ? "已自动提取并解码 JWT。" : "解码完成。", "success");
+        }
+        return parsed;
+      } catch (error) {
+        latestDecoded = null;
+        clearDecoded();
+        if (!silent || showErrors) {
+          const tokenValue = getJwtInputValue();
+          const parts = tokenValue.trim().split(".");
+          const isIncomplete = tokenValue.trim() && parts.length < 3;
+          const message = isIncomplete ? "JWT 还不完整：需要 Header.Payload.Signature 三段。" : error.message;
+          setStatus(message, isIncomplete ? "warn" : "error");
+        } else if (!getJwtInputValue().trim()) {
+          setStatus("就绪。");
+        } else if (!silent) {
+          setStatus(error.message, "error");
+        }
+        return null;
+      }
+    }
+
+    async function verifyJwt() {
+      const parsed = decodeJwt({ silent: true });
+      if (!parsed) {
+        clearDecoded();
+        setStatus("请先输入有效 JWT。", "error");
+        return;
+      }
+
+      const algorithm = parsed.header && parsed.header.alg ? parsed.header.alg : "none";
+      if (algorithm === "none") {
+        const validNone = parsed.signature === "";
+        setSignatureInfo(validNone ? "验证通过：无签名。" : "验证失败：alg 为 none 时 Signature 应为空。", validNone ? "success" : "error");
+        setStatus(validNone ? "签名验证通过。" : "签名验证失败。", validNone ? "success" : "error");
+        return;
+      }
+
+      if (!hmacAlgorithms[algorithm]) {
+        setSignatureInfo("无法验证 " + algorithm + "，当前仅支持 HS256、HS384、HS512。", "warn");
+        setStatus("当前页面不验证 " + algorithm + "。", "warn");
+        return;
+      }
+
+      try {
+        const expected = await signHmac(
+          algorithm,
+          parsed.signingInput,
+          elements.decodeSecret.value,
+          elements.decodeSecretBase64.checked
+        );
+        const valid = constantTimeEqual(expected, parsed.signature);
+        setSignatureInfo(valid ? "验证通过：Signature 匹配。" : "验证失败：Signature 不匹配。", valid ? "success" : "error");
+        setStatus(valid ? "签名验证通过。" : "签名验证失败。", valid ? "success" : "error");
+      } catch (error) {
+        setSignatureInfo(error.message, "error");
+        setStatus(error.message, "error");
+      }
+    }
+
+    function updateHeaderAlgorithm() {
+      try {
+        const header = parseJson(elements.encodeHeader.value || "{}", "Header");
+        header.alg = elements.algorithmSelect.value;
+        if (!header.typ) {
+          header.typ = "JWT";
+        }
+        elements.encodeHeader.value = toPrettyJson(header);
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+      syncJsonHighlight(elements.encodeHeader, elements.encodeHeaderHighlight);
+      updateSecretState();
+      autoEncodeJwt();
+    }
+
+    function syncAlgorithmFromHeader() {
+      try {
+        const header = JSON.parse(elements.encodeHeader.value || "{}");
+        if (header.alg && (hmacAlgorithms[header.alg] || header.alg === "none")) {
+          elements.algorithmSelect.value = header.alg;
+          updateSecretState();
+        }
+      } catch (error) {
+        // 用户编辑 JSON 的过程中不打断。
+      }
+    }
+
+    function updateSecretState() {
+      const isNone = elements.algorithmSelect.value === "none";
+      elements.encodeSecret.disabled = isNone;
+      elements.encodeSecretBase64.disabled = isNone;
+    }
+
+    async function encodeJwt(options) {
+      const auto = options && options.auto;
+      try {
+        const header = parseJson(elements.encodeHeader.value, "Header");
+        const payload = parseJson(elements.encodePayload.value, "Payload");
+        header.alg = elements.algorithmSelect.value;
+        if (!header.typ) {
+          header.typ = "JWT";
+        }
+        if (!auto) {
+          elements.encodeHeader.value = toPrettyJson(header);
+          elements.encodePayload.value = toPrettyJson(payload);
+          syncJsonHighlight(elements.encodeHeader, elements.encodeHeaderHighlight);
+          syncJsonHighlight(elements.encodePayload, elements.encodePayloadHighlight);
+        }
+
+        const encodedHeader = encodeText(JSON.stringify(header));
+        const encodedPayload = encodeText(JSON.stringify(payload));
+        const signingInput = encodedHeader + "." + encodedPayload;
+        let token = signingInput + ".";
+
+        if (header.alg !== "none") {
+          token += await signHmac(
+            header.alg,
+            signingInput,
+            elements.encodeSecret.value,
+            elements.encodeSecretBase64.checked
+          );
+        }
+
+        setJwtOutputValue(token);
+        setStatus(auto ? "JWT 已自动生成。" : "编码完成。", "success");
+        return token;
+      } catch (error) {
+        if (auto) {
+          setJwtOutputValue("");
+        }
+        setStatus(error.message, "error");
+        return "";
+      }
+    }
+
+    function autoEncodeJwt() {
+      if (elements.encoderView.hidden) {
+        return;
+      }
+      encodeJwt({ auto: true });
+    }
+
+    function switchMode(mode) {
+      const decodeMode = mode === "decode";
+      elements.decoderView.hidden = !decodeMode;
+      elements.encoderView.hidden = decodeMode;
+      elements.decodeTab.classList.toggle("active", decodeMode);
+      elements.encodeTab.classList.toggle("active", !decodeMode);
+      elements.decodeTab.setAttribute("aria-selected", String(decodeMode));
+      elements.encodeTab.setAttribute("aria-selected", String(!decodeMode));
+      setStatus(decodeMode ? "已切换到解码器。" : "已切换到编码器。");
+    }
+
+    async function copyText(value, successMessage, fallbackElement) {
+      if (!value) {
+        setStatus("没有可复制的内容。", "warn");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(value);
+        setStatus(successMessage, "success");
+      } catch (error) {
+        if (fallbackElement && typeof fallbackElement.select === "function") {
+          fallbackElement.focus();
+          fallbackElement.select();
+        }
+        setStatus("已选中文本，可手动复制。", "warn");
+      }
+    }
+
+    function resetEncodeFields() {
+      const header = { alg: "HS256", typ: "JWT" };
+      const payload = {
+        sub: "1234567890",
+        name: "张三",
+        role: "demo",
+        iat: Math.floor(Date.now() / 1000),
+        exp: 1893456000
+      };
+      elements.algorithmSelect.value = "HS256";
+      elements.encodeSecret.value = "secret";
+      elements.encodeSecretBase64.checked = false;
+      elements.encodeHeader.value = toPrettyJson(header);
+      elements.encodePayload.value = toPrettyJson(payload);
+      setJwtOutputValue("");
+      syncEditableHighlights();
+      updateSecretState();
+      autoEncodeJwt();
+    }
+
+    function clearDecodeFields() {
+      setJwtInputValue("");
+      elements.decodeSecret.value = "";
+      elements.decodeSecretBase64.checked = false;
+      clearDecoded();
+      setStatus("已清空解码器。");
+    }
+
+    function useDecodedForEncode() {
+      const parsed = latestDecoded || decodeJwt({ silent: true });
+      if (!parsed) {
+        setStatus("没有可转入编码器的解码结果。", "warn");
+        return;
+      }
+      const algorithm = parsed.header.alg && (hmacAlgorithms[parsed.header.alg] || parsed.header.alg === "none") ? parsed.header.alg : "HS256";
+      elements.algorithmSelect.value = algorithm;
+      elements.encodeHeader.value = toPrettyJson(Object.assign({}, parsed.header, { alg: algorithm }));
+      elements.encodePayload.value = toPrettyJson(parsed.payload);
+      elements.encodeSecret.value = elements.decodeSecret.value;
+      elements.encodeSecretBase64.checked = elements.decodeSecretBase64.checked;
+      setJwtOutputValue("");
+      syncEditableHighlights();
+      updateSecretState();
+      switchMode("encode");
+      autoEncodeJwt();
+    }
+
+    function sendOutputToDecoder() {
+      const token = getJwtOutputValue().trim();
+      if (!token) {
+        setStatus("没有可转入解码器的 JWT。", "warn");
+        return;
+      }
+      setJwtInputValue(token);
+      elements.decodeSecret.value = elements.encodeSecret.value;
+      elements.decodeSecretBase64.checked = elements.encodeSecretBase64.checked;
+      switchMode("decode");
+      decodeJwt();
+    }
+
+    document.getElementById("verifyBtn").addEventListener("click", function () {
+      verifyJwt();
+    });
+
+    document.getElementById("copyJwtBtn").addEventListener("click", function () {
+      copyText(getJwtInputValue().trim(), "JWT 已复制。", elements.jwtInput);
+    });
+
+    document.getElementById("clearDecodeBtn").addEventListener("click", clearDecodeFields);
+
+    document.getElementById("copyDecodedHeaderBtn").addEventListener("click", function () {
+      copyText(elements.decodedHeaderCopy.value, "Header 已复制。", elements.decodedHeaderCopy);
+    });
+
+    document.getElementById("copyDecodedPayloadBtn").addEventListener("click", function () {
+      copyText(elements.decodedPayloadCopy.value, "Payload 已复制。", elements.decodedPayloadCopy);
+    });
+
+    document.getElementById("copySignatureBtn").addEventListener("click", function () {
+      const signature = latestDecoded ? latestDecoded.signature : "";
+      copyText(signature, "Signature 已复制。", elements.jwtInput);
+    });
+
+    document.getElementById("useDecodedForEncodeBtn").addEventListener("click", useDecodedForEncode);
+
+    document.getElementById("clearEncodeBtn").addEventListener("click", function () {
+      resetEncodeFields();
+      setStatus("已重置编码器。");
+    });
+
+    document.getElementById("copyOutputBtn").addEventListener("click", function () {
+      copyText(getJwtOutputValue().trim(), "JWT 输出已复制。", elements.jwtOutput);
+    });
+
+    document.getElementById("sendToDecoderBtn").addEventListener("click", sendOutputToDecoder);
+
+    document.getElementById("formatHeaderBtn").addEventListener("click", function () {
+      try {
+        elements.encodeHeader.value = toPrettyJson(parseJson(elements.encodeHeader.value, "Header"));
+        syncAlgorithmFromHeader();
+        syncJsonHighlight(elements.encodeHeader, elements.encodeHeaderHighlight);
+        autoEncodeJwt();
+        setStatus("Header 已格式化。", "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
+
+    document.getElementById("formatPayloadBtn").addEventListener("click", function () {
+      try {
+        elements.encodePayload.value = toPrettyJson(parseJson(elements.encodePayload.value, "Payload"));
+        syncJsonHighlight(elements.encodePayload, elements.encodePayloadHighlight);
+        autoEncodeJwt();
+        setStatus("Payload 已格式化。", "success");
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    });
+
+    elements.decodeTab.addEventListener("click", function () {
+      switchMode("decode");
+    });
+
+    elements.encodeTab.addEventListener("click", function () {
+      switchMode("encode");
+      autoEncodeJwt();
+    });
+
+    function handleJwtInputChange() {
+      const currentValue = getJwtInputValue();
+      const extractedToken = extractJwtFromText(currentValue);
+      const didExtract = extractedToken && extractedToken !== currentValue.trim();
+      if (didExtract) {
+        setJwtInputValue(extractedToken);
+      }
+      if (!getJwtInputValue().trim()) {
+        clearDecoded();
+        setStatus("就绪。");
+        return;
+      }
+      decodeJwt({ silent: true, showErrors: true, didExtract });
+    }
+
+    elements.jwtInput.addEventListener("input", handleJwtInputChange);
+
+    elements.algorithmSelect.addEventListener("change", updateHeaderAlgorithm);
+    elements.encodeHeader.addEventListener("input", function () {
+      syncAlgorithmFromHeader();
+      syncJsonHighlight(elements.encodeHeader, elements.encodeHeaderHighlight);
+      autoEncodeJwt();
+    });
+    elements.encodePayload.addEventListener("input", function () {
+      syncJsonHighlight(elements.encodePayload, elements.encodePayloadHighlight);
+      autoEncodeJwt();
+    });
+
+    elements.decodeSecret.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        verifyJwt();
+      }
+    });
+
+    elements.encodeSecret.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        encodeJwt();
+      }
+    });
+
+    elements.encodeSecret.addEventListener("input", autoEncodeJwt);
+    elements.encodeSecretBase64.addEventListener("change", autoEncodeJwt);
+
+    initJwtEditors();
+    bindHighlightScroll(elements.encodeHeader, elements.encodeHeaderHighlight);
+    bindHighlightScroll(elements.encodePayload, elements.encodePayloadHighlight);
+    bindJsonTextareaExpTooltip(elements.encodePayload);
+    setupCustomTooltip();
+    resetEncodeFields();
+    elements.decodeSecret.value = "secret";
+    if (getJwtInputValue().trim()) {
+      decodeJwt({ silent: true, showErrors: true });
+    }
+  })();
+</script>
+</body>
+</html>
