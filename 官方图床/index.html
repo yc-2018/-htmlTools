@@ -118,17 +118,28 @@
       font-size: 21px!important;
     }
 
-    #attempt-clipboard {
+    .clipboard-tools {
       position: absolute;
       top: 234px;
       right: 65px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .clipboard-tool-btn {
       background: #b4b4ff;
       color: white;
+      border: none;
       padding: 8px;
       border-radius: 9px;
       cursor: pointer;
+      font-size: 14px;
+      line-height: 1.2;
     }
-    #attempt-clipboard:hover {
+
+    .clipboard-tool-btn:hover {
       box-shadow: inset 0 0 23px #7545fcad;
     }
 
@@ -288,6 +299,8 @@
     .history-actions {
       display: flex;
       gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .action-btn {
@@ -297,13 +310,17 @@
       font-size: 14px;
     }
 
-    .copy-btn {
+    .copy-btn,
+    .copy-img-btn,
+    .copy-md-btn {
       background: #2ecc71;
       color: white;
       border: none;
     }
 
-    .copy-btn:hover {
+    .copy-btn:hover,
+    .copy-img-btn:hover,
+    .copy-md-btn:hover {
       background: #27ae60;
     }
 
@@ -397,7 +414,11 @@
       </div>
     </div>
 
-    <div id="attempt-clipboard">尝试上传剪贴板图片</div>
+    <div class="clipboard-tools">
+      <button class="clipboard-tool-btn" id="attempt-clipboard" type="button">尝试上传剪贴板图片</button>
+      <button class="clipboard-tool-btn" id="convert-clipboard-img" type="button">转img</button>
+      <button class="clipboard-tool-btn" id="convert-clipboard-md" type="button">转md</button>
+    </div>
   </div>
 
   <div class="image-options" aria-label="图片处理选项">
@@ -442,6 +463,8 @@
     const notification = document.getElementById('notification');
     const progressBar = document.getElementById('progress-bar');
     const attemptClipboard = document.getElementById('attempt-clipboard');
+    const convertClipboardImg = document.getElementById('convert-clipboard-img');
+    const convertClipboardMd = document.getElementById('convert-clipboard-md');
     const convertWebpInput = document.getElementById('convert-webp');
     const compressEnabledInput = document.getElementById('compress-enabled');
     const compressSizeControl = document.getElementById('compress-size-control');
@@ -509,6 +532,14 @@
         this.value = '';
         uploadFile(selectedFile);
       }
+    });
+
+    convertClipboardImg.addEventListener('click', function () {
+      convertClipboardLink('img');
+    });
+
+    convertClipboardMd.addEventListener('click', function () {
+      convertClipboardLink('md');
     });
 
     // 防止拖放时浏览器默认行为
@@ -808,6 +839,36 @@
       return (size / 1024 / 1024).toFixed(2) + 'MB';
     }
 
+    function formatImageLink(url, type) {
+      return type === 'img'
+        ? `<img src="${url}" alt="">`
+        : `![](${url})`;
+    }
+
+    async function copyTextToClipboard(text, successMessage) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showNotification(successMessage, true);
+      } catch (err) {
+        showNotification('复制失败: ' + err, false);
+      }
+    }
+
+    async function convertClipboardLink(type) {
+      try {
+        const url = (await navigator.clipboard.readText()).trim();
+        if (!url.startsWith('http')) {
+          showNotification('剪贴板中没有找到 http 链接', false);
+          return;
+        }
+
+        const message = type === 'img' ? '已转换并复制 img！' : '已转换并复制 md！';
+        await copyTextToClipboard(formatImageLink(url, type), message);
+      } catch (err) {
+        showNotification('无法读取剪贴板链接: ' + err.message, false);
+      }
+    }
+
     // 处理上传成功
     async function handleUploadSuccess(response) {
       if (response.code === 200) {
@@ -873,6 +934,8 @@
                             <span>${new Date(item.time).toLocaleString()} · ${item.name}</span>
                         </div>
                         <div class="history-actions">
+                            <button class="action-btn copy-img-btn" data-url="${item.url}"><i class="fas fa-image"></i> +复制img</button>
+                            <button class="action-btn copy-md-btn" data-url="${item.url}"><i class="fas fa-file-code"></i> +复制md</button>
                             <button class="action-btn copy-btn" data-url="${item.url}"><i class="fas fa-copy"></i> 复制</button>
                             <button class="action-btn delete-btn" data-index="${index}"><i class="fas fa-trash"></i> 删除</button>
                         </div>
@@ -884,20 +947,28 @@
 
     // 复制链接
     historyList.addEventListener('click', function (e) {
-      if (e.target.classList.contains('copy-btn') || e.target.parentElement.classList.contains('copy-btn')) {
-        const btn = e.target.classList.contains('copy-btn') ? e.target : e.target.parentElement;
-        const url = btn.getAttribute('data-url');
-
-        navigator.clipboard.writeText(url).then(() => {
-          showNotification('链接已复制到剪贴板！', true);
-        }).catch(err => {
-          showNotification('复制失败: ' + err, false);
-        });
+      const actionBtn = e.target.closest('.action-btn');
+      if (!actionBtn) {
+        return;
       }
 
-      if (e.target.classList.contains('delete-btn') || e.target.parentElement.classList.contains('delete-btn')) {
-        const btn = e.target.classList.contains('delete-btn') ? e.target : e.target.parentElement;
-        const index = parseInt(btn.getAttribute('data-index'));
+      if (actionBtn.classList.contains('copy-img-btn')) {
+        const url = actionBtn.getAttribute('data-url');
+        copyTextToClipboard(formatImageLink(url, 'img'), 'img 已复制到剪贴板！');
+      }
+
+      if (actionBtn.classList.contains('copy-md-btn')) {
+        const url = actionBtn.getAttribute('data-url');
+        copyTextToClipboard(formatImageLink(url, 'md'), 'md 已复制到剪贴板！');
+      }
+
+      if (actionBtn.classList.contains('copy-btn')) {
+        const url = actionBtn.getAttribute('data-url');
+        copyTextToClipboard(url, '链接已复制到剪贴板！');
+      }
+
+      if (actionBtn.classList.contains('delete-btn')) {
+        const index = parseInt(actionBtn.getAttribute('data-index'));
 
         let history = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
         history.splice(index, 1);
