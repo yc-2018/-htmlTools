@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频转 WebP</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #f5f7fb;
+      --panel-bg: #ffffff;
+      --panel-border: #d8dee9;
+      --text: #1f2937;
+      --muted: #667085;
+      --primary: #136f63;
+      --primary-strong: #0f5b51;
+      --accent: #b7791f;
+      --danger: #b42318;
+      --control-bg: #ffffff;
+      --shadow: 0 16px 40px rgba(31, 41, 55, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--page-bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    a {
+      color: var(--primary);
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      color: var(--primary);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .hint {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+      margin-top: 22px;
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .drop-zone {
+      display: grid;
+      place-items: center;
+      min-height: 170px;
+      padding: 20px;
+      border: 2px dashed #a7b5c8;
+      border-radius: 8px;
+      background: #f9fbff;
+      text-align: center;
+      transition: border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .drop-zone.is-dragging {
+      border-color: var(--primary);
+      background: #edf7f5;
+    }
+
+    .file-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      clip-path: inset(50%);
+    }
+
+    .file-button,
+    .primary-button,
+    .secondary-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .file-button,
+    .primary-button {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .file-button:hover,
+    .primary-button:hover {
+      background: var(--primary-strong);
+    }
+
+    .secondary-button {
+      background: #ffffff;
+      border-color: #c6cfdd;
+      color: var(--text);
+    }
+
+    .secondary-button:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .primary-button[disabled],
+    .secondary-button[disabled] {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .drop-text {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .file-meta {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .file-meta strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .preview {
+      width: 100%;
+      max-height: 420px;
+      margin-top: 16px;
+      border-radius: 8px;
+      background: #111827;
+    }
+
+    .preview[hidden],
+    .output-preview[hidden] {
+      display: none;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .field input {
+      width: 100%;
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid #c6cfdd;
+      border-radius: 6px;
+      background: var(--control-bg);
+      color: var(--text);
+    }
+
+    .field input:focus {
+      border-color: var(--primary);
+      outline: 3px solid rgba(19, 111, 99, 0.16);
+    }
+
+    .field-help {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .status {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .status-line {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    progress {
+      width: 100%;
+      height: 14px;
+      accent-color: var(--primary);
+    }
+
+    .message {
+      min-height: 24px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .message.is-error {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .message.is-warning {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .output-preview {
+      margin: 0 auto;
+      display: block;
+      max-height: 420px;
+      max-width: 100%;
+      border-radius: 8px;
+      background: #111827;
+    }
+
+    .output-meta {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .output-meta strong {
+      color: var(--text);
+    }
+
+    .log {
+      min-height: 220px;
+      max-height: 360px;
+      margin: 0;
+      overflow: auto;
+      padding: 14px;
+      border-radius: 8px;
+      background: #172033;
+      color: #dce7f7;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .notice {
+      display: none;
+      margin: 16px 0 0;
+      padding: 12px 14px;
+      border: 1px solid #f4c27b;
+      border-radius: 8px;
+      background: #fff7ed;
+      color: #8a4b0f;
+      font-size: 14px;
+    }
+
+    .notice.is-visible {
+      display: block;
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 20px, 1180px);
+        padding-top: 18px;
+      }
+
+      .top-bar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 26px;
+      }
+
+      .panel-header,
+      .panel-body {
+        padding: 14px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .file-button,
+      .primary-button,
+      .secondary-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="top-bar">
+      <div>
+        <h1>视频转 WebP</h1>
+        <p class="hint">在浏览器本地把视频片段压成动画 WebP，文件不会上传；大视频建议先截取短片段。</p>
+      </div>
+      <a class="back-link" href="/index.html">返回工具集</a>
+    </div>
+
+    <div id="fileNotice" class="notice">
+      当前是 file:// 打开方式，浏览器通常会阻止加载 FFmpeg Worker。请部署到静态站点，或在仓库目录启动静态服务后访问本页面。
+    </div>
+
+    <section class="layout" aria-label="视频转 WebP 工作区">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">视频与输出</h2>
+        </div>
+        <div class="panel-body">
+          <label id="dropZone" class="drop-zone" for="videoInput">
+            <span>
+              <span class="file-button">选择视频</span>
+              <span class="drop-text">也可以把 MP4、WebM、MOV 拖到这里</span>
+            </span>
+            <input id="videoInput" class="file-input" type="file" accept="video/*">
+          </label>
+
+          <div class="file-meta" aria-live="polite">
+            <div>文件：<strong id="fileName">未选择</strong></div>
+            <div>信息：<span id="fileInfo">等待选择视频</span></div>
+          </div>
+
+          <video id="videoPreview" class="preview" controls hidden></video>
+
+          <div class="status">
+            <div class="status-line" id="statusText">准备就绪</div>
+            <progress id="progressBar" max="1" value="0"></progress>
+          </div>
+
+          <div id="message" class="message" aria-live="polite"></div>
+
+          <img id="outputPreview" class="output-preview" alt="转换后的 WebP 预览" hidden>
+          <div class="output-meta">
+            <div>输出：<strong id="outputName">暂无</strong></div>
+            <div>大小：<span id="outputSize">暂无</span></div>
+          </div>
+
+          <div class="actions">
+            <button id="convertButton" class="primary-button" type="button" disabled>开始转换</button>
+            <a id="downloadButton" class="secondary-button" href="#" download hidden aria-hidden="true">下载 WebP</a>
+            <button id="resetButton" class="secondary-button" type="button">重置</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">转换参数</h2>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field">
+              <label for="startTime">起始时间（秒）</label>
+              <input id="startTime" type="number" min="0" step="0.1" value="0" inputmode="decimal">
+              <span class="field-help">从视频第几秒开始截取</span>
+            </div>
+            <div class="field">
+              <label for="duration">截取时长（秒）</label>
+              <input id="duration" type="number" min="0.1" step="0.1" value="5" inputmode="decimal">
+              <span class="field-help">建议先处理较短片段</span>
+            </div>
+            <div class="field">
+              <label for="maxWidth">最大宽度（px）</label>
+              <input id="maxWidth" type="number" min="64" max="4096" step="1" placeholder="留空保持原尺寸" inputmode="numeric">
+              <span class="field-help">推荐 720，留空保持原尺寸</span>
+            </div>
+            <div class="field">
+              <label for="fps">FPS</label>
+              <input id="fps" type="number" min="1" max="60" step="1" value="15" inputmode="numeric">
+              <span class="field-help">越高越流畅，文件越大</span>
+            </div>
+            <div class="field">
+              <label for="quality">质量（1-100）</label>
+              <input id="quality" type="number" min="1" max="100" step="1" value="75" inputmode="numeric">
+              <span class="field-help">数值越高越清晰</span>
+            </div>
+            <div class="field">
+              <label for="loop">循环次数</label>
+              <input id="loop" type="number" min="0" step="1" value="0" inputmode="numeric">
+              <span class="field-help">0 表示无限循环</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">日志</h2>
+        </div>
+        <div class="panel-body">
+          <pre id="log" class="log">等待加载 FFmpeg...</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="ffmpeg.js"></script>
+  <script>
+    const elements = {
+      fileNotice: document.getElementById('fileNotice'),
+      dropZone: document.getElementById('dropZone'),
+      videoInput: document.getElementById('videoInput'),
+      fileName: document.getElementById('fileName'),
+      fileInfo: document.getElementById('fileInfo'),
+      videoPreview: document.getElementById('videoPreview'),
+      startTime: document.getElementById('startTime'),
+      duration: document.getElementById('duration'),
+      maxWidth: document.getElementById('maxWidth'),
+      fps: document.getElementById('fps'),
+      quality: document.getElementById('quality'),
+      loop: document.getElementById('loop'),
+      convertButton: document.getElementById('convertButton'),
+      downloadButton: document.getElementById('downloadButton'),
+      resetButton: document.getElementById('resetButton'),
+      statusText: document.getElementById('statusText'),
+      progressBar: document.getElementById('progressBar'),
+      message: document.getElementById('message'),
+      outputPreview: document.getElementById('outputPreview'),
+      outputName: document.getElementById('outputName'),
+      outputSize: document.getElementById('outputSize'),
+      log: document.getElementById('log')
+    };
+
+    const ffmpegPaths = {
+      coreURL: 'https://registry.npmmirror.com/@ffmpeg/core/0.12.10/files/dist/umd/ffmpeg-core.js',
+      wasmURL: 'https://registry.npmmirror.com/@ffmpeg/core/0.12.10/files/dist/umd/ffmpeg-core.wasm',
+      // coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js',
+      // wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm'
+    };
+
+    let selectedFile = null;
+    let videoObjectUrl = '';
+    let outputObjectUrl = '';
+    let ffmpeg = null;
+    let ffmpegLoadPromise = null;
+    let wasmObjectUrl = '';
+    let isFfmpegReady = false;
+    let isFfmpegLoading = false;
+    let isConverting = false;
+
+    if (window.location.protocol === 'file:') {
+      elements.fileNotice.classList.add('is-visible');
+      showMessage('当前使用 file:// 打开，WASM 可能无法加载。请通过静态站点访问。', 'warning');
+    }
+
+    function formatBytes(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0) {
+        return '0 B';
+      }
+
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let size = bytes;
+      let unitIndex = 0;
+
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+
+      return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    }
+
+    function formatSeconds(seconds) {
+      if (!Number.isFinite(seconds)) {
+        return '未知';
+      }
+
+      return `${seconds.toFixed(2)} 秒`;
+    }
+
+    function appendLog(text) {
+      if (String(text).trim() === 'Aborted()') {
+        return;
+      }
+
+      const current = elements.log.textContent === '等待加载 FFmpeg...' ? '' : elements.log.textContent;
+      elements.log.textContent = `${current}${text}\n`;
+      elements.log.scrollTop = elements.log.scrollHeight;
+    }
+
+    function clearLog() {
+      elements.log.textContent = '';
+    }
+
+    function setIndeterminateProgress() {
+      elements.progressBar.removeAttribute('value');
+    }
+
+    function setStatus(text, progress) {
+      elements.statusText.textContent = text;
+      if (Number.isFinite(progress)) {
+        elements.progressBar.value = Math.min(Math.max(progress, 0), 1);
+      } else {
+        setIndeterminateProgress();
+      }
+    }
+
+    function showMessage(text, type) {
+      elements.message.textContent = text;
+      elements.message.classList.toggle('is-error', type === 'error');
+      elements.message.classList.toggle('is-warning', type === 'warning');
+    }
+
+    function clearOutput() {
+      if (outputObjectUrl) {
+        URL.revokeObjectURL(outputObjectUrl);
+        outputObjectUrl = '';
+      }
+
+      elements.outputPreview.hidden = true;
+      elements.outputPreview.removeAttribute('src');
+      elements.downloadButton.hidden = true;
+      elements.downloadButton.setAttribute('aria-hidden', 'true');
+      elements.downloadButton.removeAttribute('href');
+      elements.outputName.textContent = '暂无';
+      elements.outputSize.textContent = '暂无';
+    }
+
+    function resetTool() {
+      selectedFile = null;
+      elements.videoInput.value = '';
+      elements.fileName.textContent = '未选择';
+      elements.fileInfo.textContent = '等待选择视频';
+
+      if (videoObjectUrl) {
+        URL.revokeObjectURL(videoObjectUrl);
+        videoObjectUrl = '';
+      }
+
+      elements.videoPreview.hidden = true;
+      elements.videoPreview.removeAttribute('src');
+      clearOutput();
+      clearLog();
+      elements.log.textContent = isFfmpegReady ? 'FFmpeg 已加载。' : '等待加载 FFmpeg...';
+      setStatus(isFfmpegReady ? 'FFmpeg 已就绪' : '准备就绪', isFfmpegReady ? 1 : 0);
+      showMessage('', '');
+      updateConvertState();
+    }
+
+    function sanitizeBaseName(name) {
+      const withoutExt = name.replace(/\.[^.]+$/, '');
+      const cleaned = withoutExt.replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-');
+      return cleaned || 'video';
+    }
+
+    function getSafeExtension(name) {
+      const match = name.match(/\.([a-z0-9]{1,8})$/i);
+      return match ? `.${match[1].toLowerCase()}` : '.video';
+    }
+
+    function isVideoFile(file) {
+      return file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv|avi|wmv|flv|mpeg|mpg|3gp)$/i.test(file.name);
+    }
+
+    function getOutputName() {
+      const baseName = sanitizeBaseName(selectedFile ? selectedFile.name : 'video');
+      const fps = Number(elements.fps.value);
+      const maxWidth = elements.maxWidth.value.trim();
+      const widthPart = maxWidth ? `-${Number(maxWidth)}max` : '-original';
+      return `${baseName}${widthPart}-${fps}fps.webp`;
+    }
+
+    function updateConvertState() {
+      const protocolOk = window.location.protocol !== 'file:';
+      elements.convertButton.disabled = !selectedFile || isConverting || !protocolOk || !isFfmpegReady;
+
+      if (isConverting) {
+        elements.convertButton.textContent = '转换中...';
+      } else if (isFfmpegLoading) {
+        elements.convertButton.textContent = '加载 FFmpeg...';
+      } else {
+        elements.convertButton.textContent = '开始转换';
+      }
+    }
+
+    function handleVideoMetadata() {
+      const duration = elements.videoPreview.duration;
+      elements.fileInfo.textContent = `${formatBytes(selectedFile.size)}，时长 ${formatSeconds(duration)}`;
+
+      if (Number.isFinite(duration) && duration > 0) {
+        const defaultDuration = Math.min(5, duration);
+        elements.duration.value = defaultDuration.toFixed(defaultDuration % 1 === 0 ? 0 : 1);
+      }
+    }
+
+    function handleFile(file) {
+      if (!file) {
+        return;
+      }
+
+      if (!isVideoFile(file)) {
+        showMessage('请选择视频文件。', 'error');
+        return;
+      }
+
+      selectedFile = file;
+      clearOutput();
+      showMessage('', '');
+      elements.fileName.textContent = file.name;
+      elements.fileInfo.textContent = `${formatBytes(file.size)}，正在读取视频信息`;
+
+      if (videoObjectUrl) {
+        URL.revokeObjectURL(videoObjectUrl);
+      }
+
+      videoObjectUrl = URL.createObjectURL(file);
+      elements.videoPreview.src = videoObjectUrl;
+      elements.videoPreview.hidden = false;
+      elements.videoPreview.load();
+      setStatus('已选择视频', 0);
+      updateConvertState();
+    }
+
+    function validateNumber(input, label, min, max, integerOnly) {
+      const value = Number(input.value);
+
+      if (!Number.isFinite(value)) {
+        return `${label} 必须是数字。`;
+      }
+
+      if (value < min) {
+        return `${label} 不能小于 ${min}。`;
+      }
+
+      if (max !== null && value > max) {
+        return `${label} 不能大于 ${max}。`;
+      }
+
+      if (integerOnly && !Number.isInteger(value)) {
+        return `${label} 必须是整数。`;
+      }
+
+      return '';
+    }
+
+    function validateParams() {
+      if (!selectedFile) {
+        return '请先选择视频文件。';
+      }
+
+      const checks = [
+        validateNumber(elements.startTime, '起始时间', 0, null, false),
+        validateNumber(elements.duration, '截取时长', 0.1, null, false),
+        elements.maxWidth.value.trim() ? validateNumber(elements.maxWidth, '最大宽度', 64, 4096, true) : '',
+        validateNumber(elements.fps, 'FPS', 1, 60, true),
+        validateNumber(elements.quality, '质量', 1, 100, true),
+        validateNumber(elements.loop, '循环次数', 0, null, true)
+      ].filter(Boolean);
+
+      if (checks.length) {
+        return checks[0];
+      }
+
+      const videoDuration = elements.videoPreview.duration;
+      const startTime = Number(elements.startTime.value);
+
+      if (Number.isFinite(videoDuration) && videoDuration > 0 && startTime >= videoDuration) {
+        return '起始时间不能大于或等于视频时长。';
+      }
+
+      return '';
+    }
+
+    async function fetchWasmWithProgress(url) {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`FFmpeg WASM 下载失败：HTTP ${response.status}`);
+      }
+
+      if (!response.body) {
+        setStatus('正在下载 FFmpeg WASM', null);
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+      }
+
+      const total = Number(response.headers.get('content-length'));
+      const contentEncoding = response.headers.get('content-encoding');
+      const canShowPercent = Number.isFinite(total) && total > 0 && !contentEncoding;
+      const reader = response.body.getReader();
+      const chunks = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        chunks.push(value);
+        received += value.length;
+
+        if (canShowPercent) {
+          const progress = Math.min(received / total, 1);
+          setStatus(`下载 FFmpeg WASM ${Math.round(progress * 100)}%`, progress);
+        } else {
+          setStatus(`下载 FFmpeg WASM ${formatBytes(received)}`, null);
+        }
+      }
+
+      setStatus('下载 FFmpeg WASM 100%', 1);
+      const blob = new Blob(chunks, { type: 'application/wasm' });
+      return URL.createObjectURL(blob);
+    }
+
+    async function loadFfmpeg() {
+      if (ffmpeg && ffmpeg.loaded) {
+        isFfmpegReady = true;
+        isFfmpegLoading = false;
+        updateConvertState();
+        return ffmpeg;
+      }
+
+      if (ffmpegLoadPromise) {
+        return ffmpegLoadPromise;
+      }
+
+      isFfmpegLoading = true;
+      updateConvertState();
+
+      if (!window.FFmpegWASM || !window.FFmpegWASM.FFmpeg) {
+        isFfmpegLoading = false;
+        updateConvertState();
+        throw new Error('FFmpeg loader 未加载，请确认 ffmpeg.js 存在。');
+      }
+
+      const { FFmpeg } = window.FFmpegWASM;
+      ffmpeg = new FFmpeg();
+
+      ffmpeg.on('log', ({ message }) => {
+        appendLog(message);
+      });
+
+      ffmpeg.on('progress', ({ progress }) => {
+        const safeProgress = Number.isFinite(progress) ? progress : 0;
+        setStatus(`转换中 ${Math.round(Math.min(safeProgress, 1) * 100)}%`, safeProgress);
+      });
+
+      setStatus('正在加载 FFmpeg WASM', 0);
+      appendLog('加载 FFmpeg WASM...');
+
+      ffmpegLoadPromise = (async () => {
+        if (!wasmObjectUrl) {
+          appendLog('下载 ffmpeg-core.wasm...');
+          wasmObjectUrl = await fetchWasmWithProgress(ffmpegPaths.wasmURL);
+          appendLog('ffmpeg-core.wasm 下载完成。');
+        }
+
+        setStatus('正在初始化 FFmpeg', null);
+        await ffmpeg.load({
+          coreURL: ffmpegPaths.coreURL,
+          wasmURL: wasmObjectUrl
+        });
+
+        isFfmpegReady = true;
+        isFfmpegLoading = false;
+        setStatus('FFmpeg 已就绪', 1);
+        appendLog('FFmpeg 已加载。');
+        updateConvertState();
+        return ffmpeg;
+      })().catch((err) => {
+        isFfmpegReady = false;
+        isFfmpegLoading = false;
+        ffmpegLoadPromise = null;
+        setStatus('FFmpeg 加载失败', 0);
+        showMessage(err && err.message ? err.message : String(err), 'error');
+        updateConvertState();
+        throw err;
+      });
+
+      return ffmpegLoadPromise;
+    }
+
+    function preloadFfmpeg() {
+      if (window.location.protocol === 'file:') {
+        return;
+      }
+
+      loadFfmpeg().catch((err) => {
+        appendLog(`错误：${err && err.message ? err.message : String(err)}`);
+      });
+    }
+
+    async function convertVideo() {
+      const error = validateParams();
+      if (error) {
+        showMessage(error, 'error');
+        return;
+      }
+
+      isConverting = true;
+      updateConvertState();
+      clearOutput();
+      clearLog();
+      showMessage('', '');
+      setStatus('准备转换', 0);
+
+      const inputName = `input-${Date.now()}${getSafeExtension(selectedFile.name)}`;
+      const outputName = getOutputName();
+
+      const startTime = String(Number(elements.startTime.value));
+      const duration = String(Number(elements.duration.value));
+      const fps = String(Number(elements.fps.value));
+      const quality = String(Number(elements.quality.value));
+      const loop = String(Number(elements.loop.value));
+      const videoFilters = [`fps=${fps}`];
+
+      if (elements.maxWidth.value.trim()) {
+        videoFilters.push(`scale='min(${Number(elements.maxWidth.value)},iw)':-1:flags=lanczos`);
+      }
+
+      const args = [
+        '-ss', startTime,
+        '-t', duration,
+        '-i', inputName,
+        '-an',
+        '-vf', videoFilters.join(','),
+        '-c:v', 'libwebp',
+        '-q:v', quality,
+        '-compression_level', '6',
+        '-loop', loop,
+        outputName
+      ];
+
+      try {
+        const instance = await loadFfmpeg();
+        const inputData = new Uint8Array(await selectedFile.arrayBuffer());
+
+        appendLog(`写入输入文件：${selectedFile.name}`);
+        await instance.writeFile(inputName, inputData);
+        appendLog(`执行：ffmpeg ${args.join(' ')}`);
+
+        const result = await instance.exec(args);
+        if (result !== 0) {
+          throw new Error(`FFmpeg 转换失败，退出码 ${result}。`);
+        }
+
+        const outputData = await instance.readFile(outputName);
+        const outputBlob = new Blob([outputData], { type: 'image/webp' });
+
+        outputObjectUrl = URL.createObjectURL(outputBlob);
+        elements.outputPreview.src = outputObjectUrl;
+        elements.outputPreview.hidden = false;
+        elements.downloadButton.href = outputObjectUrl;
+        elements.downloadButton.download = outputName;
+        elements.downloadButton.hidden = false;
+        elements.downloadButton.removeAttribute('aria-hidden');
+        elements.outputName.textContent = outputName;
+        elements.outputSize.textContent = formatBytes(outputBlob.size);
+
+        await instance.deleteFile(inputName).catch(() => {});
+        await instance.deleteFile(outputName).catch(() => {});
+
+        setStatus('转换完成', 1);
+        showMessage('转换完成，可以预览或下载 WebP。', '');
+      } catch (err) {
+        const message = err && err.message ? err.message : String(err);
+        appendLog(`错误：${message}`);
+        setStatus('转换失败', 0);
+        showMessage(message, 'error');
+      } finally {
+        isConverting = false;
+        updateConvertState();
+      }
+    }
+
+    elements.videoInput.addEventListener('change', (event) => {
+      handleFile(event.target.files[0]);
+    });
+
+    elements.videoPreview.addEventListener('loadedmetadata', handleVideoMetadata);
+
+    elements.dropZone.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      elements.dropZone.classList.add('is-dragging');
+    });
+
+    elements.dropZone.addEventListener('dragleave', () => {
+      elements.dropZone.classList.remove('is-dragging');
+    });
+
+    elements.dropZone.addEventListener('drop', (event) => {
+      event.preventDefault();
+      elements.dropZone.classList.remove('is-dragging');
+      handleFile(event.dataTransfer.files[0]);
+    });
+
+    elements.convertButton.addEventListener('click', convertVideo);
+    elements.resetButton.addEventListener('click', resetTool);
+
+    [
+      elements.startTime,
+      elements.duration,
+      elements.maxWidth,
+      elements.fps,
+      elements.quality,
+      elements.loop
+    ].forEach((input) => {
+      input.addEventListener('input', () => {
+        clearOutput();
+        showMessage('', '');
+        updateConvertState();
+      });
+    });
+
+    updateConvertState();
+    preloadFfmpeg();
+  </script>
+</body>
+</html>
