@@ -678,11 +678,18 @@
 
     function handleVideoMetadata() {
       const duration = elements.videoPreview.duration;
-      elements.fileInfo.textContent = `${formatBytes(selectedFile.size)}，时长 ${formatSeconds(duration)}`;
+      const videoWidth = elements.videoPreview.videoWidth;
+      const videoHeight = elements.videoPreview.videoHeight;
+      const sizeText = videoWidth && videoHeight ? `，尺寸 ${videoWidth}x${videoHeight}` : '';
+      elements.fileInfo.textContent = `${formatBytes(selectedFile.size)}，时长 ${formatSeconds(duration)}${sizeText}`;
 
       if (Number.isFinite(duration) && duration > 0) {
         const defaultDuration = Math.min(5, duration);
         elements.duration.value = defaultDuration.toFixed(defaultDuration % 1 === 0 ? 0 : 1);
+      }
+
+      if (videoWidth) {
+        elements.maxWidth.value = String(videoWidth);
       }
     }
 
