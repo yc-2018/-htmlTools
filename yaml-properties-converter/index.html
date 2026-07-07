@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Java YAML 与 Properties 互转</title>
+  <link rel="stylesheet" href="../文本差异对比/lib/codemirror.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main class="app-shell">
+  <header class="app-header">
+    <div>
+      <h1>Java YAML 与 Properties 互转</h1>
+      <p>适合 Spring Boot、Java 配置文件的常用 YAML / .properties 双向转换</p>
+    </div>
+    <div class="toolbar" aria-label="工具操作">
+      <button type="button" id="exampleBtn">示例</button>
+      <button type="button" id="clearBtn">清空</button>
+      <button type="button" id="copyPropertiesBtn">复制左侧</button>
+      <button type="button" id="copyYamlBtn">复制右侧</button>
+    </div>
+  </header>
+
+  <section class="editor-grid" aria-label="转换编辑区">
+    <article class="editor-panel">
+      <div class="panel-head">
+        <h2>.properties</h2>
+        <span>左侧变动会更新右侧 YAML</span>
+      </div>
+      <div class="status status-ok" id="propertiesStatus">就绪</div>
+      <div class="editor-wrap">
+        <textarea id="propertiesInput" spellcheck="false" wrap="off" aria-label="Properties 输入"></textarea>
+      </div>
+    </article>
+
+    <article class="editor-panel">
+      <div class="panel-head">
+        <h2>YAML</h2>
+        <span>右侧变动会更新左侧 properties</span>
+      </div>
+      <div class="status status-ok" id="yamlStatus">就绪</div>
+      <div class="editor-wrap">
+        <textarea id="yamlInput" spellcheck="false" wrap="off" aria-label="YAML 输入"></textarea>
+      </div>
+    </article>
+  </section>
+</main>
+
+<script src="../文本差异对比/lib/codemirror.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0067b8">
+  <title>Windows 更新</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #0067b8;
+      color: #fff;
+      cursor: none;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    .screen {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 8vh 6vw 12vh;
+      text-align: center;
+    }
+
+    .update-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: min(720px, 100%);
+      transform: translateY(-2vh);
+    }
+
+    .spinner {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 30px;
+      animation: spin 1.2s linear infinite;
+    }
+
+    .spinner span {
+      position: absolute;
+      top: 22px;
+      left: 22px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #fff;
+      opacity: 0.35;
+      transform-origin: 2px 2px;
+      animation: fade 1.2s linear infinite;
+    }
+
+    .spinner span:nth-child(1) {
+      transform: rotate(0deg) translateY(-20px);
+      animation-delay: 0s;
+    }
+
+    .spinner span:nth-child(2) {
+      transform: rotate(45deg) translateY(-20px);
+      animation-delay: 0.15s;
+    }
+
+    .spinner span:nth-child(3) {
+      transform: rotate(90deg) translateY(-20px);
+      animation-delay: 0.3s;
+    }
+
+    .spinner span:nth-child(4) {
+      transform: rotate(135deg) translateY(-20px);
+      animation-delay: 0.45s;
+    }
+
+    .spinner span:nth-child(5) {
+      transform: rotate(180deg) translateY(-20px);
+      animation-delay: 0.6s;
+    }
+
+    .spinner span:nth-child(6) {
+      transform: rotate(225deg) translateY(-20px);
+      animation-delay: 0.75s;
+    }
+
+    .spinner span:nth-child(7) {
+      transform: rotate(270deg) translateY(-20px);
+      animation-delay: 0.9s;
+    }
+
+    .spinner span:nth-child(8) {
+      transform: rotate(315deg) translateY(-20px);
+      animation-delay: 1.05s;
+    }
+
+    .status {
+      margin: 0;
+      max-width: 680px;
+      font-size: clamp(19px, 2.2vw, 25px);
+      font-weight: 400;
+      line-height: 1.5;
+      letter-spacing: 0;
+    }
+
+    .restart-status {
+      display: none;
+    }
+
+    .screen.restarting .progress-status {
+      display: none;
+    }
+
+    .screen.restarting .restart-status {
+      display: block;
+    }
+
+    .footer {
+      position: absolute;
+      left: 50%;
+      bottom: clamp(34px, 7vh, 72px);
+      width: min(680px, calc(100% - 40px));
+      margin: 0;
+      transform: translateX(-50%);
+      font-size: clamp(14px, 1.65vw, 18px);
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes fade {
+      0%,
+      100% {
+        opacity: 0.2;
+      }
+
+      45% {
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .screen {
+        padding-right: 28px;
+        padding-left: 28px;
+      }
+
+      .spinner {
+        margin-bottom: 24px;
+      }
+
+      .status {
+        font-size: 20px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .spinner,
+      .spinner span {
+        animation-duration: 2s;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="screen" id="screen" aria-live="polite">
+    <section class="update-area" aria-label="Windows 更新状态">
+      <div class="spinner" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <p class="status progress-status">
+        <span id="stage">正在进行更新</span>
+        <span id="percent">0</span>% 已完成。请保持电脑处于打开状态。
+      </p>
+      <p class="status restart-status">正在重启</p>
+    </section>
+    <p class="footer">你的电脑可能会重启几次。</p>
+  </main>
+
+  <script>
+    const searchParams = new URLSearchParams(window.location.search);
+    const isFastMode = searchParams.get('fast') === '1';
+    const screen = document.getElementById('screen');
+    const stageText = document.getElementById('stage');
+    const percentText = document.getElementById('percent');
+    const stages = [
+      '正在进行更新',
+      '正在配置功能更新',
+      '正在处理更新'
+    ];
+
+    let stageIndex = 0;
+    let percent = 0;
+
+    function getRandomNumber(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function getDelay() {
+      if (isFastMode) {
+        return getRandomNumber(20, 80);
+      }
+
+      if (percent >= 90) {
+        return getRandomNumber(4200, 8200);
+      }
+
+      if (percent >= 70) {
+        return getRandomNumber(2600, 6200);
+      }
+
+      return getRandomNumber(1200, 4800);
+    }
+
+    function getStep() {
+      if (isFastMode) {
+        return getRandomNumber(2, 7);
+      }
+
+      if (percent > 0 && Math.random() < 0.22) {
+        return 0;
+      }
+
+      if (percent >= 94) {
+        return 1;
+      }
+
+      if (percent >= 75) {
+        return Math.random() < 0.7 ? 1 : 2;
+      }
+
+      return getRandomNumber(1, 3);
+    }
+
+    function renderProgress() {
+      stageText.textContent = stages[stageIndex];
+      percentText.textContent = percent;
+    }
+
+    function scheduleNextTick() {
+      if (percent >= 100) {
+        startRestartPhase();
+        return;
+      }
+
+      percent = Math.min(100, percent + getStep());
+      renderProgress();
+
+      setTimeout(scheduleNextTick, getDelay());
+    }
+
+    function startRestartPhase() {
+      screen.classList.add('restarting');
+
+      const restartDelay = isFastMode ? 900 : getRandomNumber(8000, 15000);
+      setTimeout(() => {
+        stageIndex = (stageIndex + 1) % stages.length;
+        percent = 0;
+        renderProgress();
+        screen.classList.remove('restarting');
+        setTimeout(scheduleNextTick, getDelay());
+      }, restartDelay);
+    }
+
+    renderProgress();
+    setTimeout(scheduleNextTick, isFastMode ? 120 : 1800);
+  </script>
+</body>
+</html>
