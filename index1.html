@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050816">
+
+  <title>仰晨 HTML 工具集</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #050816;
+      --border: rgba(148, 163, 184, 0.16);
+      --border-hover: rgba(125, 211, 252, 0.48);
+      --text: #eaf4ff;
+      --muted: #96a7c3;
+      --cyan: #7dd3fc;
+      --blue: #60a5fa;
+      --violet: #a78bfa;
+      --page-width: 1180px;
+      --radius-large: 24px;
+      --radius-medium: 16px;
+      --shadow: 0 24px 70px rgba(2, 6, 23, 0.34);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.13), transparent 32%),
+        radial-gradient(circle at 84% 28%, rgba(139, 92, 246, 0.14), transparent 34%),
+        linear-gradient(145deg, #07101f 0%, var(--background) 42%, #08051a 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+    }
+
+    body::before,
+    body::after {
+      position: fixed;
+      z-index: -2;
+      width: 38vw;
+      height: 38vw;
+      min-width: 320px;
+      min-height: 320px;
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+      filter: blur(90px);
+      opacity: 0.2;
+    }
+
+    body::before {
+      top: -18vw;
+      left: -10vw;
+      background: #0ea5e9;
+    }
+
+    body::after {
+      right: -14vw;
+      bottom: -20vw;
+      background: #7c3aed;
+    }
+
+    ::selection {
+      color: #ffffff;
+      background: rgba(99, 102, 241, 0.72);
+    }
+
+    a {
+      color: inherit;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    #space-background {
+      position: fixed;
+      z-index: -1;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .page-shell {
+      position: relative;
+      z-index: 1;
+      width: min(var(--page-width), calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .glass-panel {
+      border: 1px solid var(--border);
+      background: linear-gradient(145deg, rgba(15, 27, 54, 0.38), rgba(8, 14, 31, 0.30));
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .site-header {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 32px;
+      align-items: center;
+      min-height: 330px;
+      padding: clamp(32px, 6vw, 72px);
+      overflow: hidden;
+      border-radius: 30px;
+    }
+
+    .site-header::before {
+      position: absolute;
+      top: -110px;
+      right: -90px;
+      width: 360px;
+      height: 360px;
+      border: 1px solid rgba(125, 211, 252, 0.16);
+      border-radius: 50%;
+      content: "";
+      box-shadow:
+        0 0 0 38px rgba(96, 165, 250, 0.03),
+        0 0 0 78px rgba(167, 139, 250, 0.025);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 14px;
+      color: var(--cyan);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 22px;
+      height: 1px;
+      content: "";
+      background: currentColor;
+      box-shadow: 0 0 12px currentColor;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin-bottom: 18px;
+      font-size: clamp(2.6rem, 7vw, 5.5rem);
+      line-height: 1.02;
+      letter-spacing: -0.055em;
+      background: linear-gradient(120deg, #ffffff 12%, #b9e7ff 54%, #c4b5fd 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-lead {
+      max-width: 620px;
+      margin-bottom: 26px;
+      color: #b5c4da;
+      font-size: clamp(1rem, 2vw, 1.16rem);
+    }
+
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .hero-tags li {
+      padding: 7px 13px;
+      border: 1px solid rgba(125, 211, 252, 0.18);
+      border-radius: 999px;
+      color: #c8d8ed;
+      background: rgba(15, 31, 58, 0.58);
+      font-size: 0.82rem;
+    }
+
+    .hero-orbit {
+      position: relative;
+      display: grid;
+      width: 210px;
+      aspect-ratio: 1;
+      place-items: center;
+      justify-self: center;
+      transform-style: preserve-3d;
+      perspective: 700px;
+    }
+
+    .orbit-ring {
+      position: absolute;
+      inset: 12px;
+      border: 1px solid rgba(125, 211, 252, 0.42);
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.08);
+      animation: orbit-spin 12s linear infinite;
+    }
+
+    .orbit-ring:nth-child(2) {
+      inset: 30px;
+      border-color: rgba(167, 139, 250, 0.45);
+      animation-duration: 9s;
+      animation-direction: reverse;
+      transform: rotateX(68deg) rotateZ(18deg);
+    }
+
+    .orbit-ring::after {
+      position: absolute;
+      top: 50%;
+      left: -4px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      content: "";
+      background: var(--cyan);
+      box-shadow: 0 0 16px var(--cyan);
+    }
+
+    .orbit-core {
+      display: grid;
+      width: 86px;
+      aspect-ratio: 1;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 24px;
+      place-items: center;
+      color: #ffffff;
+      background: linear-gradient(145deg, rgba(56, 189, 248, 0.26), rgba(124, 58, 237, 0.28));
+      box-shadow: 0 0 44px rgba(96, 165, 250, 0.24);
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      transform: rotate(-8deg) translateZ(32px);
+    }
+
+    @keyframes orbit-spin {
+      from {
+        transform: rotateX(64deg) rotateY(12deg) rotateZ(0deg);
+      }
+      to {
+        transform: rotateX(64deg) rotateY(12deg) rotateZ(360deg);
+      }
+    }
+
+    main {
+      display: grid;
+      gap: 34px;
+      margin-top: 34px;
+    }
+
+    .content-section {
+      scroll-margin-top: 24px;
+    }
+
+    .section-heading {
+      display: flex;
+      gap: 20px;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding: 0 4px;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 2px;
+      font-size: clamp(1.5rem, 3vw, 2.15rem);
+      letter-spacing: -0.035em;
+    }
+
+    .section-heading p {
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .section-index {
+      color: rgba(125, 211, 252, 0.52);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      letter-spacing: 0.12em;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .tool-card {
+      min-width: 0;
+      padding: 22px;
+      border-radius: var(--radius-large);
+      transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .tool-card:hover {
+      border-color: var(--border-hover);
+      background: linear-gradient(145deg, rgba(15, 27, 54, 0.48), rgba(8, 14, 31, 0.38));
+      box-shadow: 0 24px 65px rgba(2, 6, 23, 0.4), 0 0 30px rgba(56, 189, 248, 0.05);
+      transform: translateY(-3px);
+    }
+
+    .card-heading {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-icon {
+      display: grid;
+      flex: 0 0 42px;
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(125, 211, 252, 0.2);
+      border-radius: 13px;
+      place-items: center;
+      color: var(--cyan);
+      background: rgba(14, 165, 233, 0.1);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    .card-heading h3 {
+      margin-bottom: 1px;
+      font-size: 1.08rem;
+    }
+
+    .card-heading p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .tool-list,
+    .game-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tool-link {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 44px;
+      padding: 9px 11px 9px 14px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      color: #dce9f7;
+      background: rgba(148, 163, 184, 0.045);
+      text-decoration: none;
+      transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+    }
+
+    .tool-link::after {
+      flex: 0 0 auto;
+      color: rgba(125, 211, 252, 0.58);
+      content: "↗";
+      font-size: 0.84rem;
+      transition: transform 160ms ease;
+    }
+
+    .tool-link:hover {
+      border-color: rgba(125, 211, 252, 0.24);
+      color: #ffffff;
+      background: rgba(56, 189, 248, 0.09);
+      transform: translateX(3px);
+    }
+
+    .tool-link:hover::after {
+      transform: translate(2px, -2px);
+    }
+
+    .tool-name {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .tool-meta {
+      display: inline-block;
+      margin-left: 6px;
+      color: #8293ae;
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
+    .wide-card {
+      grid-column: 1 / -1;
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+      gap: 16px;
+    }
+
+    .game-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .game-chips a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 38px;
+      padding: 7px 13px;
+      border: 1px solid rgba(167, 139, 250, 0.15);
+      border-radius: 999px;
+      color: #d9d8f8;
+      background: rgba(124, 58, 237, 0.075);
+      font-size: 0.86rem;
+      text-decoration: none;
+      transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease, transform 160ms ease;
+    }
+
+    .game-chips a:hover {
+      border-color: rgba(196, 181, 253, 0.42);
+      color: #ffffff;
+      background: rgba(124, 58, 237, 0.16);
+      transform: translateY(-2px);
+    }
+
+    .community-panel {
+      display: grid;
+      grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);
+      gap: 22px;
+      align-items: center;
+      padding: 24px;
+      border-radius: var(--radius-large);
+    }
+
+    .qr-main {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+      padding: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 18px;
+      background: rgba(2, 6, 23, 0.3);
+      text-align: center;
+    }
+
+    .qr-main p {
+      margin-bottom: 0;
+      color: #c8d8ed;
+      font-weight: 700;
+    }
+
+    .qr-main img {
+      width: min(100%, 344px);
+      border-radius: 12px;
+    }
+
+    .qr-showcase {
+      display: grid;
+      gap: 16px;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .qr-showcase h3 {
+      margin-bottom: 0;
+      font-size: clamp(1.25rem, 3vw, 1.8rem);
+    }
+
+    .qr-showcase p {
+      max-width: 520px;
+      margin-bottom: 0;
+      color: var(--muted);
+    }
+
+    .qr-art-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-art-row img {
+      width: 108px;
+      aspect-ratio: 1;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      object-fit: cover;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .primary-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 9px 16px;
+      border: 1px solid rgba(125, 211, 252, 0.3);
+      border-radius: 999px;
+      color: #e8f7ff;
+      background: linear-gradient(120deg, rgba(14, 165, 233, 0.18), rgba(124, 58, 237, 0.18));
+      text-decoration: none;
+      transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .primary-link:hover {
+      border-color: rgba(125, 211, 252, 0.58);
+      box-shadow: 0 10px 28px rgba(56, 189, 248, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .legacy-panel {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px;
+      border-radius: var(--radius-medium);
+      opacity: 0.72;
+    }
+
+    .legacy-panel h2,
+    .legacy-panel p {
+      margin-bottom: 0;
+    }
+
+    .legacy-panel h2 {
+      font-size: 1rem;
+    }
+
+    .legacy-panel p {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .legacy-panel a {
+      color: #b6c5da;
+      font-size: 0.88rem;
+      text-underline-offset: 3px;
+    }
+
+    .site-footer {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 34px;
+      padding: 22px 4px 0;
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+    }
+
+    .footer-links a {
+      color: #c0cee1;
+      text-decoration: none;
+    }
+
+    .footer-links a:hover {
+      color: var(--cyan);
+    }
+
+    a:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 860px) {
+      .site-header {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-orbit {
+        position: absolute;
+        right: -45px;
+        bottom: -60px;
+        width: 190px;
+        opacity: 0.55;
+      }
+
+      .hero-copy {
+        padding-right: 72px;
+      }
+
+      .game-grid,
+      .community-panel {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page-shell {
+        width: min(100% - 20px, var(--page-width));
+        padding-top: 10px;
+      }
+
+      .site-header {
+        min-height: 370px;
+        padding: 30px 22px;
+        border-radius: 22px;
+      }
+
+      .hero-copy {
+        padding-right: 0;
+      }
+
+      h1 {
+        font-size: clamp(2.45rem, 16vw, 4.3rem);
+      }
+
+      .hero-lead {
+        padding-right: 24px;
+      }
+
+      .hero-orbit {
+        right: -72px;
+        bottom: -76px;
+        opacity: 0.45;
+      }
+
+      main {
+        gap: 28px;
+        margin-top: 28px;
+      }
+
+      .section-heading {
+        align-items: start;
+      }
+
+      .section-heading p,
+      .section-index {
+        display: none;
+      }
+
+      .tool-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .wide-card {
+        grid-column: auto;
+      }
+
+      .tool-card,
+      .community-panel {
+        padding: 17px;
+        border-radius: 20px;
+      }
+
+      .tool-meta {
+        white-space: normal;
+      }
+
+      .legacy-panel,
+      .site-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .glass-panel {
+        background: rgba(8, 14, 31, 0.54);
+      }
+    }
+  </style>
+</head>
+
+<body>
+<canvas id="space-background" aria-hidden="true"></canvas>
+
+<div class="page-shell">
+  <header class="site-header glass-panel">
+    <div class="hero-copy">
+      <p class="eyebrow">Personal Web Toolbox</p>
+      <h1>仰晨 HTML<br>工具集</h1>
+      <p class="hero-lead">把常用的小工具、开发速查和有趣实验收进同一片数字星云。无需安装，打开即用。</p>
+      <ul class="hero-tags" aria-label="站点特点">
+        <li>原生网页</li>
+        <li>无需登录</li>
+        <li>随开随用</li>
+      </ul>
+    </div>
+    <div class="hero-orbit" aria-hidden="true">
+      <span class="orbit-ring"></span>
+      <span class="orbit-ring"></span>
+      <span class="orbit-core">HTML</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="content-section" aria-labelledby="tools-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="tools-title">实用工具</h2>
+          <p>开发、文本、文件与日常计算，按场景快速找到入口。</p>
+        </div>
+        <span class="section-index">01 / TOOLS</span>
+      </div>
+
+      <div class="tool-grid">
+        <article class="tool-card glass-panel">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">&lt;/&gt;</span>
+            <div>
+              <h3>开发与配置</h3>
+              <p>开发辅助与环境配置</p>
+            </div>
+          </div>
+          <ul class="tool-list">
+            <li><a class="tool-link" href="/2fa/index.html"><span class="tool-name">2fa <small class="tool-meta">自制</small></span></a></li>
+            <li><a class="tool-link" href="/CSS与HTML生成器/index.html"><span class="tool-name">CSS与HTML生成器 <small class="tool-meta">Codex 写</small></span></a></li>
+            <li><a class="tool-link" href="/css网格布局/index.html"><span class="tool-name">css网格布局</span></a></li>
+            <li><a class="tool-link" href="/nginx可视化配置/index.html"><span class="tool-name">nginx可视化配置</span></a></li>
+            <li><a class="tool-link" href="/开发速查表/index.html"><span class="tool-name">开发速查表</span></a></li>
+            <li><a class="tool-link" href="/Adb在线执行器/index.html"><span class="tool-name">Adb在线执行器 <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/JSON转JS/index.html"><span class="tool-name">JSON转JS <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/yaml-properties-converter/index.html"><span class="tool-name">Java YAML与Properties互转 <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/java一行的多行注释一行化/index.html"><span class="tool-name">java一行的多行注释一行化 <small class="tool-meta">AI 写</small></span></a></li>
+          </ul>
+        </article>
+
+        <article class="tool-card glass-panel">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">Aa</span>
+            <div>
+              <h3>文本与编码</h3>
+              <p>转换、对比与编码处理</p>
+            </div>
+          </div>
+          <ul class="tool-list">
+            <li><a class="tool-link" href="/文本差异对比(新)/index.html"><span class="tool-name">文本差异对比(字)</span></a></li>
+            <li><a class="tool-link" href="/文本差异对比mi/index.html"><span class="tool-name">文本差异对比(词)</span></a></li>
+            <li><a class="tool-link" href="/文本差异对比/index.html"><span class="tool-name">文本差异对比(行)</span></a></li>
+            <li><a class="tool-link" href="/驼峰与下划线转换/index.html"><span class="tool-name">驼峰与下划线转换 <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/时间戳/index.html"><span class="tool-name">时间戳转换工具 <small class="tool-meta">自制</small></span></a></li>
+            <li><a class="tool-link" href="/转特殊字符/index.html"><span class="tool-name">转特殊字符 <small class="tool-meta">自制迁移</small></span></a></li>
+            <li><a class="tool-link" href="/Base64/index.html"><span class="tool-name">Base64文本编码解码 <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/JWT/index.html"><span class="tool-name">JWT 编码解码器 <small class="tool-meta">AI 写</small></span></a></li>
+          </ul>
+        </article>
+
+        <article class="tool-card glass-panel">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">IMG</span>
+            <div>
+              <h3>文件与媒体</h3>
+              <p>图片、视频与文档工具</p>
+            </div>
+          </div>
+          <ul class="tool-list">
+            <li><a class="tool-link" href="/实况图片换封面/index.html"><span class="tool-name">实况图片换封面 <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/文件强制下载工具/index.html"><span class="tool-name">文件强制下载工具</span></a></li>
+            <li><a class="tool-link" href="/图片转盲文/index.html"><span class="tool-name">图片转盲文</span></a></li>
+            <li><a class="tool-link" href="/视频转webp/index.html"><span class="tool-name">视频转 WebP <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/聚合图床/index.html"><span class="tool-name">聚合图床</span></a></li>
+            <li><a class="tool-link" href="/PDF多功能编辑器/index.html"><span class="tool-name">PDF多功能编辑器 <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/白板/index.html"><span class="tool-name">白板 <small class="tool-meta">AI 写</small></span></a></li>
+          </ul>
+        </article>
+
+        <article class="tool-card glass-panel">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">123</span>
+            <div>
+              <h3>生活与计算</h3>
+              <p>收益、比价与养老测算</p>
+            </div>
+          </div>
+          <ul class="tool-list">
+            <li><a class="tool-link" href="/七天年化收益率计算器/index.html"><span class="tool-name">七天年化收益率计算器 <small class="tool-meta">自制</small></span></a></li>
+            <li><a class="tool-link" href="/商品比价器/index.html"><span class="tool-name">商品比价器 <small class="tool-meta">自制迁移</small></span></a></li>
+            <li><a class="tool-link" href="/城乡居民养老金计算器(忽略利息版)/index.html"><span class="tool-name">城乡居民养老金计算器(忽略利息版) <small class="tool-meta">AI 写</small></span></a></li>
+            <li><a class="tool-link" href="/城乡居民养老金计算器/index.html"><span class="tool-name">城乡居民养老金计算器 <small class="tool-meta">AI 写</small></span></a></li>
+          </ul>
+        </article>
+
+        <article class="tool-card glass-panel wide-card">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">⌖</span>
+            <div>
+              <h3>地图与搜索</h3>
+              <p>快速搜索与地图数据展示</p>
+            </div>
+          </div>
+          <ul class="tool-list">
+            <li><a class="tool-link" href="/快捷App搜索/index.html"><span class="tool-name">快捷App搜索 <small class="tool-meta">自制 · 手机版</small></span></a></li>
+            <li><a class="tool-link" href="/react-amap/index.html"><span class="tool-name">react-amap</span></a></li>
+            <li><a class="tool-link" href="/高德排线数据渲染/index.html"><span class="tool-name">高德排线数据渲染 <small class="tool-meta">AI 写</small></span></a></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-section" aria-labelledby="fun-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="fun-title">图一乐</h2>
+          <p>小游戏、3D 实验和一些有意思的网页作品。</p>
+        </div>
+        <span class="section-index">02 / PLAY</span>
+      </div>
+
+      <div class="game-grid">
+        <article class="tool-card glass-panel">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">GAME</span>
+            <div>
+              <h3>手机小游戏</h3>
+              <p>点开即玩，适合触屏操作</p>
+            </div>
+          </div>
+          <ul class="game-chips">
+            <li><a href="/图一乐/小游戏/2048.html">2048</a></li>
+            <li><a href="/图一乐/小游戏/俄罗斯方块.html">俄罗斯方块</a></li>
+            <li><a href="/图一乐/小游戏/扫雷.html">扫雷</a></li>
+            <li><a href="/图一乐/小游戏/接小球.html">接小球</a></li>
+            <li><a href="/图一乐/小游戏/小球弹.html">小球弹</a></li>
+            <li><a href="/图一乐/小游戏/贪吃蛇.html">贪吃蛇</a></li>
+            <li><a href="/图一乐/小游戏/贪吃蛇new.html">贪吃蛇new</a></li>
+            <li><a href="/图一乐/小游戏/飞机大战mi.html">飞机大战mi</a></li>
+            <li><a href="/图一乐/小游戏/飞机大战.html">飞机大战</a></li>
+            <li><a href="/图一乐/小游戏/切水果.html">切水果</a></li>
+            <li><a href="/图一乐/小游戏/消消乐mi.html">消消乐mi</a></li>
+            <li><a href="/图一乐/小游戏/消消乐.html">消消乐</a></li>
+            <li><a href="/图一乐/小游戏/坦克大战.html">坦克大战</a></li>
+          </ul>
+        </article>
+
+        <article class="tool-card glass-panel">
+          <div class="card-heading">
+            <span class="card-icon" aria-hidden="true">3D</span>
+            <div>
+              <h3>互动实验</h3>
+              <p>视觉效果与趣味作品</p>
+            </div>
+          </div>
+          <ul class="game-list">
+            <li><a class="tool-link" href="/图一乐/拖拽文字/index.html"><span class="tool-name">拖拽文字</span></a></li>
+            <li><a class="tool-link" href="/图一乐/拳皇二稿版/index.html"><span class="tool-name">拳皇二稿版</span></a></li>
+            <li><a class="tool-link" href="/图一乐/黑客帝国瀑布特效/index.html"><span class="tool-name">黑客帝国瀑布特效</span></a></li>
+            <li><a class="tool-link" href="/图一乐/模拟电脑更新/index.html"><span class="tool-name">模拟电脑更新</span></a></li>
+            <li><a class="tool-link" href="/图一乐/3D机器手/index.html"><span class="tool-name">3D机器手</span></a></li>
+            <li><a class="tool-link" href="/图一乐/3D元素周期表/index.html"><span class="tool-name">3D元素周期表</span></a></li>
+            <li><a class="tool-link" href="/图一乐/3D鼠标移动鲨鱼/index.html"><span class="tool-name">3D鼠标移动鲨鱼</span></a></li>
+            <li><a class="tool-link" href="/图一乐/3D蜘蛛网/index.html"><span class="tool-name">3D蜘蛛网</span></a></li>
+            <li><a class="tool-link" href="/图一乐/3D花瓣/index.html"><span class="tool-name">3D花瓣</span></a></li>
+            <li><a class="tool-link" href="/图一乐/bing壁纸预览/index.html"><span class="tool-name">bing壁纸预览</span></a></li>
+            <li><a class="tool-link" href="/图一乐/大话骰/demo.html"><span class="tool-name">大话骰(第一版) <small class="tool-meta">手机版</small></span></a></li>
+            <li><a class="tool-link" href="/图一乐/大话骰/index.html"><span class="tool-name">大话骰(第二版) <small class="tool-meta">手机版</small></span></a></li>
+            <li><a class="tool-link" href="/图一乐/SBTI测试/index.html"><span class="tool-name">SBTI测试</span></a></li>
+            <li><a class="tool-link" href="/图一乐/中转探针/index.html"><span class="tool-name">中转探针</span></a></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-section" aria-labelledby="community-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="community-title">发现更多</h2>
+          <p>关注公众号，或者看看 AI 二维码的另一种表达。</p>
+        </div>
+        <span class="section-index">03 / MORE</span>
+      </div>
+
+      <div class="community-panel glass-panel">
+        <div class="qr-main">
+          <p>公众号：仰晨</p>
+          <img src="/wxGzh.jpg" alt="仰晨公众号二维码" width="344" loading="lazy">
+        </div>
+        <div class="qr-showcase">
+          <div>
+            <h3>AI 二维码观赏</h3>
+            <p>当二维码不再只是黑白方块，扫码之外也可以是一张有趣的图。</p>
+          </div>
+          <div class="qr-art-row">
+            <img src="https://img11.360buyimg.com/cxxjwimg/jfs/t1/343642/17/5672/246100/68ce9b5bFf6b7def5/10a7cec294836628.png" alt="AI 二维码样例一" width="108" loading="lazy">
+            <img src="https://img11.360buyimg.com/cxxjwimg/jfs/t1/332718/37/15498/248781/68ce9b60F89d64a44/dca7d879b156da9e.png" alt="AI 二维码样例二" width="108" loading="lazy">
+          </div>
+          <a class="primary-link" href="/图一乐/AI二维码观赏/index.html">进入 AI 二维码观赏&nbsp; →</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="legacy-panel glass-panel" aria-labelledby="legacy-title">
+      <div>
+        <h2 id="legacy-title">没啥用的</h2>
+        <p>就当做个纪念</p>
+      </div>
+      <a href="/没啥用的/报废的书签/index.html">报废的书签</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>仰晨 HTML 工具集 · 打开网页，解决一点小问题</span>
+    <nav class="footer-links" aria-label="外部链接">
+      <a href="https://yc556.cn/blog" target="_blank" rel="noopener noreferrer">博客</a>
+      <a href="https://yc556.cn/" target="_blank" rel="noopener noreferrer">仰晨主页</a>
+      <a href="https://gitee.com/yc556/html-tools" target="_blank" rel="noopener noreferrer">Gitee</a>
+      <a href="https://github.com/yc-2018/-htmlTools" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </footer>
+</div>
+
+<script>
+  (() => {
+    const canvas = document.getElementById('space-background');
+    const context = canvas && canvas.getContext('2d');
+
+    if (!context) {
+      return;
+    }
+
+    const config = {
+      desktopCount: 80,
+      mobileCount: 40,
+      mobileBreakpoint: 768,
+      maxDpr: 1.5,
+      near: 120,
+      far: 1200,
+      speed: 0.58,
+      lineDistance: 110,
+      parallax: 24
+    };
+    const pointer = {
+      x: 0,
+      y: 0,
+      targetX: 0,
+      targetY: 0
+    };
+
+    let width = 0;
+    let height = 0;
+    let particles = [];
+    let animationFrame = 0;
+    let resizeFrame = 0;
+    let pageVisible = !document.hidden;
+
+    function createParticle(placeAtFarEdge = false) {
+      return {
+        x: (Math.random() - 0.5) * width * 1.9,
+        y: (Math.random() - 0.5) * height * 1.9,
+        z: placeAtFarEdge
+          ? config.far
+          : config.near + Math.random() * (config.far - config.near),
+        size: 0.65 + Math.random() * 1.45,
+        hue: Math.random() > 0.48 ? 198 : 258
+      };
+    }
+
+    function buildParticles() {
+      const particleCount = width < config.mobileBreakpoint
+        ? config.mobileCount
+        : config.desktopCount;
+      particles = Array.from({ length: particleCount }, () => createParticle());
+    }
+
+    function projectParticle(particle) {
+      const focalLength = Math.min(width, height) * 0.86;
+      const scale = focalLength / particle.z;
+      const depth = 1 - (particle.z - config.near) / (config.far - config.near);
+
+      return {
+        x: width / 2 + particle.x * scale + pointer.x * config.parallax * depth,
+        y: height / 2 + particle.y * scale + pointer.y * config.parallax * depth,
+        radius: Math.max(0.5, particle.size * (0.55 + scale)),
+        alpha: 0.18 + depth * 0.72,
+        depth,
+        hue: particle.hue
+      };
+    }
+
+    function updateParticles() {
+      pointer.x += (pointer.targetX - pointer.x) * 0.035;
+      pointer.y += (pointer.targetY - pointer.y) * 0.035;
+
+      particles.forEach((particle, index) => {
+        particle.z -= config.speed;
+        if (particle.z <= config.near) {
+          particles[index] = createParticle(true);
+        }
+      });
+    }
+
+    function drawConnections(projectedParticles) {
+      context.lineWidth = 0.7;
+
+      for (let first = 0; first < projectedParticles.length; first += 1) {
+        for (let second = first + 1; second < projectedParticles.length; second += 1) {
+          const pointA = projectedParticles[first];
+          const pointB = projectedParticles[second];
+          const deltaX = pointA.x - pointB.x;
+          const deltaY = pointA.y - pointB.y;
+          const distance = Math.hypot(deltaX, deltaY);
+
+          if (distance >= config.lineDistance) {
+            continue;
+          }
+
+          const opacity = (1 - distance / config.lineDistance)
+            * Math.min(pointA.alpha, pointB.alpha)
+            * 0.22;
+          context.beginPath();
+          context.moveTo(pointA.x, pointA.y);
+          context.lineTo(pointB.x, pointB.y);
+          context.strokeStyle = `rgba(125, 211, 252, ${opacity})`;
+          context.stroke();
+        }
+      }
+    }
+
+    function drawParticles(projectedParticles) {
+      projectedParticles.forEach((point) => {
+        context.beginPath();
+        context.arc(point.x, point.y, point.radius * 3.1, 0, Math.PI * 2);
+        context.fillStyle = `hsla(${point.hue}, 90%, 72%, ${point.alpha * 0.09})`;
+        context.fill();
+
+        context.beginPath();
+        context.arc(point.x, point.y, point.radius, 0, Math.PI * 2);
+        context.fillStyle = `hsla(${point.hue}, 94%, 82%, ${point.alpha})`;
+        context.fill();
+      });
+    }
+
+    function renderFrame() {
+      context.clearRect(0, 0, width, height);
+      const projectedParticles = particles.map(projectParticle);
+      drawConnections(projectedParticles);
+      drawParticles(projectedParticles);
+    }
+
+    function animate() {
+      animationFrame = 0;
+
+      if (!pageVisible) {
+        return;
+      }
+
+      updateParticles();
+      renderFrame();
+      animationFrame = window.requestAnimationFrame(animate);
+    }
+
+    function stopAnimation() {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+      }
+    }
+
+    function syncAnimationState() {
+      stopAnimation();
+
+      if (pageVisible) {
+        animationFrame = window.requestAnimationFrame(animate);
+      } else {
+        pointer.x = 0;
+        pointer.y = 0;
+        pointer.targetX = 0;
+        pointer.targetY = 0;
+        renderFrame();
+      }
+    }
+
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+
+      const dpr = Math.min(window.devicePixelRatio || 1, config.maxDpr);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      buildParticles();
+      renderFrame();
+    }
+
+    function scheduleResize() {
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(resizeCanvas);
+    }
+
+    function handlePointerMove(event) {
+      pointer.targetX = (event.clientX / width - 0.5) * 2;
+      pointer.targetY = (event.clientY / height - 0.5) * 2;
+    }
+
+    function resetPointer() {
+      pointer.targetX = 0;
+      pointer.targetY = 0;
+    }
+
+    function handleVisibilityChange() {
+      pageVisible = !document.hidden;
+      syncAnimationState();
+    }
+
+    window.addEventListener('resize', scheduleResize, { passive: true });
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    document.documentElement.addEventListener('pointerleave', resetPointer);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    resizeCanvas();
+    syncAnimationState();
+  })();
+</script>
+</body>
+</html>
