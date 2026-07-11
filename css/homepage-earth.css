@@ -1,0 +1,84 @@
+html {
+  background: #f1f2f2;
+}
+
+body {
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+}
+
+#homepage-earth-background {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.96), rgba(240, 242, 242, 0.9) 46%, rgba(226, 229, 230, 0.94) 100%),
+    linear-gradient(145deg, #f8f9f9, #e5e7e8);
+}
+
+a {
+  position: relative;
+  transition: color 220ms ease;
+}
+
+a::before,
+a::after {
+  position: absolute;
+  z-index: 1;
+  bottom: -2px;
+  pointer-events: none;
+  content: "";
+}
+
+a::before {
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: #73797c;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 280ms ease;
+}
+
+a::after {
+  left: 0;
+  width: 5px;
+  height: 5px;
+  margin-bottom: -2px;
+  border-radius: 50%;
+  background: #5f6669;
+  box-shadow: 0 0 7px rgba(95, 102, 105, 0.5);
+  opacity: 0;
+  transition:
+    left 320ms ease,
+    opacity 120ms ease;
+}
+
+@media (hover: hover) {
+  a:hover {
+    color: #4d5457;
+    text-decoration: none;
+  }
+
+  a:hover::before {
+    transform: scaleX(1);
+  }
+
+  a:hover::after {
+    left: calc(100% - 5px);
+    opacity: 1;
+  }
+}
+
+a:focus-visible::before {
+  transform: scaleX(1);
+}
+
+a:focus-visible::after {
+  left: calc(100% - 5px);
+  opacity: 1;
+}

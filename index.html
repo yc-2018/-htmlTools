@@ -8,6 +8,7 @@
   <!-- 添加网站图标 -->
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="./css/homepage-earth.css">
   <style>
       img {
           min-height: 100px;
@@ -16,7 +17,8 @@
 </head>
 
 <body>
-<h1>仰晨html工具集 <a href="/index1.html">新样式</a></h1>
+<canvas id="homepage-earth-background" aria-hidden="true"></canvas>
+<h1>仰晨html工具集 <a href="/index1.html" style="font-size: 12px">新样式</a></h1>
 <hr/>
 <h2>实用工具</h2>
 <h3>开发与配置</h3>
@@ -151,5 +153,7 @@
   </ol>
 </div>
 
+<script src="./js/vendor/three-r128.min.js"></script>
+<script src="./js/homepage-earth.js"></script>
 </body>
 </html>
