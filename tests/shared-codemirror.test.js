@@ -40,14 +40,28 @@ function testJavaFormatterUsesCodeMirror() {
 
   assert.ok(javaHtml.includes('../lib/codemirror/codemirror.css'));
   assert.ok(javaHtml.includes('../lib/codemirror/codemirror.js'));
+  assert.ok(javaHtml.includes('../lib/codemirror/mode/clike.js'));
   assert.ok(javaHtml.includes('const inputEditor = CodeMirror.fromTextArea(input'));
   assert.ok(javaHtml.includes('const outputEditor = CodeMirror.fromTextArea(output'));
+  assert.strictEqual(
+    (javaHtml.match(/mode: 'text\/x-java'/g) || []).length,
+    2,
+    'Both Java editors should enable Java syntax highlighting'
+  );
   assert.ok(javaHtml.includes('readOnly: true'));
   assert.ok(javaHtml.includes("inputEditor.on('change', processInput)"));
   assert.ok(javaHtml.includes('inputEditor.getValue()'));
   assert.ok(javaHtml.includes('outputEditor.setValue('));
   assert.ok(javaHtml.includes('navigator.clipboard.writeText(outputEditor.getValue())'));
   assert.ok(javaHtml.includes('@media (max-width: 768px)'));
+}
+
+function testJavaModeIsShared() {
+  const javaModePath = path.join(sharedDir, 'mode', 'clike.js');
+
+  assert.ok(fs.existsSync(javaModePath), 'The shared CodeMirror Java mode should exist');
+  const javaMode = fs.readFileSync(javaModePath, 'utf8');
+  assert.ok(javaMode.includes('text/x-java'));
 }
 
 function testJavaFormatterInlineScriptParses() {
@@ -63,6 +77,7 @@ function testJavaFormatterInlineScriptParses() {
 
 testCodeMirrorCoreIsShared();
 testConsumersUseSharedCodeMirror();
+testJavaModeIsShared();
 testJavaFormatterUsesCodeMirror();
 testJavaFormatterInlineScriptParses();
 console.log('shared CodeMirror tests passed');

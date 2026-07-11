@@ -265,6 +265,7 @@
 </div>
 
 <script src="../lib/codemirror/codemirror.js"></script>
+<script src="../lib/codemirror/mode/clike.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const input = document.getElementById('input');
@@ -277,11 +278,13 @@
     const outputCount = document.getElementById('outputCount');
     const inputEditor = CodeMirror.fromTextArea(input, {
       lineNumbers: true,
-      lineWrapping: true
+      lineWrapping: true,
+      mode: 'text/x-java'
     });
     const outputEditor = CodeMirror.fromTextArea(output, {
       lineNumbers: true,
       lineWrapping: true,
+      mode: 'text/x-java',
       readOnly: true
     });
 
