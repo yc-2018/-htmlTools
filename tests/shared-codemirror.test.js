@@ -35,6 +35,34 @@ function testConsumersUseSharedCodeMirror() {
   assert.ok(!yamlHtml.includes('../文本差异对比/lib/codemirror.css'));
 }
 
+function testJavaFormatterUsesCodeMirror() {
+  const javaHtml = read('java一行的多行注释一行化/index.html');
+
+  assert.ok(javaHtml.includes('../lib/codemirror/codemirror.css'));
+  assert.ok(javaHtml.includes('../lib/codemirror/codemirror.js'));
+  assert.ok(javaHtml.includes('const inputEditor = CodeMirror.fromTextArea(input'));
+  assert.ok(javaHtml.includes('const outputEditor = CodeMirror.fromTextArea(output'));
+  assert.ok(javaHtml.includes('readOnly: true'));
+  assert.ok(javaHtml.includes("inputEditor.on('change', processInput)"));
+  assert.ok(javaHtml.includes('inputEditor.getValue()'));
+  assert.ok(javaHtml.includes('outputEditor.setValue('));
+  assert.ok(javaHtml.includes('navigator.clipboard.writeText(outputEditor.getValue())'));
+  assert.ok(javaHtml.includes('@media (max-width: 768px)'));
+}
+
+function testJavaFormatterInlineScriptParses() {
+  const javaHtml = read('java一行的多行注释一行化/index.html');
+  const inlineScripts = Array.from(
+    javaHtml.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi),
+    (match) => match[1]
+  );
+
+  assert.ok(inlineScripts.length > 0, 'Java formatter should contain an inline application script');
+  inlineScripts.forEach((source) => new Function(source));
+}
+
 testCodeMirrorCoreIsShared();
 testConsumersUseSharedCodeMirror();
+testJavaFormatterUsesCodeMirror();
+testJavaFormatterInlineScriptParses();
 console.log('shared CodeMirror tests passed');

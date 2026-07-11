@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Java一行的多行注释一行化工具</title>
+  <link rel="stylesheet" href="../lib/codemirror/codemirror.css">
   <style>
     * {
       box-sizing: border-box;
@@ -101,11 +102,35 @@
       box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
     }
 
+    .CodeMirror {
+      height: 400px;
+      border: 1px solid #bdc3c7;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .CodeMirror-focused {
+      border-color: #3498db;
+      box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+    }
+
     .input-section textarea {
       background-color: #f8f9fa;
     }
 
     .output-section textarea {
+      background-color: #e8f4fc;
+    }
+
+    .input-section .CodeMirror {
+      background-color: #f8f9fa;
+    }
+
+    .output-section .CodeMirror {
       background-color: #e8f4fc;
     }
 
@@ -165,6 +190,10 @@
       }
 
       textarea {
+        height: 300px;
+      }
+
+      .CodeMirror {
         height: 300px;
       }
 
@@ -235,6 +264,7 @@
 
 </div>
 
+<script src="../lib/codemirror/codemirror.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     const input = document.getElementById('input');
@@ -245,11 +275,20 @@
     const removeEmptyLinesCheckbox = document.getElementById('removeEmptyLines');
     const inputCount = document.getElementById('inputCount');
     const outputCount = document.getElementById('outputCount');
+    const inputEditor = CodeMirror.fromTextArea(input, {
+      lineNumbers: true,
+      lineWrapping: true
+    });
+    const outputEditor = CodeMirror.fromTextArea(output, {
+      lineNumbers: true,
+      lineWrapping: true,
+      readOnly: true
+    });
 
     // 更新字符计数
     function updateCount() {
-      inputCount.textContent = input.value.length;
-      outputCount.textContent = output.value.length;
+      inputCount.textContent = inputEditor.getValue().length;
+      outputCount.textContent = outputEditor.getValue().length;
     }
 
     // 格式化注释函数
@@ -308,27 +347,32 @@
 
     // 处理输入变化
     function processInput() {
-      const inputText = input.value;
+      const inputText = inputEditor.getValue();
       const removeEmptyLines = removeEmptyLinesCheckbox.checked;
-      output.value = formatComments(inputText, removeEmptyLines);
+      outputEditor.setValue(formatComments(inputText, removeEmptyLines));
       updateCount();
     }
 
     // 事件监听
-    input.addEventListener('input', processInput);
+    inputEditor.on('change', processInput);
     removeEmptyLinesCheckbox.addEventListener('change', processInput);
     formatBtn.addEventListener('click', processInput);
 
     clearBtn.addEventListener('click', function () {
-      input.value = '';
-      output.value = '';
+      inputEditor.setValue('');
+      outputEditor.setValue('');
       updateCount();
-      input.focus();
+      inputEditor.focus();
     });
 
     copyBtn.addEventListener('click', function () {
-      output.select();
-      document.execCommand('copy');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(outputEditor.getValue());
+      } else {
+        output.value = outputEditor.getValue();
+        output.select();
+        document.execCommand('copy');
+      }
 
       // 显示复制成功提示
       const originalText = copyBtn.textContent;
@@ -342,7 +386,7 @@
     updateCount();
 
     // 在页面加载时添加示例代码
-    input.value = `  /**
+    inputEditor.setValue(`  /**
    * 这里会变!!!!!!!!!
    */
   @TableId(type = IdType.ASSIGN_UUID)
@@ -354,8 +398,9 @@
    * 属性注释
    * 多行不动
    */
-  private String vehicleCode;`;
+  private String vehicleCode;`);
     processInput();
+    inputEditor.focus();
   });
 </script>
 </body>
