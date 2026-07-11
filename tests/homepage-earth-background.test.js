@@ -62,8 +62,12 @@ function testBackgroundAssetsExistAndStayBehindContent() {
   assertIncludes(css, 'a:focus-visible::before');
   assertIncludes(css, 'left: calc(100% - 5px)');
   assert.ok(
-    /a:hover\s*\{[^}]*text-decoration:\s*none;/s.test(css),
-    'native link underline should disappear while the custom hover line is visible'
+    /hr\s*\{[^}]*border-top:\s*1px solid #c7cbcd;/s.test(css),
+    'homepage separators should use a soft gray single-pixel line'
+  );
+  assert.ok(
+    /a\s*\{[^}]*text-decoration:\s*none;/s.test(css),
+    'native link underline should stay hidden in every link state'
   );
   assert.strictEqual(three.REVISION, '128');
   assert.ok(/MIT License|The MIT License/.test(threeSource), 'vendored Three.js should retain its license');

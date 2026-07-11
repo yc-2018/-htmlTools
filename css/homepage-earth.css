@@ -8,6 +8,11 @@ body {
   background: transparent;
 }
 
+hr {
+  border: 0;
+  border-top: 1px solid rgba(199, 203, 205, 0.32);
+}
+
 #homepage-earth-background {
   position: fixed;
   z-index: -1;
@@ -22,6 +27,7 @@ body {
 
 a {
   position: relative;
+  text-decoration: none;
   transition: color 220ms ease;
 }
 
@@ -61,7 +67,6 @@ a::after {
 @media (hover: hover) {
   a:hover {
     color: #4d5457;
-    text-decoration: none;
   }
 
   a:hover::before {
