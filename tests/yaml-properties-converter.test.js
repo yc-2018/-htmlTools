@@ -381,9 +381,9 @@ function testHtmlStructureAndHomepageLink() {
   );
   const homepage = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
-  assertIncludes(toolHtml, '<link rel="stylesheet" href="../lib/codemirror/codemirror.css">');
+  assertIncludes(toolHtml, '<link rel="stylesheet" href="./vendor/codemirror/codemirror.css">');
   assertIncludes(toolHtml, '<link rel="stylesheet" href="./styles.css">');
-  assertIncludes(toolHtml, '<script src="../lib/codemirror/codemirror.js"></script>');
+  assertIncludes(toolHtml, '<script src="./vendor/codemirror/codemirror.js"></script>');
   assertIncludes(toolHtml, '<script src="./app.js"></script>');
   assertIncludes(toolHtml, 'id="propertiesInput"');
   assertIncludes(toolHtml, 'id="yamlInput"');
