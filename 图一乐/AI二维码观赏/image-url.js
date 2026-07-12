@@ -8,7 +8,7 @@
 })(function createAiQrImageUrls() {
   'use strict';
 
-  const MAX_THUMBNAIL_SIZE = 900;
+  const MAX_THUMBNAIL_SIZE = 600;
   const SIZE_BUCKET = 50;
   const MAX_DEVICE_PIXEL_RATIO = 2;
 
