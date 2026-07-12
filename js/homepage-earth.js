@@ -15,6 +15,9 @@
     initialDiameterVmin: 140,
     introDurationMs: 3000,
     rotationSpeed: 0.06,
+    chinaFacingRotationX: 35 * Math.PI / 180,
+    chinaFacingRotationY: -Math.PI / 12,
+    chinaFacingRotationZ: 0,
     maxPointerRatio: 0.1,
     maxDpr: 1.5,
     mobileBreakpoint: 768,
@@ -28,7 +31,10 @@
     orbitBandCount: 4,
     trailLength: 12,
     trailAngleStep: 0.035,
-    trailPointSizePx: 2.1
+    trailPointSizePx: 2.1,
+    chinaPointColor: 0x9b7376,
+    chinaPointSizePx: 2.4,
+    chinaPointOpacity: 0.82
   });
 
   const orbitBands = Object.freeze([
@@ -49,6 +55,38 @@
     { longitude: 105, latitude: 34, longitudeRadius: 39, latitudeRadius: 24, rotation: -0.14 },
     { longitude: 136, latitude: -25, longitudeRadius: 22, latitudeRadius: 14, rotation: 0.08 },
     { longitude: 48, latitude: -20, longitudeRadius: 7, latitudeRadius: 13, rotation: -0.2 }
+  ]);
+
+  const chinaMainlandPolygons = Object.freeze([
+    Object.freeze([
+      [73.5, 39.5], [78, 35], [79, 31], [86, 27], [96, 28], [99, 24],
+      [108, 20], [113, 22], [119, 25], [122, 30], [120, 36], [117, 41],
+      [111, 42], [105, 42], [100, 45], [96, 43], [92, 45], [87, 49],
+      [81, 47], [77, 42]
+    ]),
+    Object.freeze([
+      [116, 40], [121, 39], [125, 42], [131, 43], [135, 48], [132, 53],
+      [125, 53], [119, 48]
+    ])
+  ]);
+
+  const chinaIslandRegions = Object.freeze([
+    { longitude: 121, latitude: 23.7, longitudeRadius: 1.35, latitudeRadius: 2.55 },
+    { longitude: 110, latitude: 19.25, longitudeRadius: 1.75, latitudeRadius: 1.35 }
+  ]);
+
+  const chinaIslandHighlightCoordinates = Object.freeze([
+    Object.freeze([120.5, 22.2]),
+    Object.freeze([120.7, 22.8]),
+    Object.freeze([120.9, 23.5]),
+    Object.freeze([121.1, 24.2]),
+    Object.freeze([121.3, 24.9]),
+    Object.freeze([121.2, 25.2]),
+    Object.freeze([109.2, 18.6]),
+    Object.freeze([109.8, 19]),
+    Object.freeze([110.4, 19.4]),
+    Object.freeze([110.8, 19.8]),
+    Object.freeze([111.1, 20])
   ]);
 
   function clamp(value, minimum, maximum) {
@@ -140,6 +178,88 @@
     }
 
     return landRegions.some((region) => isInsideLandRegion(longitude, latitude, region));
+  }
+
+  function isInsidePolygon(longitude, latitude, polygon) {
+    let inside = false;
+
+    for (let current = 0, previous = polygon.length - 1; current < polygon.length; previous = current, current += 1) {
+      const currentPoint = polygon[current];
+      const previousPoint = polygon[previous];
+      const crossesLatitude = currentPoint[1] > latitude !== previousPoint[1] > latitude;
+      const intersectionLongitude = (previousPoint[0] - currentPoint[0])
+        * (latitude - currentPoint[1])
+        / (previousPoint[1] - currentPoint[1])
+        + currentPoint[0];
+
+      if (crossesLatitude && longitude < intersectionLongitude) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  }
+
+  function isInsideIslandRegion(longitude, latitude, region) {
+    const normalizedLongitude = (longitude - region.longitude) / region.longitudeRadius;
+    const normalizedLatitude = (latitude - region.latitude) / region.latitudeRadius;
+
+    return normalizedLongitude * normalizedLongitude
+      + normalizedLatitude * normalizedLatitude <= 1;
+  }
+
+  function isChinaCoordinate(longitude, latitude) {
+    return chinaMainlandPolygons.some((polygon) => (
+      isInsidePolygon(longitude, latitude, polygon)
+    )) || chinaIslandRegions.some((region) => (
+      isInsideIslandRegion(longitude, latitude, region)
+    ));
+  }
+
+  function getGlobeCoordinate(longitude, latitude) {
+    const latitudeRadians = latitude * Math.PI / 180;
+    const longitudeRadians = longitude * Math.PI / 180;
+    const horizontalRadius = Math.cos(latitudeRadians);
+
+    return {
+      x: -Math.cos(longitudeRadians) * horizontalRadius,
+      y: Math.sin(latitudeRadians),
+      z: Math.sin(longitudeRadians) * horizontalRadius
+    };
+  }
+
+  function getFacingScreenPosition(longitude, latitude) {
+    const coordinate = getGlobeCoordinate(longitude, latitude);
+    const cosineY = Math.cos(config.chinaFacingRotationY);
+    const sineY = Math.sin(config.chinaFacingRotationY);
+    const afterY = {
+      x: cosineY * coordinate.x + sineY * coordinate.z,
+      y: coordinate.y,
+      z: -sineY * coordinate.x + cosineY * coordinate.z
+    };
+    const cosineX = Math.cos(config.chinaFacingRotationX);
+    const sineX = Math.sin(config.chinaFacingRotationX);
+    const afterX = {
+      x: afterY.x,
+      y: cosineX * afterY.y - sineX * afterY.z,
+      z: sineX * afterY.y + cosineX * afterY.z
+    };
+    const cosineZ = Math.cos(config.chinaFacingRotationZ);
+    const sineZ = Math.sin(config.chinaFacingRotationZ);
+
+    return {
+      x: cosineZ * afterX.x - sineZ * afterX.y,
+      y: sineZ * afterX.x + cosineZ * afterX.y,
+      z: afterX.z
+    };
+  }
+
+  function getFacingScreenX(longitude, latitude) {
+    return getFacingScreenPosition(longitude, latitude).x;
+  }
+
+  function getChinaIslandHighlightCoordinates() {
+    return chinaIslandHighlightCoordinates.map((coordinate) => coordinate.slice());
   }
 
   function createSatelliteSpecs() {
@@ -265,6 +385,7 @@
       const pointCount = viewportWidth < config.mobileBreakpoint
         ? config.mobilePointCount
         : config.desktopPointCount;
+      const chinaPositions = [];
       const landPositions = [];
       const oceanPositions = [];
       const goldenAngle = Math.PI * (3 - Math.sqrt(5));
@@ -277,16 +398,23 @@
         const z = Math.sin(angle) * horizontalRadius;
         const longitude = Math.atan2(z, x) * 180 / Math.PI;
         const latitude = Math.asin(y) * 180 / Math.PI;
-        const target = isLandCoordinate(longitude, latitude)
-          ? landPositions
-          : oceanPositions;
+        let target = oceanPositions;
+
+        if (isChinaCoordinate(longitude, latitude)) {
+          target = chinaPositions;
+        } else if (isLandCoordinate(longitude, latitude)) {
+          target = landPositions;
+        }
 
         if (target === oceanPositions && index % 3 !== 0) {
           continue;
         }
 
-        target.push(x, y, z);
+        const globeCoordinate = getGlobeCoordinate(longitude, latitude);
+        target.push(globeCoordinate.x, globeCoordinate.y, globeCoordinate.z);
       }
+
+      appendIslandHighlightPoints(chinaPositions);
 
       const depthMaterial = new THREE.MeshBasicMaterial({
         color: 0xffffff,
@@ -323,8 +451,27 @@
         config.oceanPointSizePx,
         0.24
       ));
-      globeGroup.rotation.z = -0.18;
-      globeGroup.rotation.x = 0.08;
+      globeGroup.add(createPoints(
+        chinaPositions,
+        config.chinaPointColor,
+        config.chinaPointSizePx,
+        config.chinaPointOpacity
+      ));
+      globeGroup.rotation.order = 'YXZ';
+      globeGroup.rotation.x = config.chinaFacingRotationX;
+      globeGroup.rotation.y = config.chinaFacingRotationY;
+      globeGroup.rotation.z = config.chinaFacingRotationZ;
+    }
+
+    function appendIslandHighlightPoints(positions) {
+      getChinaIslandHighlightCoordinates().forEach(([longitude, latitude]) => {
+        const globeCoordinate = getGlobeCoordinate(longitude, latitude);
+        positions.push(
+          globeCoordinate.x,
+          globeCoordinate.y,
+          globeCoordinate.z
+        );
+      });
     }
 
     function createPoints(positions, color, size, opacity) {
@@ -594,6 +741,10 @@
     getSatellitePosition,
     createTrailPositions,
     isLandCoordinate,
+    isChinaCoordinate,
+    getChinaIslandHighlightCoordinates,
+    getFacingScreenX,
+    getFacingScreenPosition,
     initScene,
     autoInit
   });

@@ -80,12 +80,24 @@ function testSceneMathAndResponsiveDefaults() {
   assert.strictEqual(earth.config.initialDiameterVmin, 140);
   assert.strictEqual(earth.config.introDurationMs, 3000);
   assert.strictEqual(earth.config.rotationSpeed, 0.06);
+  assert.ok(
+    Math.abs(earth.config.chinaFacingRotationY + Math.PI / 12) < 1e-12,
+    'China should be centered toward the camera'
+  );
+  assert.ok(
+    Math.abs(earth.config.chinaFacingRotationX - 35 * Math.PI / 180) < 1e-12,
+    'central China should be vertically centered'
+  );
+  assert.strictEqual(earth.config.chinaFacingRotationZ, 0);
   assert.strictEqual(earth.config.maxPointerRatio, 0.1);
   assert.strictEqual(earth.config.maxDpr, 1.5);
   assert.strictEqual(earth.config.landPointSizePx, 1.6);
   assert.strictEqual(earth.config.oceanPointSizePx, 1.05);
   assert.strictEqual(earth.config.orbitBandCount, 4);
   assert.strictEqual(earth.config.trailLength, 12);
+  assert.strictEqual(earth.config.chinaPointColor, 0x9b7376);
+  assert.strictEqual(earth.config.chinaPointSizePx, 2.4);
+  assert.strictEqual(earth.config.chinaPointOpacity, 0.82);
 
   assert.strictEqual(earth.easeOutCubic(0), 0);
   assert.strictEqual(earth.easeOutCubic(0.5), 0.875);
@@ -195,6 +207,54 @@ function testLandMaskSeparatesContinentsFromOpenOcean() {
   assert.strictEqual(earth.isLandCoordinate(-30, -35), false, 'South Atlantic should stay sparse');
 }
 
+function testChinaMaskIncludesMainlandTaiwanAndHainan() {
+  const earth = require(scriptPath);
+
+  assert.strictEqual(earth.isChinaCoordinate(116.4, 39.9), true, 'Beijing should be highlighted');
+  assert.strictEqual(earth.isChinaCoordinate(104.1, 30.7), true, 'Chengdu should be highlighted');
+  assert.strictEqual(earth.isChinaCoordinate(87.6, 43.8), true, 'Xinjiang should be highlighted');
+  assert.strictEqual(earth.isChinaCoordinate(121, 23.7), true, 'Taiwan should be highlighted');
+  assert.strictEqual(earth.isChinaCoordinate(110, 19.3), true, 'Hainan should be highlighted');
+  assert.strictEqual(earth.isChinaCoordinate(139.7, 35.7), false, 'Japan should remain gray');
+  assert.strictEqual(earth.isChinaCoordinate(78.9, 22.5), false, 'India should remain gray');
+  assert.strictEqual(earth.isChinaCoordinate(106, 47.8), false, 'Mongolia should remain gray');
+
+  const islandPoints = earth.getChinaIslandHighlightCoordinates();
+  assert.ok(islandPoints.length <= 12, 'island highlights should not collapse into oversized blobs');
+  assert.ok(islandPoints.some(([longitude]) => longitude > 120), 'Taiwan should have visible points');
+  assert.ok(islandPoints.some(([longitude]) => longitude < 112), 'Hainan should have visible points');
+  islandPoints.forEach(([longitude, latitude]) => {
+    assert.strictEqual(earth.isChinaCoordinate(longitude, latitude), true);
+  });
+}
+
+function testChinaFacingProjectionKeepsWestOnLeftAndEastOnRight() {
+  const earth = require(scriptPath);
+
+  assert.strictEqual(typeof earth.getFacingScreenX, 'function');
+  const xinjiangX = earth.getFacingScreenX(87.6, 43.8);
+  const beijingX = earth.getFacingScreenX(116.4, 39.9);
+  const taiwanX = earth.getFacingScreenX(121, 23.7);
+
+  assert.ok(xinjiangX < beijingX, 'Xinjiang should appear left of Beijing');
+  assert.ok(taiwanX > beijingX, 'Taiwan should appear right of Beijing');
+  assert.ok(Math.abs(earth.getFacingScreenX(105, 35)) < 1e-12, 'central China should face the camera');
+}
+
+function testChinaFacingProjectionCentersTheMainlandVertically() {
+  const earth = require(scriptPath);
+
+  assert.strictEqual(typeof earth.getFacingScreenPosition, 'function');
+  const center = earth.getFacingScreenPosition(105, 35);
+  const beijing = earth.getFacingScreenPosition(116.4, 39.9);
+  const hainan = earth.getFacingScreenPosition(110, 19.3);
+
+  assert.ok(Math.abs(center.x) < 1e-12);
+  assert.ok(Math.abs(center.y) < 1e-12);
+  assert.ok(beijing.y > center.y, 'Beijing should remain north of the center');
+  assert.ok(hainan.y < center.y, 'Hainan should remain south of the center');
+}
+
 function testLifecycleAndAccessibilityHooksExist() {
   const script = readUtf8(scriptPath);
 
@@ -206,6 +266,7 @@ function testLifecycleAndAccessibilityHooksExist() {
   assertIncludes(script, "window.addEventListener('pointermove'");
   assertIncludes(script, "window.addEventListener('resize'");
   assertIncludes(script, "canvas.addEventListener('webglcontextlost'");
+  assertIncludes(script, 'globeGroup.rotation.y = config.chinaFacingRotationY;');
   assertIncludes(script, 'requestAnimationFrame');
 }
 
@@ -217,6 +278,9 @@ function run() {
   testSatelliteTrailsFollowTheOrbit();
   testIntroScaleAndPointerTargetsAreBounded();
   testLandMaskSeparatesContinentsFromOpenOcean();
+  testChinaMaskIncludesMainlandTaiwanAndHainan();
+  testChinaFacingProjectionKeepsWestOnLeftAndEastOnRight();
+  testChinaFacingProjectionCentersTheMainlandVertically();
   testLifecycleAndAccessibilityHooksExist();
   console.log('homepage earth background tests passed');
 }
