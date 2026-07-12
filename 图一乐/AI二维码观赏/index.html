@@ -24,6 +24,7 @@
   <div class="image-index" id="imageIndex"></div>
 </div>
 
+<script src="./image-url.js"></script>
 <script>
   const images = [
     "https://img11.360buyimg.com/cxxjwimg/jfs/t1/342940/26/5634/219805/68ce9909Fff427d49/d17003fdd182fc88.png",
@@ -106,14 +107,37 @@
   const prevBtn = document.getElementsByClassName('prev')[0];
   const nextBtn = document.getElementsByClassName('next')[0];
   const imageIndex = document.getElementById('imageIndex');
+  const { calculateThumbnailSize, toThumbnailUrl, toFullImageUrl } = window.AiQrImageUrls;
+  let resizeTimer = 0;
+
+  function getThumbnailSize(renderedWidth) {
+    return calculateThumbnailSize(renderedWidth, window.devicePixelRatio || 1);
+  }
+
+  function updateThumbnailSources() {
+    const listImages = imageList.querySelectorAll('.image-item img');
+    listImages.forEach((img) => {
+      const card = img.closest('.image-item');
+      const size = getThumbnailSize(card.getBoundingClientRect().width || imageList.clientWidth);
+      if (img.dataset.thumbnailSize === String(size)) return;
+      img.dataset.thumbnailSize = String(size);
+      img.src = toThumbnailUrl(img.dataset.fullSrc, size);
+    });
+  }
 
   function renderImages() {
     images.forEach((src, index) => {
       const imageItem = document.createElement('div');
       imageItem.className = 'image-item';
-      imageItem.innerHTML = `<img src="${src}" alt="图片 ${index + 1}" onclick="openModal(${index})" loading="lazy">`;
+      const img = document.createElement('img');
+      img.dataset.fullSrc = toFullImageUrl(src);
+      img.alt = `图片 ${index + 1}`;
+      img.loading = 'lazy';
+      img.addEventListener('click', () => openModal(index));
+      imageItem.appendChild(img);
       imageList.appendChild(imageItem);
     });
+    updateThumbnailSources();
   }
 
   function openModal(index) {
@@ -130,7 +154,7 @@
       // 电脑端：使用原始方式
       modalImage.style.display = 'block';
       imageContainer.style.display = 'none';
-      modalImage.src = images[currentIndex];
+      modalImage.src = toFullImageUrl(images[currentIndex]);
       resetImage();
     }
     
@@ -162,7 +186,7 @@
       updateImagePosition();
     } else {
       // 电脑端：直接更新图片
-      modalImage.src = images[currentIndex];
+      modalImage.src = toFullImageUrl(images[currentIndex]);
       resetImage();
     }
     
@@ -174,19 +198,30 @@
     imageContainer.innerHTML = '';
     
     // 加载所有图片
+    const thumbnailSize = getThumbnailSize(window.innerWidth);
     images.forEach((src, index) => {
       const img = document.createElement('img');
-      img.src = src;
+      img.dataset.fullSrc = toFullImageUrl(src);
+      img.src = toThumbnailUrl(img.dataset.fullSrc, thumbnailSize);
       img.className = 'modal-content';
       img.dataset.index = index;
       imageContainer.appendChild(img);
     });
+    loadCurrentFullImage();
+  }
+
+  function loadCurrentFullImage() {
+    const currentImage = imageContainer.querySelector(`img[data-index="${currentIndex}"]`);
+    if (!currentImage || currentImage.dataset.fullLoaded === 'true') return;
+    currentImage.src = toFullImageUrl(currentImage.dataset.fullSrc);
+    currentImage.dataset.fullLoaded = 'true';
   }
   
   function updateImagePosition() {
     // 更新图片容器位置
     const translateX = -currentIndex * 100 + '%';
     imageContainer.style.transform = `translateX(${translateX})`;
+    if (isMobile && modal.style.display === 'flex') loadCurrentFullImage();
   }
 
   function handleWheel(event) {
@@ -347,6 +382,11 @@
   }
 
   renderImages();
+
+  window.addEventListener('resize', () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(updateThumbnailSources, 120);
+  }, { passive: true });
 
   closeBtn.onclick = closeModal;
   prevBtn.onclick = () => changeImage(-1);
