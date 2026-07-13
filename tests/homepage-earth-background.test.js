@@ -173,6 +173,37 @@ function testSatelliteTrailsFollowTheOrbit() {
   );
 }
 
+function testSpaceStationUsesAHighSlowOrbit() {
+  const earth = require(scriptPath);
+  const satellites = earth.createSatelliteSpecs();
+  const station = earth.createSpaceStationSpec();
+
+  assert.strictEqual(satellites.length, 14);
+  assert.ok(satellites.every((spec) => spec.kind === 'satellite'));
+  assert.strictEqual(station.kind, 'spaceStation');
+  assert.strictEqual(station.bandIndex, 4);
+  assert.ok(station.orbitRadius > Math.max(...satellites.map((spec) => spec.orbitRadius)));
+  assert.ok(station.speed < Math.min(...satellites.map((spec) => spec.speed)));
+  assert.ok(station.size > Math.max(...satellites.map((spec) => spec.size)));
+  assert.deepStrictEqual(station, earth.createSpaceStationSpec());
+}
+
+function testOrbitalHeadingFollowsTheTravelTangent() {
+  const earth = require(scriptPath);
+  const spec = earth.createSatelliteSpecs()[0];
+  const elapsedSeconds = 7;
+  const position = earth.getSatellitePosition(spec, elapsedSeconds);
+  const nextPosition = earth.getSatellitePosition(spec, elapsedSeconds, 0.0001);
+  const heading = earth.getOrbitalHeading(spec, elapsedSeconds);
+  const forward = { x: Math.sin(heading), z: Math.cos(heading) };
+  const travel = {
+    x: nextPosition.x - position.x,
+    z: nextPosition.z - position.z
+  };
+
+  assert.ok(forward.x * travel.x + forward.z * travel.z > 0);
+}
+
 function testIntroScaleAndPointerTargetsAreBounded() {
   const earth = require(scriptPath);
   const metrics = earth.getSceneMetrics(1920, 1080);
@@ -343,6 +374,8 @@ function run() {
   testSceneMathAndResponsiveDefaults();
   testSatelliteSpecsStayWithinPlannedRanges();
   testSatelliteTrailsFollowTheOrbit();
+  testSpaceStationUsesAHighSlowOrbit();
+  testOrbitalHeadingFollowsTheTravelTangent();
   testIntroScaleAndPointerTargetsAreBounded();
   testLandMaskMatchesRepresentativeWorldCoordinates();
   testChinaMaskIncludesMainlandTaiwanAndHainan();
@@ -356,6 +389,8 @@ function run() {
 
 module.exports = {
   testSceneMathAndResponsiveDefaults,
+  testSpaceStationUsesAHighSlowOrbit,
+  testOrbitalHeadingFollowsTheTravelTangent,
   testLandMaskMatchesRepresentativeWorldCoordinates,
   testChinaMaskIncludesMainlandTaiwanAndHainan,
   testGlobeCoordinatesRespectLayerRadius,
