@@ -101,14 +101,15 @@ function testSceneMathAndResponsiveDefaults() {
   assert.strictEqual(earth.config.landPointSizePx, 1.75);
   assert.strictEqual(earth.config.oceanPointSizePx, 1.05);
   assert.strictEqual(earth.config.landPointOpacity, 0.52);
-  assert.strictEqual(earth.config.oceanPointOpacity, 0.22);
-  assert.strictEqual(earth.config.oceanWhiteColor, 0xf4f9fb);
-  assert.strictEqual(earth.config.oceanBlueColor, 0xb9dce8);
+  assert.strictEqual(earth.config.oceanPointOpacity, 0.4);
+  assert.strictEqual(earth.config.oceanWhiteColor, 0xd8f2ff);
+  assert.strictEqual(earth.config.oceanBlueColor, 0x69b9d8);
   assert.strictEqual(earth.config.orbitBandCount, 4);
   assert.strictEqual(earth.config.trailLength, 12);
-  assert.strictEqual(earth.config.chinaPointColor, 0xc06f76);
-  assert.strictEqual(earth.config.chinaPointSizePx, earth.config.landPointSizePx);
-  assert.strictEqual(earth.config.chinaPointOpacity, 0.68);
+  assert.strictEqual(earth.config.chinaPointColor, 0xd94f5c);
+  assert.strictEqual(earth.config.chinaPointSizePx, 2.1);
+  assert.ok(earth.config.chinaPointSizePx > earth.config.landPointSizePx);
+  assert.strictEqual(earth.config.chinaPointOpacity, 0.9);
 
   assert.strictEqual(earth.easeOutCubic(0), 0);
   assert.strictEqual(earth.easeOutCubic(0.5), 0.875);
@@ -314,6 +315,11 @@ function testPointCloudRendersRaisedLandAndColoredOcean() {
   assertIncludes(script, 'config.depthSphereRadius');
   assertIncludes(script, "geometry.setAttribute('color'");
   assertIncludes(script, 'vertexColors: Boolean(colors)');
+  assert.ok(!script.includes('index % 2'), 'ocean points should use every non-land candidate');
+  assert.ok(
+    /}\s*else\s*{\s*const coordinate = getGlobeCoordinate\(/s.test(script),
+    'every remaining coordinate should enter the ocean layer'
+  );
 }
 
 function testLifecycleAndAccessibilityHooksExist() {
