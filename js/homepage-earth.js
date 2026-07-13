@@ -32,16 +32,16 @@
     landPointSizePx: 1.75,
     oceanPointSizePx: 1.05,
     landPointOpacity: 0.52,
-    oceanPointOpacity: 0.22,
-    oceanWhiteColor: 0xf4f9fb,
-    oceanBlueColor: 0xb9dce8,
+    oceanPointOpacity: 0.4,
+    oceanWhiteColor: 0xd8f2ff,
+    oceanBlueColor: 0x69b9d8,
     orbitBandCount: 4,
     trailLength: 12,
     trailAngleStep: 0.035,
     trailPointSizePx: 2.1,
-    chinaPointColor: 0xc06f76,
-    chinaPointSizePx: 1.75,
-    chinaPointOpacity: 0.68
+    chinaPointColor: 0xd94f5c,
+    chinaPointSizePx: 2.1,
+    chinaPointOpacity: 0.9
   });
 
   const orbitBands = Object.freeze([
@@ -508,7 +508,7 @@
             config.landPointRadius
           );
           landPositions.push(coordinate.x, coordinate.y, coordinate.z);
-        } else if (index % 2 === 0) {
+        } else {
           const coordinate = getGlobeCoordinate(
             longitude,
             latitude,
