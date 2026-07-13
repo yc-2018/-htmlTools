@@ -93,13 +93,22 @@ function testSceneMathAndResponsiveDefaults() {
   assert.strictEqual(earth.config.maxDpr, 1.5);
   assert.strictEqual(earth.config.desktopPointCount, 24000);
   assert.strictEqual(earth.config.mobilePointCount, 14000);
-  assert.strictEqual(earth.config.landPointSizePx, 1.6);
+  assert.strictEqual(earth.config.landPointRadius, 1.008);
+  assert.strictEqual(earth.config.oceanPointRadius, 0.995);
+  assert.strictEqual(earth.config.depthSphereRadius, 0.986);
+  assert.ok(earth.config.landPointRadius > earth.config.oceanPointRadius);
+  assert.ok(earth.config.oceanPointRadius > earth.config.depthSphereRadius);
+  assert.strictEqual(earth.config.landPointSizePx, 1.75);
+  assert.strictEqual(earth.config.oceanPointSizePx, 1.05);
+  assert.strictEqual(earth.config.landPointOpacity, 0.52);
+  assert.strictEqual(earth.config.oceanPointOpacity, 0.22);
+  assert.strictEqual(earth.config.oceanWhiteColor, 0xf4f9fb);
+  assert.strictEqual(earth.config.oceanBlueColor, 0xb9dce8);
   assert.strictEqual(earth.config.orbitBandCount, 4);
   assert.strictEqual(earth.config.trailLength, 12);
-  assert.strictEqual(earth.config.chinaPointColor, 0xc98f93);
+  assert.strictEqual(earth.config.chinaPointColor, 0xc06f76);
   assert.strictEqual(earth.config.chinaPointSizePx, earth.config.landPointSizePx);
-  assert.strictEqual(earth.config.chinaPointOpacity, 0.56);
-  assert.strictEqual('oceanPointSizePx' in earth.config, false);
+  assert.strictEqual(earth.config.chinaPointOpacity, 0.68);
 
   assert.strictEqual(earth.easeOutCubic(0), 0);
   assert.strictEqual(earth.easeOutCubic(0.5), 0.875);
@@ -278,14 +287,33 @@ function testChinaFacingProjectionCentersTheMainlandVertically() {
   assert.ok(hainan.y < center.y, 'Hainan should remain south of the center');
 }
 
-function testPointCloudRendersOnlyTwoLandLayers() {
+function testGlobeCoordinatesRespectLayerRadius() {
+  const earth = require(scriptPath);
+  const land = earth.getGlobeCoordinate(105, 35, earth.config.landPointRadius);
+  const ocean = earth.getGlobeCoordinate(105, 35, earth.config.oceanPointRadius);
+  const magnitude = (coordinate) => Math.sqrt(
+    coordinate.x * coordinate.x
+    + coordinate.y * coordinate.y
+    + coordinate.z * coordinate.z
+  );
+
+  assert.ok(Math.abs(magnitude(land) - earth.config.landPointRadius) < 1e-12);
+  assert.ok(Math.abs(magnitude(ocean) - earth.config.oceanPointRadius) < 1e-12);
+  assert.ok(magnitude(land) > magnitude(ocean), 'land points should sit above ocean points');
+}
+
+function testPointCloudRendersRaisedLandAndColoredOcean() {
   const script = readUtf8(scriptPath);
 
-  assert.ok(!script.includes('oceanPositions'), 'ocean points should not be generated');
-  assert.ok(!script.includes('oceanPointSizePx'), 'ocean point styling should be removed');
-  assert.ok(!script.includes('index % 3'), 'ocean downsampling should be removed');
   assertIncludes(script, 'const chinaPositions = [];');
   assertIncludes(script, 'const landPositions = [];');
+  assertIncludes(script, 'const oceanPositions = [];');
+  assertIncludes(script, 'const oceanColors = [];');
+  assertIncludes(script, 'config.landPointRadius');
+  assertIncludes(script, 'config.oceanPointRadius');
+  assertIncludes(script, 'config.depthSphereRadius');
+  assertIncludes(script, "geometry.setAttribute('color'");
+  assertIncludes(script, 'vertexColors: Boolean(colors)');
 }
 
 function testLifecycleAndAccessibilityHooksExist() {
@@ -314,7 +342,8 @@ function run() {
   testChinaMaskIncludesMainlandTaiwanAndHainan();
   testChinaFacingProjectionKeepsWestOnLeftAndEastOnRight();
   testChinaFacingProjectionCentersTheMainlandVertically();
-  testPointCloudRendersOnlyTwoLandLayers();
+  testGlobeCoordinatesRespectLayerRadius();
+  testPointCloudRendersRaisedLandAndColoredOcean();
   testLifecycleAndAccessibilityHooksExist();
   console.log('homepage earth background tests passed');
 }
@@ -323,7 +352,8 @@ module.exports = {
   testSceneMathAndResponsiveDefaults,
   testLandMaskMatchesRepresentativeWorldCoordinates,
   testChinaMaskIncludesMainlandTaiwanAndHainan,
-  testPointCloudRendersOnlyTwoLandLayers
+  testGlobeCoordinatesRespectLayerRadius,
+  testPointCloudRendersRaisedLandAndColoredOcean
 };
 
 if (require.main === module) {
