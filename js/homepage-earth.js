@@ -36,6 +36,9 @@
     oceanWhiteColor: 0xcceeff,
     oceanBlueColor: 0x4fa6c8,
     orbitBandCount: 4,
+    spaceStationOrbitRadius: 1.32,
+    spaceStationSpeed: 0.08,
+    spaceStationSize: 0.022,
     trailLength: 12,
     trailAngleStep: 0.035,
     trailPointSizePx: 2.1,
@@ -351,6 +354,7 @@
     orbitBands.forEach((band, bandIndex) => {
       for (let index = 0; index < band.count; index += 1) {
         satellites.push({
+          kind: 'satellite',
           bandIndex,
           orbitRadius: band.orbitRadius,
           speed: band.speed,
@@ -367,10 +371,29 @@
     return satellites;
   }
 
-  function getSatellitePosition(spec, elapsedSeconds, angleOffset = 0) {
-    const angle = spec.phase
+  function createSpaceStationSpec() {
+    return {
+      kind: 'spaceStation',
+      bandIndex: config.orbitBandCount,
+      orbitRadius: config.spaceStationOrbitRadius,
+      speed: config.spaceStationSpeed,
+      inclination: 0.68,
+      ascendingNode: 0.74,
+      phase: 1.25,
+      size: config.spaceStationSize,
+      opacity: 0.82,
+      direction: 1
+    };
+  }
+
+  function getOrbitalAngle(spec, elapsedSeconds, angleOffset = 0) {
+    return spec.phase
       + elapsedSeconds * spec.speed * spec.direction
       + angleOffset;
+  }
+
+  function getSatellitePosition(spec, elapsedSeconds, angleOffset = 0) {
+    const angle = getOrbitalAngle(spec, elapsedSeconds, angleOffset);
     const orbitRadius = spec.orbitRadius * 2;
 
     return {
@@ -378,6 +401,10 @@
       y: 0,
       z: Math.sin(angle) * orbitRadius
     };
+  }
+
+  function getOrbitalHeading(spec, elapsedSeconds) {
+    return -getOrbitalAngle(spec, elapsedSeconds);
   }
 
   function createTrailPositions(spec, elapsedSeconds) {
@@ -836,7 +863,9 @@
     getIntroDiameter,
     getPointerTarget,
     createSatelliteSpecs,
+    createSpaceStationSpec,
     getSatellitePosition,
+    getOrbitalHeading,
     createTrailPositions,
     isLandCoordinate,
     isChinaCoordinate,
