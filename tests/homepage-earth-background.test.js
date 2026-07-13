@@ -91,13 +91,15 @@ function testSceneMathAndResponsiveDefaults() {
   assert.strictEqual(earth.config.chinaFacingRotationZ, 0);
   assert.strictEqual(earth.config.maxPointerRatio, 0.1);
   assert.strictEqual(earth.config.maxDpr, 1.5);
+  assert.strictEqual(earth.config.desktopPointCount, 24000);
+  assert.strictEqual(earth.config.mobilePointCount, 14000);
   assert.strictEqual(earth.config.landPointSizePx, 1.6);
-  assert.strictEqual(earth.config.oceanPointSizePx, 1.05);
   assert.strictEqual(earth.config.orbitBandCount, 4);
   assert.strictEqual(earth.config.trailLength, 12);
-  assert.strictEqual(earth.config.chinaPointColor, 0x9b7376);
-  assert.strictEqual(earth.config.chinaPointSizePx, 2.4);
-  assert.strictEqual(earth.config.chinaPointOpacity, 0.82);
+  assert.strictEqual(earth.config.chinaPointColor, 0xc98f93);
+  assert.strictEqual(earth.config.chinaPointSizePx, earth.config.landPointSizePx);
+  assert.strictEqual(earth.config.chinaPointOpacity, 0.56);
+  assert.strictEqual('oceanPointSizePx' in earth.config, false);
 
   assert.strictEqual(earth.easeOutCubic(0), 0);
   assert.strictEqual(earth.easeOutCubic(0.5), 0.875);
@@ -195,16 +197,41 @@ function testIntroScaleAndPointerTargetsAreBounded() {
   );
 }
 
-function testLandMaskSeparatesContinentsFromOpenOcean() {
+function testLandMaskMatchesRepresentativeWorldCoordinates() {
   const earth = require(scriptPath);
 
-  assert.strictEqual(earth.isLandCoordinate(-100, 45), true, 'North America should be land');
-  assert.strictEqual(earth.isLandCoordinate(-60, -15), true, 'South America should be land');
-  assert.strictEqual(earth.isLandCoordinate(20, 5), true, 'Africa should be land');
-  assert.strictEqual(earth.isLandCoordinate(90, 40), true, 'Asia should be land');
-  assert.strictEqual(earth.isLandCoordinate(135, -25), true, 'Australia should be land');
-  assert.strictEqual(earth.isLandCoordinate(-145, 0), false, 'Pacific Ocean should stay sparse');
-  assert.strictEqual(earth.isLandCoordinate(-30, -35), false, 'South Atlantic should stay sparse');
+  const landCoordinates = [
+    [-100, 45, 'North America'],
+    [-60, -15, 'South America'],
+    [20, 5, 'Africa'],
+    [37.6, 55.8, 'western Russia'],
+    [90, 60, 'Siberia'],
+    [78.9, 22.5, 'India'],
+    [106.8, -6.2, 'Indonesia'],
+    [135, -25, 'Australia'],
+    [0, -80, 'Antarctica']
+  ];
+  const oceanCoordinates = [
+    [-145, 0, 'Pacific Ocean'],
+    [-30, -35, 'South Atlantic'],
+    [80, -45, 'Indian Ocean'],
+    [0, 0, 'Gulf of Guinea']
+  ];
+
+  landCoordinates.forEach(([longitude, latitude, label]) => {
+    assert.strictEqual(
+      earth.isLandCoordinate(longitude, latitude),
+      true,
+      `${label} should contain land points`
+    );
+  });
+  oceanCoordinates.forEach(([longitude, latitude, label]) => {
+    assert.strictEqual(
+      earth.isLandCoordinate(longitude, latitude),
+      false,
+      `${label} should contain no points`
+    );
+  });
 }
 
 function testChinaMaskIncludesMainlandTaiwanAndHainan() {
@@ -215,17 +242,13 @@ function testChinaMaskIncludesMainlandTaiwanAndHainan() {
   assert.strictEqual(earth.isChinaCoordinate(87.6, 43.8), true, 'Xinjiang should be highlighted');
   assert.strictEqual(earth.isChinaCoordinate(121, 23.7), true, 'Taiwan should be highlighted');
   assert.strictEqual(earth.isChinaCoordinate(110, 19.3), true, 'Hainan should be highlighted');
+  assert.strictEqual(earth.isChinaCoordinate(126.6, 45.8), true, 'Harbin should be highlighted');
+  assert.strictEqual(earth.isLandCoordinate(126.6, 45.8), true, 'Harbin should also be land');
   assert.strictEqual(earth.isChinaCoordinate(139.7, 35.7), false, 'Japan should remain gray');
   assert.strictEqual(earth.isChinaCoordinate(78.9, 22.5), false, 'India should remain gray');
   assert.strictEqual(earth.isChinaCoordinate(106, 47.8), false, 'Mongolia should remain gray');
-
-  const islandPoints = earth.getChinaIslandHighlightCoordinates();
-  assert.ok(islandPoints.length <= 12, 'island highlights should not collapse into oversized blobs');
-  assert.ok(islandPoints.some(([longitude]) => longitude > 120), 'Taiwan should have visible points');
-  assert.ok(islandPoints.some(([longitude]) => longitude < 112), 'Hainan should have visible points');
-  islandPoints.forEach(([longitude, latitude]) => {
-    assert.strictEqual(earth.isChinaCoordinate(longitude, latitude), true);
-  });
+  assert.strictEqual(earth.isLandCoordinate(106, 47.8), true, 'Mongolia should remain visible land');
+  assert.strictEqual(earth.isLandCoordinate(90, 60), true, 'Russia above China should remain visible land');
 }
 
 function testChinaFacingProjectionKeepsWestOnLeftAndEastOnRight() {
@@ -255,6 +278,16 @@ function testChinaFacingProjectionCentersTheMainlandVertically() {
   assert.ok(hainan.y < center.y, 'Hainan should remain south of the center');
 }
 
+function testPointCloudRendersOnlyTwoLandLayers() {
+  const script = readUtf8(scriptPath);
+
+  assert.ok(!script.includes('oceanPositions'), 'ocean points should not be generated');
+  assert.ok(!script.includes('oceanPointSizePx'), 'ocean point styling should be removed');
+  assert.ok(!script.includes('index % 3'), 'ocean downsampling should be removed');
+  assertIncludes(script, 'const chinaPositions = [];');
+  assertIncludes(script, 'const landPositions = [];');
+}
+
 function testLifecycleAndAccessibilityHooksExist() {
   const script = readUtf8(scriptPath);
 
@@ -277,12 +310,22 @@ function run() {
   testSatelliteSpecsStayWithinPlannedRanges();
   testSatelliteTrailsFollowTheOrbit();
   testIntroScaleAndPointerTargetsAreBounded();
-  testLandMaskSeparatesContinentsFromOpenOcean();
+  testLandMaskMatchesRepresentativeWorldCoordinates();
   testChinaMaskIncludesMainlandTaiwanAndHainan();
   testChinaFacingProjectionKeepsWestOnLeftAndEastOnRight();
   testChinaFacingProjectionCentersTheMainlandVertically();
+  testPointCloudRendersOnlyTwoLandLayers();
   testLifecycleAndAccessibilityHooksExist();
   console.log('homepage earth background tests passed');
 }
 
-run();
+module.exports = {
+  testSceneMathAndResponsiveDefaults,
+  testLandMaskMatchesRepresentativeWorldCoordinates,
+  testChinaMaskIncludesMainlandTaiwanAndHainan,
+  testPointCloudRendersOnlyTwoLandLayers
+};
+
+if (require.main === module) {
+  run();
+}
