@@ -204,6 +204,29 @@ function testOrbitalHeadingFollowsTheTravelTangent() {
   assert.ok(forward.x * travel.x + forward.z * travel.z > 0);
 }
 
+function testOrbitalModelsUseSelectedShapes() {
+  const earth = require(scriptPath);
+  const THREE = require(threePath);
+  const satellite = earth.createSatelliteModel(THREE);
+  const station = earth.createSpaceStationModel(THREE);
+  const namedChildren = (group, name) => group.children.filter((child) => child.name === name);
+
+  assert.strictEqual(satellite.name, 'satellite-model');
+  assert.strictEqual(namedChildren(satellite, 'satellite-body').length, 1);
+  assert.strictEqual(namedChildren(satellite, 'solar-panel').length, 2);
+  namedChildren(satellite, 'solar-panel').forEach((panel) => {
+    assert.strictEqual(panel.material.side, THREE.DoubleSide);
+  });
+
+  assert.strictEqual(station.name, 'space-station-model');
+  assert.strictEqual(namedChildren(station, 'station-truss').length, 1);
+  assert.ok(namedChildren(station, 'station-module').length >= 3);
+  assert.strictEqual(namedChildren(station, 'solar-panel').length, 4);
+  namedChildren(station, 'solar-panel').forEach((panel) => {
+    assert.strictEqual(panel.material.side, THREE.DoubleSide);
+  });
+}
+
 function testIntroScaleAndPointerTargetsAreBounded() {
   const earth = require(scriptPath);
   const metrics = earth.getSceneMetrics(1920, 1080);
@@ -376,6 +399,7 @@ function run() {
   testSatelliteTrailsFollowTheOrbit();
   testSpaceStationUsesAHighSlowOrbit();
   testOrbitalHeadingFollowsTheTravelTangent();
+  testOrbitalModelsUseSelectedShapes();
   testIntroScaleAndPointerTargetsAreBounded();
   testLandMaskMatchesRepresentativeWorldCoordinates();
   testChinaMaskIncludesMainlandTaiwanAndHainan();
@@ -391,6 +415,7 @@ module.exports = {
   testSceneMathAndResponsiveDefaults,
   testSpaceStationUsesAHighSlowOrbit,
   testOrbitalHeadingFollowsTheTravelTangent,
+  testOrbitalModelsUseSelectedShapes,
   testLandMaskMatchesRepresentativeWorldCoordinates,
   testChinaMaskIncludesMainlandTaiwanAndHainan,
   testGlobeCoordinatesRespectLayerRadius,

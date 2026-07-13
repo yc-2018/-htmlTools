@@ -422,6 +422,95 @@
     return positions;
   }
 
+  function createNamedMesh(THREE, name, geometry, material, position) {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    mesh.position.set(position.x, position.y, position.z);
+    return mesh;
+  }
+
+  function createSatelliteModel(THREE) {
+    const model = new THREE.Group();
+    const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x737c80 });
+    const panelMaterial = new THREE.MeshBasicMaterial({
+      color: 0x6fa7bd,
+      side: THREE.DoubleSide
+    });
+
+    model.name = 'satellite-model';
+    model.add(createNamedMesh(
+      THREE,
+      'satellite-body',
+      new THREE.BoxBufferGeometry(1.45, 1, 1),
+      bodyMaterial,
+      { x: 0, y: 0, z: 0 }
+    ));
+    model.add(createNamedMesh(
+      THREE,
+      'solar-panel',
+      new THREE.BoxBufferGeometry(2.1, 0.12, 0.86),
+      panelMaterial,
+      { x: -1.9, y: 0, z: 0 }
+    ));
+    model.add(createNamedMesh(
+      THREE,
+      'solar-panel',
+      new THREE.BoxBufferGeometry(2.1, 0.12, 0.86),
+      panelMaterial,
+      { x: 1.9, y: 0, z: 0 }
+    ));
+
+    return model;
+  }
+
+  function createSpaceStationModel(THREE) {
+    const model = new THREE.Group();
+    const trussMaterial = new THREE.MeshBasicMaterial({ color: 0x7d878c });
+    const moduleMaterial = new THREE.MeshBasicMaterial({ color: 0xc4cbce });
+    const centerMaterial = new THREE.MeshBasicMaterial({ color: 0x687277 });
+    const panelMaterial = new THREE.MeshBasicMaterial({
+      color: 0x6fa7bd,
+      side: THREE.DoubleSide
+    });
+    const truss = createNamedMesh(
+      THREE,
+      'station-truss',
+      new THREE.BoxBufferGeometry(6.4, 0.18, 0.18),
+      trussMaterial,
+      { x: 0, y: 0, z: 0 }
+    );
+
+    model.name = 'space-station-model';
+    model.add(truss);
+    [-1.2, 0, 1.2].forEach((x, index) => {
+      const module = createNamedMesh(
+        THREE,
+        'station-module',
+        new THREE.CylinderBufferGeometry(0.52, 0.52, 1.35, 8),
+        index === 1 ? centerMaterial : moduleMaterial,
+        { x, y: 0, z: 0 }
+      );
+      module.rotation.z = Math.PI / 2;
+      model.add(module);
+    });
+    [
+      { x: -4, y: 0.85, z: 0 },
+      { x: -4, y: -0.85, z: 0 },
+      { x: 4, y: 0.85, z: 0 },
+      { x: 4, y: -0.85, z: 0 }
+    ].forEach((position) => {
+      model.add(createNamedMesh(
+        THREE,
+        'solar-panel',
+        new THREE.BoxBufferGeometry(2.4, 0.1, 1.05),
+        panelMaterial,
+        position
+      ));
+    });
+
+    return model;
+  }
+
   function autoInit() {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return;
@@ -867,6 +956,8 @@
     getSatellitePosition,
     getOrbitalHeading,
     createTrailPositions,
+    createSatelliteModel,
+    createSpaceStationModel,
     isLandCoordinate,
     isChinaCoordinate,
     getGlobeCoordinate,
