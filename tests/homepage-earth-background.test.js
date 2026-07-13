@@ -99,11 +99,11 @@ function testSceneMathAndResponsiveDefaults() {
   assert.ok(earth.config.landPointRadius > earth.config.oceanPointRadius);
   assert.ok(earth.config.oceanPointRadius > earth.config.depthSphereRadius);
   assert.strictEqual(earth.config.landPointSizePx, 1.75);
-  assert.strictEqual(earth.config.oceanPointSizePx, 1.05);
+  assert.strictEqual(earth.config.oceanPointSizePx, 1.4);
   assert.strictEqual(earth.config.landPointOpacity, 0.52);
-  assert.strictEqual(earth.config.oceanPointOpacity, 0.4);
-  assert.strictEqual(earth.config.oceanWhiteColor, 0xd8f2ff);
-  assert.strictEqual(earth.config.oceanBlueColor, 0x69b9d8);
+  assert.strictEqual(earth.config.oceanPointOpacity, 0.5);
+  assert.strictEqual(earth.config.oceanWhiteColor, 0xcceeff);
+  assert.strictEqual(earth.config.oceanBlueColor, 0x4fa6c8);
   assert.strictEqual(earth.config.orbitBandCount, 4);
   assert.strictEqual(earth.config.trailLength, 12);
   assert.strictEqual(earth.config.chinaPointColor, 0xd94f5c);
