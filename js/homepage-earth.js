@@ -26,15 +26,22 @@
     desktopPointCount: 24000,
     mobilePointCount: 14000,
     pointerEase: 0.035,
-    landPointSizePx: 1.6,
-    landPointOpacity: 0.48,
+    landPointRadius: 1.008,
+    oceanPointRadius: 0.995,
+    depthSphereRadius: 0.986,
+    landPointSizePx: 1.75,
+    oceanPointSizePx: 1.05,
+    landPointOpacity: 0.52,
+    oceanPointOpacity: 0.22,
+    oceanWhiteColor: 0xf4f9fb,
+    oceanBlueColor: 0xb9dce8,
     orbitBandCount: 4,
     trailLength: 12,
     trailAngleStep: 0.035,
     trailPointSizePx: 2.1,
-    chinaPointColor: 0xc98f93,
-    chinaPointSizePx: 1.6,
-    chinaPointOpacity: 0.56
+    chinaPointColor: 0xc06f76,
+    chinaPointSizePx: 1.75,
+    chinaPointOpacity: 0.68
   });
 
   const orbitBands = Object.freeze([
@@ -296,14 +303,14 @@
     return isInsideRegions(longitude, latitude, chinaLandRegions);
   }
 
-  function getGlobeCoordinate(longitude, latitude) {
+  function getGlobeCoordinate(longitude, latitude, radius = 1) {
     const latitudeRadians = latitude * Math.PI / 180;
     const longitudeRadians = longitude * Math.PI / 180;
-    const horizontalRadius = Math.cos(latitudeRadians);
+    const horizontalRadius = Math.cos(latitudeRadians) * radius;
 
     return {
       x: -Math.cos(longitudeRadians) * horizontalRadius,
-      y: Math.sin(latitudeRadians),
+      y: Math.sin(latitudeRadians) * radius,
       z: Math.sin(longitudeRadians) * horizontalRadius
     };
   }
@@ -456,6 +463,18 @@
     sceneGroup.add(globeGroup);
     sceneGroup.add(satellitesGroup);
     camera.position.z = 1000;
+    const oceanWhite = new THREE.Color(config.oceanWhiteColor);
+    const oceanBlue = new THREE.Color(config.oceanBlueColor);
+
+    function appendOceanColor(colors, index) {
+      const blend = 0.22 + (index * 73 % 101) / 100 * 0.56;
+
+      colors.push(
+        oceanWhite.r + (oceanBlue.r - oceanWhite.r) * blend,
+        oceanWhite.g + (oceanBlue.g - oceanWhite.g) * blend,
+        oceanWhite.b + (oceanBlue.b - oceanWhite.b) * blend
+      );
+    }
 
     function createPointCloud() {
       const pointCount = viewportWidth < config.mobileBreakpoint
@@ -463,6 +482,8 @@
         : config.desktopPointCount;
       const chinaPositions = [];
       const landPositions = [];
+      const oceanPositions = [];
+      const oceanColors = [];
       const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
       for (let index = 0; index < pointCount; index += 1) {
@@ -473,20 +494,28 @@
         const z = Math.sin(angle) * horizontalRadius;
         const longitude = Math.atan2(z, x) * 180 / Math.PI;
         const latitude = Math.asin(y) * 180 / Math.PI;
-        const globeCoordinate = getGlobeCoordinate(longitude, latitude);
-
         if (isChinaCoordinate(longitude, latitude)) {
-          chinaPositions.push(
-            globeCoordinate.x,
-            globeCoordinate.y,
-            globeCoordinate.z
+          const coordinate = getGlobeCoordinate(
+            longitude,
+            latitude,
+            config.landPointRadius
           );
+          chinaPositions.push(coordinate.x, coordinate.y, coordinate.z);
         } else if (isLandCoordinate(longitude, latitude)) {
-          landPositions.push(
-            globeCoordinate.x,
-            globeCoordinate.y,
-            globeCoordinate.z
+          const coordinate = getGlobeCoordinate(
+            longitude,
+            latitude,
+            config.landPointRadius
           );
+          landPositions.push(coordinate.x, coordinate.y, coordinate.z);
+        } else if (index % 2 === 0) {
+          const coordinate = getGlobeCoordinate(
+            longitude,
+            latitude,
+            config.oceanPointRadius
+          );
+          oceanPositions.push(coordinate.x, coordinate.y, coordinate.z);
+          appendOceanColor(oceanColors, index);
         }
       }
 
@@ -496,7 +525,7 @@
         depthWrite: true
       });
       const depthSphere = new THREE.Mesh(
-        new THREE.SphereBufferGeometry(0.992, 48, 32),
+        new THREE.SphereBufferGeometry(config.depthSphereRadius, 48, 32),
         depthMaterial
       );
       const atmosphere = new THREE.Mesh(
@@ -513,6 +542,13 @@
       depthSphere.renderOrder = -2;
       globeGroup.add(depthSphere);
       globeGroup.add(atmosphere);
+      globeGroup.add(createPoints(
+        oceanPositions,
+        0xffffff,
+        config.oceanPointSizePx,
+        config.oceanPointOpacity,
+        oceanColors
+      ));
       globeGroup.add(createPoints(
         landPositions,
         0x747a7d,
@@ -531,9 +567,13 @@
       globeGroup.rotation.z = config.chinaFacingRotationZ;
     }
 
-    function createPoints(positions, color, size, opacity) {
+    function createPoints(positions, color, size, opacity, colors = null) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+      if (colors) {
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      }
 
       return new THREE.Points(
         geometry,
@@ -541,6 +581,7 @@
           color,
           size,
           sizeAttenuation: true,
+          vertexColors: Boolean(colors),
           transparent: true,
           opacity,
           depthWrite: false
@@ -799,6 +840,7 @@
     createTrailPositions,
     isLandCoordinate,
     isChinaCoordinate,
+    getGlobeCoordinate,
     getFacingScreenX,
     getFacingScreenPosition,
     initScene,
