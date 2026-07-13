@@ -150,6 +150,8 @@ function testSatelliteSpecsStayWithinPlannedRanges() {
     assert.ok(satellite.speed >= 0.12 && satellite.speed <= 0.22);
     assert.ok(satellite.inclination >= -Math.PI / 2 && satellite.inclination <= Math.PI / 2);
     assert.ok(satellite.phase >= 0 && satellite.phase <= Math.PI * 2);
+    assert.ok(satellite.size >= 0.018 && satellite.size <= 0.022);
+    assert.ok(satellite.opacity >= 0.78 && satellite.opacity <= 0.9);
   });
 }
 
@@ -185,6 +187,8 @@ function testSpaceStationUsesAHighSlowOrbit() {
   assert.ok(station.orbitRadius > Math.max(...satellites.map((spec) => spec.orbitRadius)));
   assert.ok(station.speed < Math.min(...satellites.map((spec) => spec.speed)));
   assert.ok(station.size > Math.max(...satellites.map((spec) => spec.size)));
+  assert.strictEqual(station.size, 0.032);
+  assert.strictEqual(station.opacity, 0.92);
   assert.deepStrictEqual(station, earth.createSpaceStationSpec());
 }
 

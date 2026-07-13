@@ -38,7 +38,7 @@
     orbitBandCount: 4,
     spaceStationOrbitRadius: 1.32,
     spaceStationSpeed: 0.08,
-    spaceStationSize: 0.022,
+    spaceStationSize: 0.032,
     trailLength: 12,
     trailAngleStep: 0.035,
     trailPointSizePx: 2.1,
@@ -361,8 +361,8 @@
           inclination: band.inclination,
           ascendingNode: band.ascendingNode,
           phase: (index / band.count * Math.PI * 2 + bandIndex * 0.31) % (Math.PI * 2),
-          size: 0.014 + (index + bandIndex) % 3 * 0.0025,
-          opacity: 0.54 + (index + bandIndex) % 3 * 0.08,
+          size: 0.018 + (index + bandIndex) % 3 * 0.002,
+          opacity: 0.78 + (index + bandIndex) % 3 * 0.06,
           direction: band.direction
         });
       }
@@ -381,7 +381,7 @@
       ascendingNode: 0.74,
       phase: 1.25,
       size: config.spaceStationSize,
-      opacity: 0.82,
+      opacity: 0.92,
       direction: 1
     };
   }
