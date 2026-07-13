@@ -216,6 +216,7 @@ function testOrbitalModelsUseSelectedShapes() {
   assert.strictEqual(namedChildren(satellite, 'solar-panel').length, 2);
   namedChildren(satellite, 'solar-panel').forEach((panel) => {
     assert.strictEqual(panel.material.side, THREE.DoubleSide);
+    assert.ok(panel.geometry.parameters.height > panel.geometry.parameters.depth);
   });
 
   assert.strictEqual(station.name, 'space-station-model');
@@ -224,6 +225,7 @@ function testOrbitalModelsUseSelectedShapes() {
   assert.strictEqual(namedChildren(station, 'solar-panel').length, 4);
   namedChildren(station, 'solar-panel').forEach((panel) => {
     assert.strictEqual(panel.material.side, THREE.DoubleSide);
+    assert.ok(panel.geometry.parameters.height > panel.geometry.parameters.depth);
   });
 }
 

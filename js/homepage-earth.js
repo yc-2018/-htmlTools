@@ -448,14 +448,14 @@
     model.add(createNamedMesh(
       THREE,
       'solar-panel',
-      new THREE.BoxBufferGeometry(2.1, 0.12, 0.86),
+      new THREE.BoxBufferGeometry(2.1, 0.86, 0.12),
       panelMaterial,
       { x: -1.9, y: 0, z: 0 }
     ));
     model.add(createNamedMesh(
       THREE,
       'solar-panel',
-      new THREE.BoxBufferGeometry(2.1, 0.12, 0.86),
+      new THREE.BoxBufferGeometry(2.1, 0.86, 0.12),
       panelMaterial,
       { x: 1.9, y: 0, z: 0 }
     ));
@@ -502,7 +502,7 @@
       model.add(createNamedMesh(
         THREE,
         'solar-panel',
-        new THREE.BoxBufferGeometry(2.4, 0.1, 1.05),
+        new THREE.BoxBufferGeometry(2.4, 1.05, 0.1),
         panelMaterial,
         position
       ));
