@@ -376,6 +376,18 @@ function testPointCloudRendersRaisedLandAndColoredOcean() {
   );
 }
 
+function testSceneBuildsAndOrientsOrbitalModels() {
+  const script = readUtf8(scriptPath);
+
+  assertIncludes(script, '...createSatelliteSpecs(),');
+  assertIncludes(script, 'createSpaceStationSpec()');
+  assertIncludes(script, "spec.kind === 'spaceStation'");
+  assertIncludes(script, 'createSpaceStationModel(THREE)');
+  assertIncludes(script, 'createSatelliteModel(THREE)');
+  assertIncludes(script, 'orbital.rotation.y = getOrbitalHeading(spec, elapsedSeconds);');
+  assert.ok(!script.includes('new THREE.SphereBufferGeometry(1, 8, 6)'));
+}
+
 function testLifecycleAndAccessibilityHooksExist() {
   const script = readUtf8(scriptPath);
 
@@ -407,19 +419,22 @@ function run() {
   testChinaFacingProjectionCentersTheMainlandVertically();
   testGlobeCoordinatesRespectLayerRadius();
   testPointCloudRendersRaisedLandAndColoredOcean();
+  testSceneBuildsAndOrientsOrbitalModels();
   testLifecycleAndAccessibilityHooksExist();
   console.log('homepage earth background tests passed');
 }
 
 module.exports = {
   testSceneMathAndResponsiveDefaults,
+  testSatelliteSpecsStayWithinPlannedRanges,
   testSpaceStationUsesAHighSlowOrbit,
   testOrbitalHeadingFollowsTheTravelTangent,
   testOrbitalModelsUseSelectedShapes,
   testLandMaskMatchesRepresentativeWorldCoordinates,
   testChinaMaskIncludesMainlandTaiwanAndHainan,
   testGlobeCoordinatesRespectLayerRadius,
-  testPointCloudRendersRaisedLandAndColoredOcean
+  testPointCloudRendersRaisedLandAndColoredOcean,
+  testSceneBuildsAndOrientsOrbitalModels
 };
 
 if (require.main === module) {

@@ -560,7 +560,6 @@
     const satellitesGroup = new THREE.Group();
     const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 };
     const clock = new THREE.Clock();
-    const satelliteGeometry = new THREE.SphereBufferGeometry(1, 8, 6);
     const satellites = [];
     let viewportWidth = 1;
     let viewportHeight = 1;
@@ -712,7 +711,7 @@
           if (object.material) {
             object.material.dispose();
           }
-          if (object.geometry && object.geometry !== satelliteGeometry) {
+          if (object.geometry) {
             object.geometry.dispose();
           }
         });
@@ -736,16 +735,16 @@
     function buildSatellites() {
       clearGroup(satellitesGroup);
       satellites.length = 0;
+      const orbitalSpecs = [
+        ...createSatelliteSpecs(),
+        createSpaceStationSpec()
+      ];
 
-      createSatelliteSpecs().forEach((spec) => {
+      orbitalSpecs.forEach((spec) => {
         const orbitPlane = new THREE.Group();
-        const material = new THREE.MeshBasicMaterial({
-          color: 0x6f7578,
-          transparent: true,
-          opacity: spec.opacity,
-          depthWrite: true
-        });
-        const satellite = new THREE.Mesh(satelliteGeometry, material);
+        const orbital = spec.kind === 'spaceStation'
+          ? createSpaceStationModel(THREE)
+          : createSatelliteModel(THREE);
         const trailGeometry = new THREE.BufferGeometry();
         trailGeometry.setAttribute(
           'position',
@@ -769,10 +768,17 @@
 
         orbitPlane.rotation.x = spec.inclination;
         orbitPlane.rotation.z = spec.ascendingNode;
+        orbital.scale.setScalar(spec.size);
+        orbital.traverse((object) => {
+          if (object.material) {
+            object.material.transparent = true;
+            object.material.opacity = spec.opacity;
+          }
+        });
         orbitPlane.add(trail);
-        orbitPlane.add(satellite);
+        orbitPlane.add(orbital);
         satellitesGroup.add(orbitPlane);
-        satellites.push({ orbitPlane, satellite, trail, spec });
+        satellites.push({ orbitPlane, orbital, trail, spec });
       });
     }
 
@@ -791,13 +797,13 @@
     }
 
     function updateSatellites() {
-      satellites.forEach(({ satellite, trail, spec }) => {
+      satellites.forEach(({ orbital, trail, spec }) => {
         const position = getSatellitePosition(spec, elapsedSeconds);
         const trailPositions = createTrailPositions(spec, elapsedSeconds);
         const trailAttribute = trail.geometry.getAttribute('position');
 
-        satellite.position.set(position.x, position.y, position.z);
-        satellite.scale.setScalar(spec.size);
+        orbital.position.set(position.x, position.y, position.z);
+        orbital.rotation.y = getOrbitalHeading(spec, elapsedSeconds);
         trailAttribute.array.set(trailPositions);
         trailAttribute.needsUpdate = true;
       });
