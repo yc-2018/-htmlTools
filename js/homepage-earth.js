@@ -39,6 +39,14 @@
     spaceStationOrbitRadius: 1.32,
     spaceStationSpeed: 0.08,
     spaceStationSize: 0.032,
+    desktopMoonRadius: 0.16,
+    mobileMoonRadius: 0.13,
+    moonOrbitRadius: 3.15,
+    moonOrbitInclination: 0.32,
+    moonAscendingNode: -0.48,
+    moonOrbitSpeed: 0.035,
+    moonRotationSpeed: 0.012,
+    moonPhase: 0.72,
     trailLength: 12,
     trailAngleStep: 0.035,
     trailPointSizePx: 2.1,
@@ -422,6 +430,16 @@
     return positions;
   }
 
+  function getMoonPosition(elapsedSeconds) {
+    const angle = config.moonPhase + elapsedSeconds * config.moonOrbitSpeed;
+
+    return {
+      x: Math.cos(angle) * config.moonOrbitRadius,
+      y: 0,
+      z: Math.sin(angle) * config.moonOrbitRadius
+    };
+  }
+
   function createNamedMesh(THREE, name, geometry, material, position) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
@@ -511,6 +529,79 @@
     return model;
   }
 
+  function createMoonModel(THREE) {
+    const model = new THREE.Group();
+    const positions = [];
+    const colors = [];
+    const pointCount = 980;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+    const lightDirection = new THREE.Vector3(-0.55, 0.72, 0.9).normalize();
+    const brightColor = new THREE.Color(0xdce5e8);
+    const darkColor = new THREE.Color(0x59656a);
+    const craterColor = new THREE.Color(0x465258);
+    const craterSpecs = [
+      { direction: new THREE.Vector3(0.72, 0.34, 0.61).normalize(), radius: 0.19 },
+      { direction: new THREE.Vector3(0.48, -0.46, 0.75).normalize(), radius: 0.14 },
+      { direction: new THREE.Vector3(-0.2, 0.68, 0.7).normalize(), radius: 0.16 },
+      { direction: new THREE.Vector3(-0.62, 0.1, 0.78).normalize(), radius: 0.12 },
+      { direction: new THREE.Vector3(0.08, -0.76, 0.65).normalize(), radius: 0.18 },
+      { direction: new THREE.Vector3(0.86, -0.08, -0.5).normalize(), radius: 0.11 }
+    ];
+
+    for (let index = 0; index < pointCount; index += 1) {
+      const y = 1 - index / (pointCount - 1) * 2;
+      const horizontalRadius = Math.sqrt(Math.max(0, 1 - y * y));
+      const angle = goldenAngle * index;
+      const direction = new THREE.Vector3(
+        Math.cos(angle) * horizontalRadius,
+        y,
+        Math.sin(angle) * horizontalRadius
+      );
+      const illumination = Math.max(0, direction.dot(lightDirection));
+      const shade = 0.18 + illumination * 0.82;
+      const isCrater = craterSpecs.some((crater) => (
+        direction.angleTo(crater.direction) < crater.radius
+      ));
+      const color = isCrater
+        ? craterColor.clone().lerp(darkColor, illumination * 0.35)
+        : darkColor.clone().lerp(brightColor, shade);
+
+      positions.push(direction.x, direction.y, direction.z);
+      colors.push(color.r, color.g, color.b);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const surface = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        size: 1.85,
+        sizeAttenuation: true,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.88,
+        depthWrite: false
+      })
+    );
+    const depthSphere = new THREE.Mesh(
+      new THREE.SphereBufferGeometry(0.985, 24, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        colorWrite: false,
+        depthWrite: true
+      })
+    );
+
+    model.name = 'moon-model';
+    surface.name = 'moon-surface';
+    depthSphere.name = 'moon-depth';
+    model.add(depthSphere);
+    model.add(surface);
+
+    return model;
+  }
+
   function autoInit() {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return;
@@ -558,9 +649,11 @@
     const sceneGroup = new THREE.Group();
     const globeGroup = new THREE.Group();
     const satellitesGroup = new THREE.Group();
+    const moonOrbitGroup = new THREE.Group();
     const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 };
     const clock = new THREE.Clock();
     const satellites = [];
+    let moonModel = null;
     let viewportWidth = 1;
     let viewportHeight = 1;
     let sceneMetrics = getSceneMetrics(viewportWidth, viewportHeight);
@@ -577,6 +670,9 @@
     scene.add(sceneGroup);
     sceneGroup.add(globeGroup);
     sceneGroup.add(satellitesGroup);
+    sceneGroup.add(moonOrbitGroup);
+    moonOrbitGroup.rotation.x = config.moonOrbitInclination;
+    moonOrbitGroup.rotation.z = config.moonAscendingNode;
     camera.position.z = 1000;
     const oceanWhite = new THREE.Color(config.oceanWhiteColor);
     const oceanBlue = new THREE.Color(config.oceanBlueColor);
@@ -782,6 +878,15 @@
       });
     }
 
+    function buildMoon() {
+      clearGroup(moonOrbitGroup);
+      moonModel = createMoonModel(THREE);
+      moonModel.scale.setScalar(viewportWidth < config.mobileBreakpoint
+        ? config.mobileMoonRadius
+        : config.desktopMoonRadius);
+      moonOrbitGroup.add(moonModel);
+    }
+
     function rebuildResponsiveObjects() {
       const nextMode = viewportWidth < config.mobileBreakpoint ? 'mobile' : 'desktop';
 
@@ -794,6 +899,7 @@
       clearGroup(globeGroup);
       createPointCloud();
       buildSatellites();
+      buildMoon();
     }
 
     function updateSatellites() {
@@ -807,6 +913,16 @@
         trailAttribute.array.set(trailPositions);
         trailAttribute.needsUpdate = true;
       });
+    }
+
+    function updateMoon() {
+      if (!moonModel) {
+        return;
+      }
+
+      const position = getMoonPosition(elapsedSeconds);
+      moonModel.position.set(position.x, position.y, position.z);
+      moonModel.rotation.y = elapsedSeconds * config.moonRotationSpeed;
     }
 
     function updateScale(timestamp) {
@@ -837,6 +953,7 @@
 
       updateScale(timestamp);
       updateSatellites();
+      updateMoon();
       renderer.render(scene, camera);
     }
 
@@ -964,6 +1081,8 @@
     createTrailPositions,
     createSatelliteModel,
     createSpaceStationModel,
+    createMoonModel,
+    getMoonPosition,
     isLandCoordinate,
     isChinaCoordinate,
     getGlobeCoordinate,
