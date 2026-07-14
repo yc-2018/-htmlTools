@@ -141,10 +141,14 @@
     };
   }
 
-  function createExpenseLinkState(initialA, initialB) {
+  function createExpenseLinkState(initialA, initialB, initialLocked = true) {
     let a = String(initialA);
     let b = String(initialB);
-    let locked = true;
+    let locked = Boolean(initialLocked);
+
+    if (locked) {
+      b = a;
+    }
 
     return {
       get() {

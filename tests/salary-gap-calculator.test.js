@@ -187,6 +187,20 @@ function testExpenseLinkState() {
     a: '4500',
     b: '4500'
   });
+
+  const unlocked = calculator.createExpenseLinkState('4200', '2600', false);
+  assert.deepStrictEqual(unlocked.get(), {
+    locked: false,
+    a: '4200',
+    b: '2600'
+  });
+
+  const locked = calculator.createExpenseLinkState('4200', '2600', true);
+  assert.deepStrictEqual(locked.get(), {
+    locked: true,
+    a: '4200',
+    b: '4200'
+  });
 }
 
 function makeElement(value = '') {
