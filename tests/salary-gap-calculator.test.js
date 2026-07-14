@@ -65,9 +65,133 @@ function testMoneyValidation() {
   assert.strictEqual(decimalResult.people.a.decade, 120030);
 }
 
+function testDefaultComparisonAndFormatting() {
+  const result = calculator.calculateScenario({
+    salaryA: '5000',
+    salaryB: '10000',
+    expenseA: '4000',
+    expenseB: '4000'
+  });
+  const conclusion = calculator.buildConclusion(result);
+
+  assert.strictEqual(result.salaryComparison.ratio, 2);
+  assert.strictEqual(result.remainingComparison.ratio, 6);
+  assert.deepStrictEqual(conclusion, {
+    kind: 'ratio',
+    salaryLine: '你以为乙的工资是甲的 2 倍？',
+    factPrefix: '可事实却是',
+    emphasis: '6 倍',
+    factSuffix: ''
+  });
+  assert.strictEqual(calculator.formatMoney(123456.5), '123,456.5');
+  assert.strictEqual(calculator.formatRatio(2.5), '2.5');
+  assert.strictEqual(calculator.formatRatio(2.0), '2');
+}
+
+function testComparisonEdgeCases() {
+  const equalSalary = calculator.calculateScenario({
+    salaryA: '5000',
+    salaryB: '5000',
+    expenseA: '3000',
+    expenseB: '4000'
+  });
+  assert.strictEqual(
+    calculator.buildConclusion(equalSalary).salaryLine,
+    '两人的工资相同'
+  );
+
+  const zeroSalary = calculator.calculateScenario({
+    salaryA: '0',
+    salaryB: '5000',
+    expenseA: '0',
+    expenseB: '1000'
+  });
+  assert.strictEqual(
+    calculator.buildConclusion(zeroSalary).salaryLine,
+    '乙的工资更高，但工资倍数无法计算'
+  );
+
+  const equalRemaining = calculator.calculateScenario({
+    salaryA: '5000',
+    salaryB: '6000',
+    expenseA: '1000',
+    expenseB: '2000'
+  });
+  assert.strictEqual(
+    calculator.buildConclusion(equalRemaining).factPrefix,
+    '两人的可支配金额相同'
+  );
+
+  const reversed = calculator.calculateScenario({
+    salaryA: '5000',
+    salaryB: '10000',
+    expenseA: '0',
+    expenseB: '9000'
+  });
+  assert.deepStrictEqual(calculator.buildConclusion(reversed), {
+    kind: 'ratio',
+    salaryLine: '你以为乙的工资是甲的 2 倍？',
+    factPrefix: '可扣除花销后，甲反而是乙的',
+    emphasis: '5 倍',
+    factSuffix: ''
+  });
+
+  const insolvent = calculator.calculateScenario({
+    salaryA: '4000',
+    salaryB: '10000',
+    expenseA: '4000',
+    expenseB: '4000'
+  });
+  assert.strictEqual(calculator.buildConclusion(insolvent).kind, 'insolvent');
+  assert.strictEqual(
+    calculator.buildConclusion(insolvent).factPrefix,
+    '甲已入不敷出，无法用倍数衡量'
+  );
+
+  const invalid = calculator.buildConclusion({
+    valid: false,
+    error: '请输入有效的非负金额'
+  });
+  assert.deepStrictEqual(invalid, {
+    kind: 'invalid',
+    salaryLine: '请输入有效的非负金额',
+    factPrefix: '',
+    emphasis: '',
+    factSuffix: ''
+  });
+}
+
+function testExpenseLinkState() {
+  const state = calculator.createExpenseLinkState('4000', '4000');
+  state.set('b', '4500');
+  assert.deepStrictEqual(state.get(), {
+    locked: true,
+    a: '4500',
+    b: '4500'
+  });
+
+  state.toggle();
+  state.set('b', '3000');
+  assert.deepStrictEqual(state.get(), {
+    locked: false,
+    a: '4500',
+    b: '3000'
+  });
+
+  state.toggle();
+  assert.deepStrictEqual(state.get(), {
+    locked: true,
+    a: '4500',
+    b: '4500'
+  });
+}
+
 function run() {
   testDefaultScenario();
   testMoneyValidation();
+  testDefaultComparisonAndFormatting();
+  testComparisonEdgeCases();
+  testExpenseLinkState();
   console.log('salary gap calculator tests passed');
 }
 
