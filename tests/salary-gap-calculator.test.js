@@ -534,6 +534,13 @@ function testPageContractAndHomepageEntry() {
     'id="decadeB"',
     'id="salaryLine"',
     'id="ratioEmphasis"',
+    'class="salary-title-row"',
+    'class="title-actions" role="group" aria-label="输入操作"',
+    'id="clearButton" type="button"',
+    'id="resetButton" type="button"',
+    '.salary-title-row {',
+    '.utility-button {',
+    'min-height: 40px',
     '@media (max-width: 640px)',
     'prefers-reduced-motion',
     './calculator.js',
@@ -550,6 +557,10 @@ function testPageContractAndHomepageEntry() {
   assert.ok(
     !/html\s*\{[^}]*min-width:\s*320px;/s.test(html),
     'the root element must not force horizontal overflow at a 320px viewport'
+  );
+  assert.ok(
+    /@media \(max-width: 640px\)[\s\S]*\.salary-title-row\s*\{[^}]*flex-wrap:\s*nowrap;/s.test(html),
+    'mobile salary title and actions should remain on one row'
   );
   assert.ok(
     homepage.includes('/工资不止差一半计算器/index.html'),

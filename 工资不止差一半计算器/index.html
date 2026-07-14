@@ -129,6 +129,65 @@
       letter-spacing: 0.01em;
     }
 
+    .salary-section-heading {
+      align-items: center;
+    }
+
+    .salary-title-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .title-actions {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      gap: 7px;
+    }
+
+    .utility-button {
+      min-height: 40px;
+      padding: 6px 14px;
+      color: var(--ink);
+      border: 1px solid #cdbdab;
+      border-radius: 10px;
+      background: var(--surface);
+      font-size: 0.84rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .utility-button:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+      background: #fffaf3;
+    }
+
+    .utility-button:active {
+      transform: translateY(0);
+    }
+
+    .utility-button:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .utility-button-reset {
+      color: #fff;
+      border-color: var(--conclusion);
+      background: var(--conclusion);
+    }
+
+    .utility-button-reset:hover {
+      border-color: #46564d;
+      background: #46564d;
+    }
+
     .section-note {
       margin-bottom: 0;
       color: var(--muted);
@@ -465,6 +524,28 @@
         margin-bottom: 13px;
       }
 
+      .salary-section-heading {
+        gap: 7px;
+      }
+
+      .salary-title-row {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 7px;
+      }
+
+      .title-actions {
+        gap: 5px;
+      }
+
+      .utility-button {
+        min-height: 40px;
+        padding-inline: 10px;
+        border-radius: 9px;
+        font-size: 0.8rem;
+      }
+
       .pair-grid {
         gap: 8px;
       }
@@ -581,8 +662,14 @@
 
     <div class="calculator-content">
       <section class="panel" aria-labelledby="salaryHeading">
-        <div class="section-heading">
-          <h2 id="salaryHeading">每月工资</h2>
+        <div class="section-heading salary-section-heading">
+          <div class="salary-title-row">
+            <h2 id="salaryHeading">每月工资</h2>
+            <div class="title-actions" role="group" aria-label="输入操作">
+              <button class="utility-button utility-button-clear" id="clearButton" type="button">清空</button>
+              <button class="utility-button utility-button-reset" id="resetButton" type="button">重置</button>
+            </div>
+          </div>
           <p class="section-note">甲乙工资各自独立</p>
         </div>
         <div class="pair-grid">
