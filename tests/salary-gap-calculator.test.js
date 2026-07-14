@@ -324,6 +324,8 @@ function makeDocument() {
     'expenseA',
     'expenseB',
     'expenseLock',
+    'clearButton',
+    'resetButton',
     'lockText',
     'monthA',
     'monthB',
@@ -458,6 +460,60 @@ function testControllerRestoresAndSynchronizesUrlState() {
   );
 }
 
+function testClearAndResetButtons() {
+  const doc = makeDocument();
+  const navigation = makeNavigation(
+    'https://example.test/tool?salaryA=7000&salaryB=13000&expenseA=2000&expenseB=3000&locked=0&campaign=demo#result'
+  );
+
+  app.initialize(doc, calculator, navigation);
+  assert.strictEqual(navigation.replaceCalls.length, 1);
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'false'
+  );
+
+  doc.elements.clearButton.dispatch('click');
+  assert.strictEqual(doc.elements.salaryA.value, '');
+  assert.strictEqual(doc.elements.salaryB.value, '');
+  assert.strictEqual(doc.elements.expenseA.value, '');
+  assert.strictEqual(doc.elements.expenseB.value, '');
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'false'
+  );
+  assert.strictEqual(doc.elements.monthA.textContent, '—');
+  assert.strictEqual(
+    doc.elements.salaryLine.textContent,
+    '请输入有效的非负金额'
+  );
+  assert.strictEqual(navigation.replaceCalls.length, 1);
+
+  doc.elements.resetButton.dispatch('click');
+  assert.strictEqual(doc.elements.salaryA.value, '5000');
+  assert.strictEqual(doc.elements.salaryB.value, '10000');
+  assert.strictEqual(doc.elements.expenseA.value, '4000');
+  assert.strictEqual(doc.elements.expenseB.value, '4000');
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'true'
+  );
+  assert.strictEqual(doc.elements.monthA.textContent, '1,000');
+  assert.strictEqual(doc.elements.monthB.textContent, '6,000');
+  assert.strictEqual(doc.elements.ratioEmphasis.textContent, '6 倍');
+  assert.strictEqual(navigation.replaceCalls.length, 2);
+  assert.strictEqual(navigation.pushCalls.length, 0);
+
+  const resetUrl = new URL(navigation.location.href);
+  assert.strictEqual(resetUrl.searchParams.get('salaryA'), '5000');
+  assert.strictEqual(resetUrl.searchParams.get('salaryB'), '10000');
+  assert.strictEqual(resetUrl.searchParams.get('expenseA'), '4000');
+  assert.strictEqual(resetUrl.searchParams.get('expenseB'), '4000');
+  assert.strictEqual(resetUrl.searchParams.get('locked'), '1');
+  assert.strictEqual(resetUrl.searchParams.get('campaign'), 'demo');
+  assert.strictEqual(resetUrl.hash, '#result');
+}
+
 function testPageContractAndHomepageEntry() {
   assert.ok(fs.existsSync(pagePath), 'calculator page should exist');
 
@@ -510,6 +566,7 @@ function run() {
   testUrlStateParsingAndBuilding();
   testLiveControllerAndExpenseLock();
   testControllerRestoresAndSynchronizesUrlState();
+  testClearAndResetButtons();
   testPageContractAndHomepageEntry();
   console.log('salary gap calculator tests passed');
 }

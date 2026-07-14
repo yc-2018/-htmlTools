@@ -92,6 +92,9 @@
       throw new Error(`缺少页面元素：${missingId}`);
     }
 
+    elements.clearButton = doc.getElementById('clearButton');
+    elements.resetButton = doc.getElementById('resetButton');
+
     const lockAttribute = elements.expenseLock.getAttribute('aria-pressed');
     const defaults = {
       salaryA: elements.salaryA.value,
@@ -215,6 +218,27 @@
       return result;
     }
 
+    function clearAllInputs() {
+      elements.salaryA.value = '';
+      elements.salaryB.value = '';
+      expenseState.set('a', '');
+      expenseState.set('b', '');
+      renderLockState(expenseState.get());
+      renderAndSync();
+    }
+
+    function resetAllInputs() {
+      elements.salaryA.value = defaults.salaryA;
+      elements.salaryB.value = defaults.salaryB;
+
+      if (!expenseState.get().locked) {
+        expenseState.toggle();
+      }
+      expenseState.set('a', defaults.expenseA);
+      renderLockState(expenseState.get());
+      renderAndSync();
+    }
+
     function updateExpense(side, value) {
       const state = expenseState.set(side, value);
       renderLockState(state);
@@ -233,6 +257,12 @@
       renderLockState(expenseState.toggle());
       renderAndSync();
     });
+    if (elements.clearButton) {
+      elements.clearButton.addEventListener('click', clearAllInputs);
+    }
+    if (elements.resetButton) {
+      elements.resetButton.addEventListener('click', resetAllInputs);
+    }
 
     renderLockState(expenseState.get());
     renderAndSync();
