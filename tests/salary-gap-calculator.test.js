@@ -338,6 +338,10 @@ function testPageContractAndHomepageEntry() {
     'calculator must not load remote dependencies'
   );
   assert.ok(
+    !/html\s*\{[^}]*min-width:\s*320px;/s.test(html),
+    'the root element must not force horizontal overflow at a 320px viewport'
+  );
+  assert.ok(
     homepage.includes('/工资不止差一半计算器/index.html'),
     'homepage should link to the calculator'
   );
