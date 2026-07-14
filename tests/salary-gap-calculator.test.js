@@ -6,6 +6,8 @@ const repoRoot = path.resolve(__dirname, '..');
 const toolRoot = path.join(repoRoot, '工资不止差一半计算器');
 const corePath = path.join(toolRoot, 'calculator.js');
 const appPath = path.join(toolRoot, 'app.js');
+const pagePath = path.join(toolRoot, 'index.html');
+const homepagePath = path.join(repoRoot, 'index.html');
 
 assert.ok(fs.existsSync(corePath), 'calculator.js should exist');
 const calculator = require(corePath);
@@ -302,6 +304,45 @@ function testLiveControllerAndExpenseLock() {
   assert.strictEqual(doc.elements.statusA.textContent, '已入不敷出');
 }
 
+function testPageContractAndHomepageEntry() {
+  assert.ok(fs.existsSync(pagePath), 'calculator page should exist');
+
+  const html = fs.readFileSync(pagePath, 'utf8');
+  const homepage = fs.readFileSync(homepagePath, 'utf8');
+  const requiredParts = [
+    'id="salaryA"',
+    'id="salaryB"',
+    'id="expenseA"',
+    'id="expenseB"',
+    'id="expenseLock"',
+    'aria-pressed="true"',
+    'id="monthA"',
+    'id="monthB"',
+    'id="yearA"',
+    'id="yearB"',
+    'id="decadeA"',
+    'id="decadeB"',
+    'id="salaryLine"',
+    'id="ratioEmphasis"',
+    '@media (max-width: 640px)',
+    'prefers-reduced-motion',
+    './calculator.js',
+    './app.js'
+  ];
+
+  requiredParts.forEach((part) => {
+    assert.ok(html.includes(part), `page should include ${part}`);
+  });
+  assert.ok(
+    !/https?:\/\//.test(html),
+    'calculator must not load remote dependencies'
+  );
+  assert.ok(
+    homepage.includes('/工资不止差一半计算器/index.html'),
+    'homepage should link to the calculator'
+  );
+}
+
 function run() {
   testDefaultScenario();
   testMoneyValidation();
@@ -309,6 +350,7 @@ function run() {
   testComparisonEdgeCases();
   testExpenseLinkState();
   testLiveControllerAndExpenseLock();
+  testPageContractAndHomepageEntry();
   console.log('salary gap calculator tests passed');
 }
 

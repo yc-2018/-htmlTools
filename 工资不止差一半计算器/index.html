@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="比较工资与扣除固定支出后的真实可支配金额差距。">
+  <title>工资不止差一半计算器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f2ede5;
+      --surface: #fffdf9;
+      --surface-soft: #f7f1e8;
+      --ink: #302820;
+      --muted: #74685d;
+      --line: #e2d6c7;
+      --person-a: #3f6750;
+      --person-a-soft: #e9f1eb;
+      --person-b: #a75624;
+      --person-b-soft: #f7e9de;
+      --accent: #b8642d;
+      --conclusion: #303b35;
+      --warning: #b4362f;
+      --focus: #3068b2;
+      --shadow: 0 24px 70px rgba(70, 50, 27, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--page);
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 32px 18px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.9), transparent 28rem),
+        radial-gradient(circle at 88% 88%, rgba(194, 157, 112, 0.14), transparent 30rem),
+        var(--page);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      line-height: 1.6;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .calculator-shell {
+      width: min(100%, 880px);
+      margin: 0 auto;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid rgba(171, 148, 119, 0.3);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 40px 44px 32px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 238, 225, 0.92)),
+        var(--surface-soft);
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+      font-size: clamp(2rem, 5vw, 3.45rem);
+      line-height: 1.1;
+      letter-spacing: -0.045em;
+    }
+
+    .intro {
+      max-width: 730px;
+      margin-bottom: 0;
+      color: #5f544a;
+      font-size: clamp(0.96rem, 2vw, 1.08rem);
+    }
+
+    .intro strong {
+      color: var(--ink);
+    }
+
+    .calculator-content {
+      display: grid;
+      gap: 22px;
+      padding: 30px 44px 44px;
+    }
+
+    .panel {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.74);
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 0;
+      font-size: 1.06rem;
+      letter-spacing: 0.01em;
+    }
+
+    .section-note {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .pair-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+    }
+
+    .linked-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr);
+      gap: 10px;
+      align-items: end;
+    }
+
+    .pair-grid > *,
+    .linked-grid > * {
+      min-width: 0;
+    }
+
+    .field {
+      display: block;
+      min-width: 0;
+    }
+
+    .field-topline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .person-badge {
+      display: inline-grid;
+      width: 26px;
+      height: 26px;
+      place-items: center;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 900;
+    }
+
+    .person-a .person-badge {
+      background: var(--person-a);
+    }
+
+    .person-b .person-badge {
+      background: var(--person-b);
+    }
+
+    .input-frame {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      min-height: 52px;
+      border: 1px solid #d9cbbb;
+      border-radius: 13px;
+      background: var(--surface);
+      transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .input-frame:focus-within {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 4px rgba(48, 104, 178, 0.14);
+    }
+
+    .currency-sign {
+      padding-left: 15px;
+      color: #8b7d70;
+      font-weight: 800;
+    }
+
+    .field-input {
+      width: 100%;
+      min-width: 0;
+      min-height: 50px;
+      padding: 10px 14px 10px 8px;
+      color: var(--ink);
+      border: 0;
+      outline: 0;
+      background: transparent;
+      font-size: clamp(1rem, 3vw, 1.18rem);
+      font-weight: 800;
+    }
+
+    .lock-control {
+      position: relative;
+      z-index: 0;
+      display: grid;
+      justify-items: center;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .lock-control::before {
+      position: absolute;
+      z-index: -1;
+      top: 25px;
+      right: -12px;
+      left: -12px;
+      height: 1px;
+      background: var(--line);
+      content: "";
+    }
+
+    .lock-button {
+      display: inline-grid;
+      min-width: 48px;
+      min-height: 48px;
+      padding: 0;
+      place-items: center;
+      color: #fff;
+      border: 0;
+      border-radius: 50%;
+      background: var(--conclusion);
+      box-shadow: 0 0 0 6px var(--surface), 0 7px 18px rgba(48, 59, 53, 0.2);
+      cursor: pointer;
+      transition: transform 160ms ease, background 160ms ease;
+    }
+
+    .lock-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .lock-button:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 4px;
+    }
+
+    .lock-button[data-locked="false"] {
+      color: #6e6156;
+      background: #e8ded2;
+    }
+
+    .lock-button svg {
+      width: 21px;
+      height: 21px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 2;
+    }
+
+    .lock-icon-open,
+    .lock-button[data-locked="false"] .lock-icon-closed {
+      display: none;
+    }
+
+    .lock-button[data-locked="false"] .lock-icon-open {
+      display: block;
+    }
+
+    .lock-text {
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .result-panel {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .result-panel .section-heading {
+      margin: 0;
+      padding: 22px 24px 16px;
+    }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .result-table th,
+    .result-table td {
+      min-width: 0;
+      padding: 15px 18px;
+      border-top: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+      overflow-wrap: anywhere;
+    }
+
+    .result-table thead th {
+      padding-block: 11px;
+      color: var(--muted);
+      background: #f8f4ee;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+    }
+
+    .result-table th:first-child {
+      width: 24%;
+    }
+
+    .period-label {
+      color: #5e5349;
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .result-cell-a {
+      background: rgba(233, 241, 235, 0.62);
+    }
+
+    .result-cell-b {
+      background: rgba(247, 233, 222, 0.64);
+    }
+
+    .result-value {
+      display: block;
+      color: var(--ink);
+      font-size: clamp(0.95rem, 3vw, 1.28rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .result-value::before {
+      margin-right: 0.18em;
+      color: #8a7b6c;
+      content: "¥";
+      font-size: 0.72em;
+    }
+
+    .result-value.is-insolvent {
+      color: var(--warning);
+    }
+
+    .result-status {
+      display: block;
+      min-height: 1.1em;
+      margin-top: 3px;
+      color: var(--warning);
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
+
+    .conclusion-card {
+      position: relative;
+      overflow: hidden;
+      padding: 28px;
+      color: #fff;
+      border-radius: 19px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent 55%),
+        var(--conclusion);
+      text-align: center;
+    }
+
+    .conclusion-card::after {
+      position: absolute;
+      right: -45px;
+      bottom: -60px;
+      width: 170px;
+      height: 170px;
+      border: 24px solid rgba(255, 255, 255, 0.035);
+      border-radius: 50%;
+      content: "";
+    }
+
+    .salary-line {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 6px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: clamp(0.95rem, 2.5vw, 1.12rem);
+    }
+
+    .fact-line {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: center;
+      gap: 0.28em;
+      margin-bottom: 0;
+      font-size: clamp(1.15rem, 4vw, 1.65rem);
+      font-weight: 800;
+    }
+
+    .ratio-emphasis {
+      color: #ffd28b;
+      font-size: clamp(2.25rem, 8vw, 4rem);
+      font-weight: 950;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .ratio-emphasis[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      .calculator-shell {
+        border-radius: 20px;
+      }
+
+      .hero {
+        padding: 28px 20px 24px;
+      }
+
+      .calculator-content {
+        gap: 14px;
+        padding: 18px 14px 22px;
+      }
+
+      .panel {
+        padding: 16px 12px;
+        border-radius: 15px;
+      }
+
+      .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+        margin-bottom: 13px;
+      }
+
+      .pair-grid {
+        gap: 8px;
+      }
+
+      .linked-grid {
+        grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+        gap: 6px;
+      }
+
+      .field-topline {
+        gap: 5px;
+        font-size: 0.74rem;
+      }
+
+      .person-badge {
+        width: 23px;
+        height: 23px;
+        border-radius: 7px;
+        font-size: 0.72rem;
+      }
+
+      .field-input {
+        min-height: 48px;
+        padding-inline: 6px;
+        font-size: 0.94rem;
+      }
+
+      .currency-sign {
+        padding-left: 9px;
+        font-size: 0.86rem;
+      }
+
+      .lock-control::before {
+        right: -8px;
+        left: -8px;
+      }
+
+      .lock-button {
+        min-width: 44px;
+        min-height: 44px;
+        box-shadow: 0 0 0 4px var(--surface), 0 5px 12px rgba(48, 59, 53, 0.18);
+      }
+
+      .result-panel {
+        padding: 0;
+      }
+
+      .result-panel .section-heading {
+        padding: 17px 12px 12px;
+      }
+
+      .result-table th,
+      .result-table td {
+        padding: 12px 8px;
+      }
+
+      .result-table th:first-child {
+        width: 23%;
+      }
+
+      .period-label {
+        font-size: 0.78rem;
+      }
+
+      .result-value {
+        font-size: clamp(0.82rem, 4vw, 1rem);
+      }
+
+      .conclusion-card {
+        padding: 24px 14px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .section-note {
+        font-size: 0.75rem;
+      }
+
+      .field-topline {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .lock-control {
+        align-self: end;
+        padding-bottom: 1px;
+      }
+
+      .result-table th,
+      .result-table td {
+        padding-inline: 6px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="calculator-shell">
+    <header class="hero">
+      <p class="eyebrow">Disposable income gap</p>
+      <h1>工资不止差一半</h1>
+      <p class="intro">
+        甲的工资是 <strong>5000 元</strong>，乙的工资是 <strong>10000 元</strong>。假设两个人每月房租、水电、吃饭等固定支出都是 <strong>4000 元</strong>，那么甲真正能用的工资只有 <strong>1000 元</strong>，乙却有 <strong>6000 元</strong>。所以工资看起来只差一倍，真正能用的钱却可能相差六倍。
+      </p>
+    </header>
+
+    <div class="calculator-content">
+      <section class="panel" aria-labelledby="salaryHeading">
+        <div class="section-heading">
+          <h2 id="salaryHeading">每月工资</h2>
+          <p class="section-note">甲乙工资各自独立</p>
+        </div>
+        <div class="pair-grid">
+          <label class="field person-a" for="salaryA">
+            <span class="field-topline">
+              <span class="person-badge">甲</span>
+              <span>每月工资</span>
+            </span>
+            <span class="input-frame">
+              <span class="currency-sign" aria-hidden="true">¥</span>
+              <input class="field-input" id="salaryA" type="number" inputmode="decimal" min="0" step="0.01" value="5000">
+            </span>
+          </label>
+
+          <label class="field person-b" for="salaryB">
+            <span class="field-topline">
+              <span class="person-badge">乙</span>
+              <span>每月工资</span>
+            </span>
+            <span class="input-frame">
+              <span class="currency-sign" aria-hidden="true">¥</span>
+              <input class="field-input" id="salaryB" type="number" inputmode="decimal" min="0" step="0.01" value="10000">
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="expenseHeading">
+        <div class="section-heading">
+          <h2 id="expenseHeading">每月固定消耗</h2>
+          <p class="section-note">房租、水电、吃饭等固定支出</p>
+        </div>
+        <div class="linked-grid">
+          <label class="field person-a" for="expenseA">
+            <span class="field-topline">
+              <span class="person-badge">甲</span>
+              <span>每月花销</span>
+            </span>
+            <span class="input-frame">
+              <span class="currency-sign" aria-hidden="true">¥</span>
+              <input class="field-input" id="expenseA" type="number" inputmode="decimal" min="0" step="0.01" value="4000">
+            </span>
+          </label>
+
+          <div class="lock-control">
+            <button class="lock-button" id="expenseLock" type="button" aria-pressed="true" aria-label="解除固定消耗同步" data-locked="true">
+              <svg class="lock-icon-closed" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+              </svg>
+              <svg class="lock-icon-open" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                <path d="M16 10V7a4 4 0 0 0-7.7-1.5"></path>
+              </svg>
+            </button>
+            <span class="lock-text" id="lockText">已同步</span>
+          </div>
+
+          <label class="field person-b" for="expenseB">
+            <span class="field-topline">
+              <span class="person-badge">乙</span>
+              <span>每月花销</span>
+            </span>
+            <span class="input-frame">
+              <span class="currency-sign" aria-hidden="true">¥</span>
+              <input class="field-input" id="expenseB" type="number" inputmode="decimal" min="0" step="0.01" value="4000">
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel result-panel" aria-labelledby="resultHeading">
+        <div class="section-heading">
+          <h2 id="resultHeading">真正能留下的钱</h2>
+          <p class="section-note">根据输入实时更新</p>
+        </div>
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th scope="col">周期</th>
+              <th scope="col">甲的剩余</th>
+              <th scope="col">乙的剩余</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th class="period-label" scope="row">每月</th>
+              <td class="result-cell-a">
+                <span class="result-value" id="monthA">1,000</span>
+                <span class="result-status" id="statusA"></span>
+              </td>
+              <td class="result-cell-b">
+                <span class="result-value" id="monthB">6,000</span>
+                <span class="result-status" id="statusB"></span>
+              </td>
+            </tr>
+            <tr>
+              <th class="period-label" scope="row">每年</th>
+              <td class="result-cell-a"><span class="result-value" id="yearA">12,000</span></td>
+              <td class="result-cell-b"><span class="result-value" id="yearB">72,000</span></td>
+            </tr>
+            <tr>
+              <th class="period-label" scope="row">10 年</th>
+              <td class="result-cell-a"><span class="result-value" id="decadeA">120,000</span></td>
+              <td class="result-cell-b"><span class="result-value" id="decadeB">720,000</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="conclusion-card" aria-live="polite" aria-atomic="true">
+        <p class="salary-line" id="salaryLine">你以为乙的工资是甲的 2 倍？</p>
+        <p class="fact-line">
+          <span id="factPrefix">可事实却是</span>
+          <strong class="ratio-emphasis" id="ratioEmphasis">6 倍</strong>
+          <span id="factSuffix"></span>
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <script src="./calculator.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
