@@ -35,6 +35,11 @@
     oceanPointOpacity: 0.5,
     oceanWhiteColor: 0xcceeff,
     oceanBlueColor: 0x4fa6c8,
+    sunlightDirection: Object.freeze({ x: 0.55, y: 0.65, z: 1 }),
+    sunlightNightBrightness: 0.76,
+    sunlightDayBrightness: 1.1,
+    sunlightTwilightStart: -0.25,
+    sunlightTwilightEnd: 0.35,
     orbitBandCount: 4,
     spaceStationOrbitRadius: 1.32,
     spaceStationSpeed: 0.08,
@@ -443,6 +448,72 @@
     };
   }
 
+  function getSunlightBrightness(lightDot) {
+    const twilightProgress = Math.max(0, Math.min(
+      1,
+      (lightDot - config.sunlightTwilightStart)
+        / (config.sunlightTwilightEnd - config.sunlightTwilightStart)
+    ));
+    const smoothedProgress = twilightProgress
+      * twilightProgress
+      * (3 - 2 * twilightProgress);
+
+    return config.sunlightNightBrightness
+      + (config.sunlightDayBrightness - config.sunlightNightBrightness)
+        * smoothedProgress;
+  }
+
+  function createEarthPointMaterial(THREE, options) {
+    const material = new THREE.PointsMaterial({
+      color: options.color,
+      size: options.size,
+      sizeAttenuation: true,
+      vertexColors: options.vertexColors,
+      transparent: true,
+      opacity: options.opacity,
+      depthWrite: false
+    });
+    const sunDirection = new THREE.Vector3(
+      config.sunlightDirection.x,
+      config.sunlightDirection.y,
+      config.sunlightDirection.z
+    ).normalize();
+
+    material.name = 'earth-point-sunlight';
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uSunDirection = { value: sunDirection };
+      shader.uniforms.uNightBrightness = { value: config.sunlightNightBrightness };
+      shader.uniforms.uDayBrightness = { value: config.sunlightDayBrightness };
+      shader.uniforms.uTwilightStart = { value: config.sunlightTwilightStart };
+      shader.uniforms.uTwilightEnd = { value: config.sunlightTwilightEnd };
+      shader.vertexShader = `
+uniform vec3 uSunDirection;
+uniform float uNightBrightness;
+uniform float uDayBrightness;
+uniform float uTwilightStart;
+uniform float uTwilightEnd;
+varying float vSunlightBrightness;
+${shader.vertexShader}
+`.replace('#include <begin_vertex>', `
+#include <begin_vertex>
+vec3 worldSurfaceDirection = normalize(mat3(modelMatrix) * normalize(position));
+float sunlightDot = dot(worldSurfaceDirection, uSunDirection);
+float sunlightMix = smoothstep(uTwilightStart, uTwilightEnd, sunlightDot);
+vSunlightBrightness = mix(uNightBrightness, uDayBrightness, sunlightMix);
+`);
+      shader.fragmentShader = `
+varying float vSunlightBrightness;
+${shader.fragmentShader}
+`.replace('#include <color_fragment>', `
+#include <color_fragment>
+diffuseColor.rgb *= vSunlightBrightness;
+`);
+    };
+    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v1';
+
+    return material;
+  }
+
   function createNamedMesh(THREE, name, geometry, material, position) {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
@@ -840,14 +911,11 @@
 
       return new THREE.Points(
         geometry,
-        new THREE.PointsMaterial({
+        createEarthPointMaterial(THREE, {
           color,
           size,
-          sizeAttenuation: true,
           vertexColors: Boolean(colors),
-          transparent: true,
           opacity,
-          depthWrite: false
         })
       );
     }
@@ -1139,6 +1207,8 @@
     createMoonModel,
     createMoonOrbitPoints,
     getMoonPosition,
+    getSunlightBrightness,
+    createEarthPointMaterial,
     isLandCoordinate,
     isChinaCoordinate,
     getGlobeCoordinate,
