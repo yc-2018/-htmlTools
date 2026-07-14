@@ -1,7 +1,10 @@
 const assert = require('assert');
+const fs = require('fs');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
+const scriptPath = path.join(repoRoot, 'js', 'homepage-earth.js');
+const scriptSource = fs.readFileSync(scriptPath, 'utf8');
 const earth = require(path.join(repoRoot, 'js', 'homepage-earth.js'));
 const THREE = require(path.join(repoRoot, 'js', 'vendor', 'three-r128.min.js'));
 
@@ -70,10 +73,25 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   assert.ok(shader.fragmentShader.includes('diffuseColor.rgb *= vSunlightBrightness;'));
 }
 
+function testOnlyEarthPointCloudUsesSunlightMaterial() {
+  const createPointsBlock = scriptSource.match(
+    /function createPoints\([\s\S]+?(?=\n    function clearGroup)/
+  )[0];
+  const moonBlock = scriptSource.match(
+    /function createMoonModel\([\s\S]+?(?=\n  function createMoonOrbitPoints)/
+  )[0];
+
+  assert.ok(createPointsBlock.includes('createEarthPointMaterial(THREE, {'));
+  assert.ok(!createPointsBlock.includes('new THREE.PointsMaterial'));
+  assert.ok(createPointsBlock.includes('vertexColors: Boolean(colors)'));
+  assert.ok(moonBlock.includes('new THREE.PointsMaterial'));
+}
+
 function run() {
   testSunlightConfigurationMatchesApprovedDesign();
   testSunlightBrightnessStaysWithinApprovedBounds();
   testEarthPointMaterialInjectsWorldSpaceSunlight();
+  testOnlyEarthPointCloudUsesSunlightMaterial();
   console.log('homepage earth sunlight unit tests passed');
 }
 

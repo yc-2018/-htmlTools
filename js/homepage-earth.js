@@ -911,14 +911,11 @@ diffuseColor.rgb *= vSunlightBrightness;
 
       return new THREE.Points(
         geometry,
-        new THREE.PointsMaterial({
+        createEarthPointMaterial(THREE, {
           color,
           size,
-          sizeAttenuation: true,
           vertexColors: Boolean(colors),
-          transparent: true,
           opacity,
-          depthWrite: false
         })
       );
     }
