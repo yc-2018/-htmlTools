@@ -12,6 +12,49 @@ function assertClose(actual, expected, message) {
   assert.ok(Math.abs(actual - expected) < 1e-12, message);
 }
 
+function getVisibleDiscCoverage(direction, resolution = 120) {
+  const directionLength = Math.hypot(direction.x, direction.y, direction.z);
+  const normalizedDirection = {
+    x: direction.x / directionLength,
+    y: direction.y / directionLength,
+    z: direction.z / directionLength
+  };
+  const counts = { night: 0, twilight: 0, day: 0, total: 0 };
+
+  for (let yIndex = -resolution; yIndex <= resolution; yIndex += 1) {
+    const y = yIndex / resolution;
+
+    for (let xIndex = -resolution; xIndex <= resolution; xIndex += 1) {
+      const x = xIndex / resolution;
+
+      if (x * x + y * y > 1) {
+        continue;
+      }
+
+      const z = Math.sqrt(Math.max(0, 1 - x * x - y * y));
+      const lightDot = x * normalizedDirection.x
+        + y * normalizedDirection.y
+        + z * normalizedDirection.z;
+
+      if (lightDot <= earth.config.sunlightTwilightStart) {
+        counts.night += 1;
+      } else if (lightDot >= earth.config.sunlightTwilightEnd) {
+        counts.day += 1;
+      } else {
+        counts.twilight += 1;
+      }
+      counts.total += 1;
+    }
+  }
+
+  return {
+    night: counts.night / counts.total,
+    twilight: counts.twilight / counts.total,
+    day: counts.day / counts.total,
+    normalizedZ: normalizedDirection.z
+  };
+}
+
 function createShaderStub() {
   return {
     uniforms: {},
@@ -22,14 +65,25 @@ function createShaderStub() {
 
 function testSunlightConfigurationMatchesApprovedDesign() {
   assert.deepStrictEqual(earth.config.sunlightDirection, {
-    x: 0.55,
-    y: 0.65,
-    z: 1
+    x: 0.8,
+    y: 0.35,
+    z: 0.25
   });
   assert.strictEqual(earth.config.sunlightNightBrightness, 0.76);
   assert.strictEqual(earth.config.sunlightDayBrightness, 1.1);
   assert.strictEqual(earth.config.sunlightTwilightStart, -0.25);
   assert.strictEqual(earth.config.sunlightTwilightEnd, 0.35);
+}
+
+function testSunlightDirectionKeepsDayAndNightVisible() {
+  const coverage = getVisibleDiscCoverage(earth.config.sunlightDirection);
+
+  assert.ok(
+    coverage.normalizedZ < earth.config.sunlightTwilightEnd,
+    'sun direction should not place the center of the visible disc in full daylight'
+  );
+  assert.ok(coverage.night >= 0.2, 'at least 20% of the visible disc should be fully dark');
+  assert.ok(coverage.day >= 0.35, 'at least 35% of the visible disc should remain fully lit');
 }
 
 function testSunlightBrightnessStaysWithinApprovedBounds() {
@@ -89,6 +143,7 @@ function testOnlyEarthPointCloudUsesSunlightMaterial() {
 
 function run() {
   testSunlightConfigurationMatchesApprovedDesign();
+  testSunlightDirectionKeepsDayAndNightVisible();
   testSunlightBrightnessStaysWithinApprovedBounds();
   testEarthPointMaterialInjectsWorldSpaceSunlight();
   testOnlyEarthPointCloudUsesSunlightMaterial();

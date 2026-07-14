@@ -35,7 +35,7 @@
     oceanPointOpacity: 0.5,
     oceanWhiteColor: 0xcceeff,
     oceanBlueColor: 0x4fa6c8,
-    sunlightDirection: Object.freeze({ x: 0.55, y: 0.65, z: 1 }),
+    sunlightDirection: Object.freeze({ x: 0.8, y: 0.35, z: 0.25 }),
     sunlightNightBrightness: 0.76,
     sunlightDayBrightness: 1.1,
     sunlightTwilightStart: -0.25,
