@@ -42,11 +42,14 @@
     desktopMoonRadius: 0.16,
     mobileMoonRadius: 0.13,
     moonOrbitRadius: 3.15,
-    moonOrbitInclination: 0.32,
+    moonOrbitInclination: 0.46,
     moonAscendingNode: -0.48,
     moonOrbitSpeed: 0.035,
     moonRotationSpeed: 0.012,
     moonPhase: 0.72,
+    moonOrbitPointCount: 360,
+    moonOrbitPointSizePx: 1.8,
+    moonOrbitOpacity: 0.5,
     trailLength: 12,
     trailAngleStep: 0.035,
     trailPointSizePx: 2.1,
@@ -602,6 +605,54 @@
     return model;
   }
 
+  function createMoonOrbitPoints(THREE) {
+    const positions = [];
+    const colors = [];
+    const dimColor = new THREE.Color(0x5f7781);
+    const brightColor = new THREE.Color(0xa8bbc2);
+
+    for (let index = 0; index < config.moonOrbitPointCount; index += 1) {
+      const angle = index / config.moonOrbitPointCount * Math.PI * 2;
+      const phaseDistance = Math.abs(Math.atan2(
+        Math.sin(angle - config.moonPhase),
+        Math.cos(angle - config.moonPhase)
+      ));
+      const moonGlow = Math.max(0, 1 - phaseDistance / 0.62);
+      const pulse = 0.12 + (Math.sin(angle * 8) + 1) * 0.1;
+      const color = dimColor.clone().lerp(
+        brightColor,
+        Math.min(0.78, pulse + moonGlow * 0.58)
+      );
+
+      positions.push(
+        Math.cos(angle) * config.moonOrbitRadius,
+        0,
+        Math.sin(angle) * config.moonOrbitRadius
+      );
+      colors.push(color.r, color.g, color.b);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const orbit = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: config.moonOrbitPointSizePx,
+        sizeAttenuation: false,
+        vertexColors: true,
+        transparent: true,
+        opacity: config.moonOrbitOpacity,
+        depthWrite: false,
+        depthTest: true
+      })
+    );
+
+    orbit.name = 'moon-orbit-points';
+    return orbit;
+  }
+
   function autoInit() {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return;
@@ -654,6 +705,7 @@
     const clock = new THREE.Clock();
     const satellites = [];
     let moonModel = null;
+    let moonOrbitPoints = null;
     let viewportWidth = 1;
     let viewportHeight = 1;
     let sceneMetrics = getSceneMetrics(viewportWidth, viewportHeight);
@@ -881,9 +933,11 @@
     function buildMoon() {
       clearGroup(moonOrbitGroup);
       moonModel = createMoonModel(THREE);
+      moonOrbitPoints = createMoonOrbitPoints(THREE);
       moonModel.scale.setScalar(viewportWidth < config.mobileBreakpoint
         ? config.mobileMoonRadius
         : config.desktopMoonRadius);
+      moonOrbitGroup.add(moonOrbitPoints);
       moonOrbitGroup.add(moonModel);
     }
 
@@ -923,6 +977,7 @@
       const position = getMoonPosition(elapsedSeconds);
       moonModel.position.set(position.x, position.y, position.z);
       moonModel.rotation.y = elapsedSeconds * config.moonRotationSpeed;
+      moonOrbitPoints.rotation.y = elapsedSeconds * config.moonOrbitSpeed;
     }
 
     function updateScale(timestamp) {
@@ -1082,6 +1137,7 @@
     createSatelliteModel,
     createSpaceStationModel,
     createMoonModel,
+    createMoonOrbitPoints,
     getMoonPosition,
     isLandCoordinate,
     isChinaCoordinate,
