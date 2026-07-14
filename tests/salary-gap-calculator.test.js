@@ -5,6 +5,7 @@ const path = require('path');
 const repoRoot = path.resolve(__dirname, '..');
 const toolRoot = path.join(repoRoot, '工资不止差一半计算器');
 const corePath = path.join(toolRoot, 'calculator.js');
+const appPath = path.join(toolRoot, 'app.js');
 
 assert.ok(fs.existsSync(corePath), 'calculator.js should exist');
 const calculator = require(corePath);
@@ -186,12 +187,128 @@ function testExpenseLinkState() {
   });
 }
 
+function makeElement(value = '') {
+  const listeners = {};
+
+  return {
+    value,
+    textContent: '',
+    hidden: false,
+    attributes: {},
+    classList: {
+      toggle() {}
+    },
+    addEventListener(type, listener) {
+      listeners[type] = listener;
+    },
+    setAttribute(name, nextValue) {
+      this.attributes[name] = String(nextValue);
+    },
+    dispatch(type) {
+      listeners[type]({ target: this });
+    }
+  };
+}
+
+function makeDocument() {
+  const values = {
+    salaryA: '5000',
+    salaryB: '10000',
+    expenseA: '4000',
+    expenseB: '4000'
+  };
+  const ids = [
+    'salaryA',
+    'salaryB',
+    'expenseA',
+    'expenseB',
+    'expenseLock',
+    'lockText',
+    'monthA',
+    'monthB',
+    'yearA',
+    'yearB',
+    'decadeA',
+    'decadeB',
+    'statusA',
+    'statusB',
+    'salaryLine',
+    'factPrefix',
+    'ratioEmphasis',
+    'factSuffix'
+  ];
+  const elements = Object.fromEntries(
+    ids.map((id) => [id, makeElement(values[id] || '')])
+  );
+
+  return {
+    elements,
+    getElementById(id) {
+      return elements[id];
+    }
+  };
+}
+
+function testLiveControllerAndExpenseLock() {
+  assert.ok(fs.existsSync(appPath), 'app.js should exist');
+  const app = require(appPath);
+  const doc = makeDocument();
+
+  app.initialize(doc, calculator);
+
+  assert.strictEqual(doc.elements.monthA.textContent, '1,000');
+  assert.strictEqual(doc.elements.monthB.textContent, '6,000');
+  assert.strictEqual(doc.elements.ratioEmphasis.textContent, '6 倍');
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'true'
+  );
+  assert.strictEqual(doc.elements.lockText.textContent, '已同步');
+
+  doc.elements.expenseB.value = '4500';
+  doc.elements.expenseB.dispatch('input');
+  assert.strictEqual(doc.elements.expenseA.value, '4500');
+
+  doc.elements.expenseLock.dispatch('click');
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'false'
+  );
+  assert.strictEqual(doc.elements.lockText.textContent, '已解锁');
+
+  doc.elements.expenseB.value = '3000';
+  doc.elements.expenseB.dispatch('input');
+  assert.strictEqual(doc.elements.expenseA.value, '4500');
+
+  doc.elements.expenseLock.dispatch('click');
+  assert.strictEqual(doc.elements.expenseB.value, '4500');
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'true'
+  );
+
+  doc.elements.salaryA.value = '';
+  doc.elements.salaryA.dispatch('input');
+  assert.strictEqual(doc.elements.monthA.textContent, '—');
+  assert.strictEqual(
+    doc.elements.salaryLine.textContent,
+    '请输入有效的非负金额'
+  );
+  assert.strictEqual(doc.elements.ratioEmphasis.textContent, '');
+
+  doc.elements.salaryA.value = '4000';
+  doc.elements.salaryA.dispatch('input');
+  assert.strictEqual(doc.elements.monthA.textContent, '-500');
+  assert.strictEqual(doc.elements.statusA.textContent, '已入不敷出');
+}
+
 function run() {
   testDefaultScenario();
   testMoneyValidation();
   testDefaultComparisonAndFormatting();
   testComparisonEdgeCases();
   testExpenseLinkState();
+  testLiveControllerAndExpenseLock();
   console.log('salary gap calculator tests passed');
 }
 
