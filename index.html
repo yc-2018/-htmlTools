@@ -10,9 +10,24 @@
   <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="./css/homepage-earth.css">
   <style>
-      img {
-          min-height: 100px;
-      }
+    img {
+      min-height: 100px;
+    }
+
+    .home-section > summary,
+    .home-subsection > summary {
+      cursor: pointer;
+    }
+
+    .home-section > summary h2,
+    .home-subsection > summary h3 {
+      display: inline-block;
+      margin: 0.5em 0;
+    }
+
+    .home-subsection {
+      margin-left: 1em;
+    }
   </style>
   <script src="./js/伪装框架检测.js"></script>
   <script src="./js/鼠标星星拖尾特效.js"></script>
@@ -22,68 +37,82 @@
 <canvas id="homepage-earth-background" aria-hidden="true"></canvas>
 <h1>仰晨HTML工具集</h1>
 <hr/>
-<h2>实用工具</h2>
-<h3>开发与配置</h3>
-<ol>
-  <li>
-    <div><a href="/2fa/index.html">2fa</a>(自制)</div>
-  </li>
-  <li><a href="/CSS与HTML生成器/index.html">CSS与HTML生成器</a>(codex写)</li>
-  <li><a href="/css网格布局/index.html">css网格布局</a></li>
-  <li><a href="/nginx可视化配置/index.html">nginx可视化配置</a></li>
-  <li><a href="/开发速查表/index.html">开发速查表</a></li>
-  <li><a href="/Adb在线执行器/index.html">Adb在线执行器</a>(AI写)</li>
-  <li><a href="/JSON转JS/index.html">JSON转JS</a>(AI写)</li>
-  <li><a href="/yaml-properties-converter/index.html">Java YAML与Properties互转</a>(AI写)</li>
-  <li><a href="/java一行的多行注释一行化/index.html">java一行的多行注释一行化</a>(&AI写)</li>
-</ol>
+<details class="home-section" open>
+  <summary><h2>实用工具</h2></summary>
 
-<h3>文本与编码</h3>
-<ol>
-  <li>
-    <a href="/文本差异对比(新)/index.html">文本差异对比(字)</a> |
-    <a href="/文本差异对比mi/index.html">文本差异对比(词)</a> |
-    <a href="/文本差异对比/index.html">文本差异对比(行)</a> |
-  </li>
-  <li><a href="/驼峰与下划线转换/index.html">驼峰与下划线转换</a>(AI写)</li>
-  <li><a href="/时间戳/index.html">时间戳转换工具</a>(自制)</li>
-  <li><a href="/转特殊字符/index.html">转特殊字符</a>(自制迁移)</li>
-  <li><a href="/Base64/index.html">Base64文本编码解码</a>(AI写)</li>
-  <li><a href="/JWT/index.html">JWT 编码解码器</a>(AI写)</li>
-</ol>
+  <details class="home-subsection" open>
+    <summary><h3>开发与配置</h3></summary>
+    <ol>
+      <li>
+        <div><a href="/2fa/index.html">2fa</a>(自制)</div>
+      </li>
+      <li><a href="/CSS与HTML生成器/index.html">CSS与HTML生成器</a>(codex写)</li>
+      <li><a href="/css网格布局/index.html">css网格布局</a></li>
+      <li><a href="/nginx可视化配置/index.html">nginx可视化配置</a></li>
+      <li><a href="/开发速查表/index.html">开发速查表</a></li>
+      <li><a href="/Adb在线执行器/index.html">Adb在线执行器</a>(AI写)</li>
+      <li><a href="/JSON转JS/index.html">JSON转JS</a>(AI写)</li>
+      <li><a href="/yaml-properties-converter/index.html">Java YAML与Properties互转</a>(AI写)</li>
+      <li><a href="/java一行的多行注释一行化/index.html">java一行的多行注释一行化</a>(&AI写)</li>
+    </ol>
+  </details>
 
-<h3>文件与媒体</h3>
-<ol>
-  <li><a href="/实况图片换封面/index.html">实况图片换封面</a>(AI写)</li>
-  <li><a href="/文件强制下载工具/index.html">文件强制下载工具</a></li>
-  <li><a href="/图片转盲文/index.html">图片转盲文</a></li>
-  <li><a href="/视频转webp/index.html">视频转 WebP</a>(AI写)</li>
-  <li><a href="/聚合图床/index.html">聚合图床</a></li>
-  <li><a href="/PDF多功能编辑器/index.html">PDF多功能编辑器</a>(AI写)</li>
-  <li><a href="/白板/index.html">白板</a>(AI写)</li>
-</ol>
+  <details class="home-subsection" open>
+    <summary><h3>文本与编码</h3></summary>
+    <ol>
+      <li>
+        <a href="/文本差异对比(新)/index.html">文本差异对比(字)</a> |
+        <a href="/文本差异对比mi/index.html">文本差异对比(词)</a> |
+        <a href="/文本差异对比/index.html">文本差异对比(行)</a> |
+      </li>
+      <li><a href="/驼峰与下划线转换/index.html">驼峰与下划线转换</a>(AI写)</li>
+      <li><a href="/时间戳/index.html">时间戳转换工具</a>(自制)</li>
+      <li><a href="/转特殊字符/index.html">转特殊字符</a>(自制迁移)</li>
+      <li><a href="/Base64/index.html">Base64文本编码解码</a>(AI写)</li>
+      <li><a href="/JWT/index.html">JWT 编码解码器</a>(AI写)</li>
+    </ol>
+  </details>
 
-<h3>生活与计算</h3>
-<ol>
-  <li><a href="/工资不止差一半计算器/index.html">工资不止差一半计算器</a>(AI写)</li>
-  <li><a href="/七天年化收益率计算器/index.html">七天年化收益率计算器</a>(自制)</li>
-  <li><a href="/商品比价器/index.html">商品比价器</a>(自制迁移)</li>
-  <li>
-    <a href="/城乡居民养老金计算器(忽略利息版)/index.html">城乡居民养老金计算器(忽略利息版)</a>(AI写) |
-    <a href="/城乡居民养老金计算器/index.html">城乡居民养老金计算器</a>(AI写)
-  </li>
-</ol>
+  <details class="home-subsection" open>
+    <summary><h3>文件与媒体</h3></summary>
+    <ol>
+      <li><a href="/实况图片换封面/index.html">实况图片换封面</a>(AI写)</li>
+      <li><a href="/文件强制下载工具/index.html">文件强制下载工具</a></li>
+      <li><a href="/图片转盲文/index.html">图片转盲文</a></li>
+      <li><a href="/视频转webp/index.html">视频转 WebP</a>(AI写)</li>
+      <li><a href="/聚合图床/index.html">聚合图床</a></li>
+      <li><a href="/PDF多功能编辑器/index.html">PDF多功能编辑器</a>(AI写)</li>
+      <li><a href="/白板/index.html">白板</a>(AI写)</li>
+    </ol>
+  </details>
 
-<h3>地图与搜索</h3>
-<ol>
-  <li><a href="/快捷App搜索/index.html">快捷App搜索</a>(自制)(手机版)</li>
-  <li><a href="/react-amap/index.html">react-amap</a></li>
-  <li><a href="/高德排线数据渲染/index.html">高德排线数据渲染</a>(AI写)</li>
-</ol>
+  <details class="home-subsection" open>
+    <summary><h3>生活与计算</h3></summary>
+    <ol>
+      <li><a href="/工资不止差一半计算器/index.html">工资不止差一半计算器</a>(AI写)</li>
+      <li><a href="/七天年化收益率计算器/index.html">七天年化收益率计算器</a>(自制)</li>
+      <li><a href="/商品比价器/index.html">商品比价器</a>(自制迁移)</li>
+      <li>
+        <a href="/城乡居民养老金计算器(忽略利息版)/index.html">城乡居民养老金计算器(忽略利息版)</a>(AI写) |
+        <a href="/城乡居民养老金计算器/index.html">城乡居民养老金计算器</a>(AI写)
+      </li>
+    </ol>
+  </details>
+
+  <details class="home-subsection" open>
+    <summary><h3>地图与搜索</h3></summary>
+    <ol>
+      <li><a href="/快捷App搜索/index.html">快捷App搜索</a>(自制)(手机版)</li>
+      <li><a href="/react-amap/index.html">react-amap</a></li>
+      <li><a href="/高德排线数据渲染/index.html">高德排线数据渲染</a>(AI写)</li>
+    </ol>
+  </details>
+</details>
 
 <hr/>
-<h2>图一乐</h2>
-<ol>
+<details class="home-section" open>
+  <summary><h2>图一乐</h2></summary>
+  <ol>
   <li>
     <span>手机小游戏：</span>
     <a href="/图一乐/小游戏/2048.html">2048</a> |
@@ -115,7 +144,8 @@
   <li><a href="/图一乐/大话骰/index.html">大话骰(第二版)(手机版)</a></li>
   <li><a href="/图一乐/SBTI测试/index.html">SBTI测试</a></li>
   <li><a href="/图一乐/中转探针/index.html" title="测试AI中转站用的,但不是全部都能测，因为有些禁止网页访问">中转探针</a></li>
-</ol>
+  </ol>
+</details>
 <hr/>
 
 <a href="https://v.yc556.cn/blog" target="_blank">博客</a> |
@@ -152,8 +182,8 @@
 <hr/>
 <hr/>
 <hr/>
-<details style="color: #999;">
-  <summary><h2 style="display: inline;cursor: pointer;">没啥用的</h2></summary>
+<details class="home-section" style="color: #999;" open>
+  <summary><h2>没啥用的</h2></summary>
   <ol>
     <li> <a href="/index1.html">新样式首页(不更新</a></li>
     <li><a href="/没啥用的/报废的书签/index.html">报废的书签</a></li>
