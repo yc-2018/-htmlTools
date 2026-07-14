@@ -7,7 +7,10 @@
     root.SalaryGapApp = api;
 
     const start = function startSalaryGapApp() {
-      api.initialize(root.document, root.SalaryGapCalculator);
+      api.initialize(root.document, root.SalaryGapCalculator, {
+        location: root.location,
+        history: root.history
+      });
     };
 
     if (root.document.readyState === 'loading') {
@@ -79,7 +82,7 @@
     return url.href;
   }
 
-  function initialize(doc, calculator) {
+  function initialize(doc, calculator, navigation = {}) {
     const elements = Object.fromEntries(
       elementIds.map((id) => [id, doc.getElementById(id)])
     );
@@ -89,9 +92,24 @@
       throw new Error(`缺少页面元素：${missingId}`);
     }
 
+    const lockAttribute = elements.expenseLock.getAttribute('aria-pressed');
+    const defaults = {
+      salaryA: elements.salaryA.value,
+      salaryB: elements.salaryB.value,
+      expenseA: elements.expenseA.value,
+      expenseB: elements.expenseB.value,
+      locked: lockAttribute === null ? true : lockAttribute === 'true'
+    };
+    const initialState = navigation.location && navigation.location.href
+      ? parseUrlState(navigation.location.href, defaults, calculator)
+      : defaults;
+
+    elements.salaryA.value = initialState.salaryA;
+    elements.salaryB.value = initialState.salaryB;
     const expenseState = calculator.createExpenseLinkState(
-      elements.expenseA.value,
-      elements.expenseB.value
+      initialState.expenseA,
+      initialState.expenseB,
+      initialState.locked
     );
     const periodFields = [
       ['month', elements.monthA, elements.monthB],
@@ -143,7 +161,7 @@
 
       if (!result.valid) {
         renderInvalid(result);
-        return;
+        return result;
       }
 
       periodFields.forEach(([period, fieldA, fieldB]) => {
@@ -165,16 +183,46 @@
         ? '已入不敷出'
         : '';
       renderConclusion(calculator.buildConclusion(result));
+
+      return result;
+    }
+
+    function syncUrl(result) {
+      if (
+        !result.valid
+        || !navigation.location
+        || !navigation.location.href
+        || !navigation.history
+        || typeof navigation.history.replaceState !== 'function'
+      ) {
+        return;
+      }
+
+      const lockState = expenseState.get();
+      const nextUrl = buildShareUrl(navigation.location.href, {
+        salaryA: elements.salaryA.value,
+        salaryB: elements.salaryB.value,
+        expenseA: elements.expenseA.value,
+        expenseB: elements.expenseB.value,
+        locked: lockState.locked
+      });
+      navigation.history.replaceState(null, '', nextUrl);
+    }
+
+    function renderAndSync() {
+      const result = render();
+      syncUrl(result);
+      return result;
     }
 
     function updateExpense(side, value) {
       const state = expenseState.set(side, value);
       renderLockState(state);
-      render();
+      renderAndSync();
     }
 
-    elements.salaryA.addEventListener('input', render);
-    elements.salaryB.addEventListener('input', render);
+    elements.salaryA.addEventListener('input', renderAndSync);
+    elements.salaryB.addEventListener('input', renderAndSync);
     elements.expenseA.addEventListener('input', (event) => {
       updateExpense('a', event.target.value);
     });
@@ -183,11 +231,11 @@
     });
     elements.expenseLock.addEventListener('click', () => {
       renderLockState(expenseState.toggle());
-      render();
+      renderAndSync();
     });
 
     renderLockState(expenseState.get());
-    render();
+    renderAndSync();
 
     return {
       render

@@ -279,9 +279,35 @@ function makeElement(value = '') {
     setAttribute(name, nextValue) {
       this.attributes[name] = String(nextValue);
     },
+    getAttribute(name) {
+      return this.attributes[name] || null;
+    },
     dispatch(type) {
       listeners[type]({ target: this });
     }
+  };
+}
+
+function makeNavigation(href) {
+  const location = {
+    href
+  };
+  const replaceCalls = [];
+  const pushCalls = [];
+
+  return {
+    location,
+    history: {
+      replaceState(state, title, nextUrl) {
+        replaceCalls.push(nextUrl);
+        location.href = nextUrl;
+      },
+      pushState(state, title, nextUrl) {
+        pushCalls.push(nextUrl);
+      }
+    },
+    replaceCalls,
+    pushCalls
   };
 }
 
@@ -376,6 +402,62 @@ function testLiveControllerAndExpenseLock() {
   assert.strictEqual(doc.elements.statusA.textContent, '已入不敷出');
 }
 
+function testControllerRestoresAndSynchronizesUrlState() {
+  const doc = makeDocument();
+  const navigation = makeNavigation(
+    'https://example.test/tool?salaryA=6000&salaryB=12000&expenseA=2500&expenseB=1800&locked=0&campaign=demo#result'
+  );
+
+  app.initialize(doc, calculator, navigation);
+  assert.strictEqual(doc.elements.salaryA.value, '6000');
+  assert.strictEqual(doc.elements.salaryB.value, '12000');
+  assert.strictEqual(doc.elements.expenseA.value, '2500');
+  assert.strictEqual(doc.elements.expenseB.value, '1800');
+  assert.strictEqual(
+    doc.elements.expenseLock.attributes['aria-pressed'],
+    'false'
+  );
+  assert.strictEqual(navigation.replaceCalls.length, 1);
+  assert.strictEqual(navigation.pushCalls.length, 0);
+
+  doc.elements.salaryA.value = '7000';
+  doc.elements.salaryA.dispatch('input');
+  assert.strictEqual(
+    new URL(navigation.location.href).searchParams.get('salaryA'),
+    '7000'
+  );
+  assert.strictEqual(navigation.replaceCalls.length, 2);
+
+  doc.elements.salaryA.value = '';
+  doc.elements.salaryA.dispatch('input');
+  assert.strictEqual(navigation.replaceCalls.length, 2);
+
+  doc.elements.salaryA.value = '7200';
+  doc.elements.salaryA.dispatch('input');
+  assert.strictEqual(navigation.replaceCalls.length, 3);
+
+  doc.elements.expenseLock.dispatch('click');
+  const lockedUrl = new URL(navigation.location.href);
+  assert.strictEqual(doc.elements.expenseB.value, '2500');
+  assert.strictEqual(lockedUrl.searchParams.get('expenseB'), '2500');
+  assert.strictEqual(lockedUrl.searchParams.get('locked'), '1');
+  assert.strictEqual(lockedUrl.searchParams.get('campaign'), 'demo');
+  assert.strictEqual(lockedUrl.hash, '#result');
+  assert.strictEqual(navigation.pushCalls.length, 0);
+
+  const lockedDoc = makeDocument();
+  const lockedNavigation = makeNavigation(
+    'https://example.test/tool?expenseA=3200&expenseB=900&locked=1'
+  );
+  app.initialize(lockedDoc, calculator, lockedNavigation);
+  assert.strictEqual(lockedDoc.elements.expenseA.value, '3200');
+  assert.strictEqual(lockedDoc.elements.expenseB.value, '3200');
+  assert.strictEqual(
+    lockedDoc.elements.expenseLock.attributes['aria-pressed'],
+    'true'
+  );
+}
+
 function testPageContractAndHomepageEntry() {
   assert.ok(fs.existsSync(pagePath), 'calculator page should exist');
 
@@ -427,6 +509,7 @@ function run() {
   testExpenseLinkState();
   testUrlStateParsingAndBuilding();
   testLiveControllerAndExpenseLock();
+  testControllerRestoresAndSynchronizesUrlState();
   testPageContractAndHomepageEntry();
   console.log('salary gap calculator tests passed');
 }
