@@ -11,6 +11,7 @@ const homepagePath = path.join(repoRoot, 'index.html');
 
 assert.ok(fs.existsSync(corePath), 'calculator.js should exist');
 const calculator = require(corePath);
+const app = require(appPath);
 
 function testDefaultScenario() {
   const result = calculator.calculateScenario({
@@ -203,6 +204,64 @@ function testExpenseLinkState() {
   });
 }
 
+function testUrlStateParsingAndBuilding() {
+  const defaults = {
+    salaryA: '5000',
+    salaryB: '10000',
+    expenseA: '4000',
+    expenseB: '4000',
+    locked: true
+  };
+
+  assert.deepStrictEqual(
+    app.parseUrlState(
+      'https://example.test/tool?salaryA=6200.5&salaryB=13000&expenseA=3000&expenseB=2800&locked=0',
+      defaults,
+      calculator
+    ),
+    {
+      salaryA: '6200.5',
+      salaryB: '13000',
+      expenseA: '3000',
+      expenseB: '2800',
+      locked: false
+    }
+  );
+
+  assert.deepStrictEqual(
+    app.parseUrlState(
+      'https://example.test/tool?salaryA=bad&salaryB=12000&expenseA=1.234&locked=other',
+      defaults,
+      calculator
+    ),
+    {
+      salaryA: '5000',
+      salaryB: '12000',
+      expenseA: '4000',
+      expenseB: '4000',
+      locked: true
+    }
+  );
+
+  const shareUrl = new URL(app.buildShareUrl(
+    'https://example.test/tool?campaign=demo#result',
+    {
+      salaryA: '6200.5',
+      salaryB: '13000',
+      expenseA: '3000',
+      expenseB: '2800',
+      locked: false
+    }
+  ));
+  assert.strictEqual(shareUrl.searchParams.get('salaryA'), '6200.5');
+  assert.strictEqual(shareUrl.searchParams.get('salaryB'), '13000');
+  assert.strictEqual(shareUrl.searchParams.get('expenseA'), '3000');
+  assert.strictEqual(shareUrl.searchParams.get('expenseB'), '2800');
+  assert.strictEqual(shareUrl.searchParams.get('locked'), '0');
+  assert.strictEqual(shareUrl.searchParams.get('campaign'), 'demo');
+  assert.strictEqual(shareUrl.hash, '#result');
+}
+
 function makeElement(value = '') {
   const listeners = {};
 
@@ -267,7 +326,6 @@ function makeDocument() {
 
 function testLiveControllerAndExpenseLock() {
   assert.ok(fs.existsSync(appPath), 'app.js should exist');
-  const app = require(appPath);
   const doc = makeDocument();
 
   app.initialize(doc, calculator);
@@ -367,6 +425,7 @@ function run() {
   testDefaultComparisonAndFormatting();
   testComparisonEdgeCases();
   testExpenseLinkState();
+  testUrlStateParsingAndBuilding();
   testLiveControllerAndExpenseLock();
   testPageContractAndHomepageEntry();
   console.log('salary gap calculator tests passed');

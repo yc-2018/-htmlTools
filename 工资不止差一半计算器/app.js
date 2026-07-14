@@ -37,6 +37,47 @@
     'ratioEmphasis',
     'factSuffix'
   ];
+  const urlMoneyKeys = [
+    'salaryA',
+    'salaryB',
+    'expenseA',
+    'expenseB'
+  ];
+
+  function parseUrlState(urlLike, defaults, calculator) {
+    const url = new URL(urlLike, 'http://localhost/');
+    const state = {
+      ...defaults
+    };
+
+    urlMoneyKeys.forEach((key) => {
+      const rawValue = url.searchParams.get(key);
+      if (
+        rawValue !== null
+        && calculator.parseMoney(rawValue) !== null
+      ) {
+        state[key] = rawValue;
+      }
+    });
+
+    const lockedValue = url.searchParams.get('locked');
+    if (lockedValue === '0' || lockedValue === '1') {
+      state.locked = lockedValue === '1';
+    }
+
+    return state;
+  }
+
+  function buildShareUrl(urlLike, state) {
+    const url = new URL(urlLike, 'http://localhost/');
+
+    urlMoneyKeys.forEach((key) => {
+      url.searchParams.set(key, state[key]);
+    });
+    url.searchParams.set('locked', state.locked ? '1' : '0');
+
+    return url.href;
+  }
 
   function initialize(doc, calculator) {
     const elements = Object.fromEntries(
@@ -154,6 +195,8 @@
   }
 
   return {
-    initialize
+    initialize,
+    parseUrlState,
+    buildShareUrl
   };
 }));
