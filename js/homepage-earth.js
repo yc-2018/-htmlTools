@@ -41,6 +41,9 @@
     oceanNightTintColor: 0x294c5a,
     oceanNightTintStrength: 0.78,
     oceanNightTintCurve: 0.65,
+    oceanDayBrightness: 1.08,
+    landDayTintColor: 0xc2c9cc,
+    landDayTintStrength: 0.42,
     sunlightDirection: Object.freeze({ x: 0.8, y: 0.35, z: 0.7 }),
     sunlightNightBrightness: 0.45,
     sunlightDayBrightness: 1.18,
@@ -66,7 +69,7 @@
     trailPointSizePx: 2.1,
     chinaPointColor: 0xd94f5c,
     chinaPointSizePx: 2.1,
-    chinaPointOpacity: 0.9
+    chinaPointOpacity: 0.72
   });
 
   const orbitBands = Object.freeze([
@@ -232,6 +235,10 @@
         : config.desktopSatelliteCount,
       pointerParallax: !isMobile
     };
+  }
+
+  function getDefaultSunlightEnabled(viewportWidth) {
+    return viewportWidth >= config.mobileBreakpoint;
   }
 
   function getPointCloudSettings(viewportWidth) {
@@ -491,12 +498,12 @@
     return enabled
       ? {
         pressed: 'true',
-        label: '☀ 阳光：开',
+        label: '',
         ariaLabel: '关闭地球阳光'
       }
       : {
         pressed: 'false',
-        label: '☀ 阳光：关',
+        label: '',
         ariaLabel: '开启地球阳光'
       };
   }
@@ -517,23 +524,32 @@
       config.sunlightDirection.z
     ).normalize();
     const sunlightEnabledUniform = options.sunlightEnabledUniform || { value: 1 };
+    const dayBrightness = typeof options.dayBrightness === 'number'
+      ? options.dayBrightness
+      : config.sunlightDayBrightness;
     const nightTintColor = new THREE.Color(
       typeof options.nightTintColor === 'number' ? options.nightTintColor : 0x000000
     );
     const nightTintStrength = options.nightTintStrength || 0;
     const nightTintCurve = options.nightTintCurve || 1;
+    const dayTintColor = new THREE.Color(
+      typeof options.dayTintColor === 'number' ? options.dayTintColor : 0x000000
+    );
+    const dayTintStrength = options.dayTintStrength || 0;
 
     material.name = options.name || 'earth-point-sunlight';
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uSunDirection = { value: sunDirection };
       shader.uniforms.uNightBrightness = { value: config.sunlightNightBrightness };
-      shader.uniforms.uDayBrightness = { value: config.sunlightDayBrightness };
+      shader.uniforms.uDayBrightness = { value: dayBrightness };
       shader.uniforms.uTwilightStart = { value: config.sunlightTwilightStart };
       shader.uniforms.uTwilightEnd = { value: config.sunlightTwilightEnd };
       shader.uniforms.uSunlightEnabled = sunlightEnabledUniform;
       shader.uniforms.uNightTintColor = { value: nightTintColor };
       shader.uniforms.uNightTintStrength = { value: nightTintStrength };
       shader.uniforms.uNightTintCurve = { value: nightTintCurve };
+      shader.uniforms.uDayTintColor = { value: dayTintColor };
+      shader.uniforms.uDayTintStrength = { value: dayTintStrength };
       shader.vertexShader = `
 uniform vec3 uSunDirection;
 uniform float uNightBrightness;
@@ -556,6 +572,8 @@ uniform float uSunlightEnabled;
 uniform vec3 uNightTintColor;
 uniform float uNightTintStrength;
 uniform float uNightTintCurve;
+uniform vec3 uDayTintColor;
+uniform float uDayTintStrength;
 varying float vSunlightBrightness;
 varying float vSunlightMix;
 ${shader.fragmentShader}
@@ -564,10 +582,12 @@ ${shader.fragmentShader}
 float nightTintProgress = pow(max(0.0, 1.0 - vSunlightMix), uNightTintCurve);
 float nightTintMix = nightTintProgress * uNightTintStrength * uSunlightEnabled;
 diffuseColor.rgb = mix(diffuseColor.rgb, uNightTintColor, nightTintMix);
+float dayTintMix = vSunlightMix * uDayTintStrength * uSunlightEnabled;
+diffuseColor.rgb = mix(diffuseColor.rgb, uDayTintColor, dayTintMix);
 diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
 `);
     };
-    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v4';
+    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v5';
 
     return material;
   }
@@ -825,7 +845,9 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
     const globeGroup = new THREE.Group();
     const satellitesGroup = new THREE.Group();
     const moonOrbitGroup = new THREE.Group();
-    const sunlightEnabledUniform = { value: 1 };
+    const sunlightEnabledUniform = {
+      value: getDefaultSunlightEnabled(window.innerWidth) ? 1 : 0
+    };
     const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 };
     const clock = new THREE.Clock();
     const satellites = [];
@@ -938,14 +960,20 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
         {
           nightTintColor: config.oceanNightTintColor,
           nightTintStrength: config.oceanNightTintStrength,
-          nightTintCurve: config.oceanNightTintCurve
+          nightTintCurve: config.oceanNightTintCurve,
+          dayBrightness: config.oceanDayBrightness
         }
       ));
       globeGroup.add(createPoints(
         landPositions,
         0x747a7d,
         pointCloudSettings.landPointSizePx,
-        config.landPointOpacity
+        config.landPointOpacity,
+        null,
+        {
+          dayTintColor: config.landDayTintColor,
+          dayTintStrength: config.landDayTintStrength
+        }
       ));
       globeGroup.add(createPoints(
         chinaPositions,
@@ -982,9 +1010,12 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
           vertexColors: Boolean(colors),
           opacity,
           sunlightEnabledUniform,
+          dayBrightness: sunlightOptions.dayBrightness,
           nightTintColor: sunlightOptions.nightTintColor,
           nightTintStrength: sunlightOptions.nightTintStrength,
-          nightTintCurve: sunlightOptions.nightTintCurve
+          nightTintCurve: sunlightOptions.nightTintCurve,
+          dayTintColor: sunlightOptions.dayTintColor,
+          dayTintStrength: sunlightOptions.dayTintStrength
         })
       );
     }
@@ -1288,6 +1319,7 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
     config,
     easeOutCubic,
     getDeviceSettings,
+    getDefaultSunlightEnabled,
     getPointCloudSettings,
     getSceneMetrics,
     getIntroDiameter,

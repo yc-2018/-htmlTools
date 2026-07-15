@@ -78,6 +78,10 @@ function testSunlightConfigurationMatchesApprovedDesign() {
   assert.strictEqual(earth.config.oceanNightTintColor, 0x294c5a);
   assert.strictEqual(earth.config.oceanNightTintStrength, 0.78);
   assert.strictEqual(earth.config.oceanNightTintCurve, 0.65);
+  assert.strictEqual(earth.config.oceanDayBrightness, 1.08);
+  assert.strictEqual(earth.config.landDayTintColor, 0xc2c9cc);
+  assert.strictEqual(earth.config.landDayTintStrength, 0.42);
+  assert.strictEqual(earth.config.chinaPointOpacity, 0.72);
   assert.strictEqual(earth.config.sunlightTwilightStart, -0.25);
   assert.strictEqual(earth.config.sunlightTwilightEnd, 0.35);
 }
@@ -139,24 +143,49 @@ function testSunlightToggleDefaultsOnAndDescribesBothStates() {
   assert.ok(buttonMarkup.includes('aria-pressed="true"'));
   assert.ok(buttonMarkup.includes('aria-label="关闭地球阳光"'));
   assert.ok(buttonMarkup.includes('hidden'));
-  assert.ok(buttonMarkup.includes('☀ 阳光：开'));
+  assert.strictEqual(
+    buttonMarkup.replace(/<[^>]+>/g, '').trim(),
+    '',
+    'the corner control should have no visible text or icon'
+  );
   assert.deepStrictEqual(enabled, {
     pressed: 'true',
-    label: '☀ 阳光：开',
+    label: '',
     ariaLabel: '关闭地球阳光'
   });
   assert.deepStrictEqual(disabled, {
     pressed: 'false',
-    label: '☀ 阳光：关',
+    label: '',
     ariaLabel: '开启地球阳光'
   });
 }
 
+function testSunlightDefaultsOffOnMobileAndOnOnDesktop() {
+  assert.strictEqual(typeof earth.getDefaultSunlightEnabled, 'function');
+  assert.strictEqual(earth.getDefaultSunlightEnabled(480), false);
+  assert.strictEqual(earth.getDefaultSunlightEnabled(767), false);
+  assert.strictEqual(earth.getDefaultSunlightEnabled(768), true);
+  assert.strictEqual(earth.getDefaultSunlightEnabled(1280), true);
+  assert.ok(scriptSource.includes(
+    'value: getDefaultSunlightEnabled(window.innerWidth) ? 1 : 0'
+  ));
+}
+
 function testSunlightToggleStaysFixedAndSameSizeOnMobile() {
+  const toggleStyle = stylesheetSource.match(
+    /\.homepage-earth-sunlight-toggle\s*\{[^}]+\}/s
+  )[0];
+  const enabledStyle = stylesheetSource.match(
+    /\.homepage-earth-sunlight-toggle\[aria-pressed="true"\]\s*\{[^}]+\}/s
+  )[0];
+
   assert.ok(
-    /\.homepage-earth-sunlight-toggle\s*\{[^}]*position:\s*fixed;[^}]*top:\s*12px;[^}]*right:\s*12px;/s
+    /\.homepage-earth-sunlight-toggle\s*\{[^}]*position:\s*fixed;[^}]*top:\s*0;[^}]*right:\s*0;[^}]*width:\s*56px;[^}]*height:\s*56px;/s
       .test(stylesheetSource)
   );
+  assert.ok(stylesheetSource.includes('clip-path: circle(56px at 56px 0);'));
+  assert.ok(!toggleStyle.includes('inset 0 0 0 1px'));
+  assert.ok(!enabledStyle.includes('inset 0 0 0 1px'));
   assert.ok(
     !/@media[^\{]*\([^\)]*max-width[\s\S]*homepage-earth-sunlight-toggle/.test(stylesheetSource),
     'mobile styles must not shrink the sunlight toggle'
@@ -171,9 +200,12 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
     opacity: 0.52,
     vertexColors: false,
     sunlightEnabledUniform,
+    dayBrightness: 1.08,
     nightTintColor: 0x294c5a,
     nightTintStrength: 0.78,
-    nightTintCurve: 0.65
+    nightTintCurve: 0.65,
+    dayTintColor: 0xc2c9cc,
+    dayTintStrength: 0.42
   });
   const shader = createShaderStub();
 
@@ -191,11 +223,13 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   assert.ok(shader.uniforms.uSunDirection.value.y > 0, 'sun should come from screen top');
   assert.ok(shader.uniforms.uSunDirection.value.z > 0, 'sun should point toward the viewer');
   assert.strictEqual(shader.uniforms.uNightBrightness.value, 0.45);
-  assert.strictEqual(shader.uniforms.uDayBrightness.value, 1.18);
+  assert.strictEqual(shader.uniforms.uDayBrightness.value, 1.08);
   assert.strictEqual(shader.uniforms.uSunlightEnabled, sunlightEnabledUniform);
   assert.strictEqual(shader.uniforms.uNightTintColor.value.getHex(), 0x294c5a);
   assert.strictEqual(shader.uniforms.uNightTintStrength.value, 0.78);
   assert.strictEqual(shader.uniforms.uNightTintCurve.value, 0.65);
+  assert.strictEqual(shader.uniforms.uDayTintColor.value.getHex(), 0xc2c9cc);
+  assert.strictEqual(shader.uniforms.uDayTintStrength.value, 0.42);
   assert.ok(shader.vertexShader.includes('mat3(modelMatrix) * normalize(position)'));
   assert.ok(shader.vertexShader.includes('smoothstep(uTwilightStart, uTwilightEnd, sunlightDot)'));
   assert.ok(shader.vertexShader.includes('vSunlightMix = sunlightMix;'));
@@ -207,6 +241,12 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   ));
   assert.ok(shader.fragmentShader.includes(
     'diffuseColor.rgb = mix(diffuseColor.rgb, uNightTintColor, nightTintMix);'
+  ));
+  assert.ok(shader.fragmentShader.includes(
+    'float dayTintMix = vSunlightMix * uDayTintStrength * uSunlightEnabled;'
+  ));
+  assert.ok(shader.fragmentShader.includes(
+    'diffuseColor.rgb = mix(diffuseColor.rgb, uDayTintColor, dayTintMix);'
   ));
   assert.ok(shader.fragmentShader.includes(
     'diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);'
@@ -247,6 +287,9 @@ function testSunlightMaterialStaysScopedToEarthAndMoon() {
   assert.ok(scriptSource.includes('nightTintColor: config.oceanNightTintColor'));
   assert.ok(scriptSource.includes('nightTintStrength: config.oceanNightTintStrength'));
   assert.ok(scriptSource.includes('nightTintCurve: config.oceanNightTintCurve'));
+  assert.ok(scriptSource.includes('dayBrightness: config.oceanDayBrightness'));
+  assert.ok(scriptSource.includes('dayTintColor: config.landDayTintColor'));
+  assert.ok(scriptSource.includes('dayTintStrength: config.landDayTintStrength'));
 }
 
 function run() {
@@ -255,6 +298,7 @@ function run() {
   testDesktopPointCloudCompensatesForTheLargerGlobe();
   testSunlightBrightnessStaysWithinApprovedBounds();
   testSunlightToggleDefaultsOnAndDescribesBothStates();
+  testSunlightDefaultsOffOnMobileAndOnOnDesktop();
   testSunlightToggleStaysFixedAndSameSizeOnMobile();
   testEarthPointMaterialInjectsWorldSpaceSunlight();
   testMoonUsesTheSharedSunlightToggle();

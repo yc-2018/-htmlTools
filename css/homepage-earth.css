@@ -28,40 +28,35 @@ hr {
 .homepage-earth-sunlight-toggle {
   position: fixed;
   z-index: 2;
-  top: 12px;
-  right: 12px;
-  min-height: 40px;
-  padding: 8px 12px;
-  border: 1px solid rgba(101, 109, 113, 0.42);
-  border-radius: 999px;
-  color: #50585c;
+  top: 0;
+  right: 0;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
   background: rgba(235, 238, 239, 0.92);
-  box-shadow: 0 4px 14px rgba(62, 69, 72, 0.12);
-  font: 600 13px/1 system-ui, sans-serif;
+  box-shadow: -4px 4px 14px rgba(62, 69, 72, 0.14);
   cursor: pointer;
   backdrop-filter: blur(8px);
+  clip-path: circle(56px at 56px 0);
   transition:
-    color 160ms ease,
     background-color 160ms ease,
-    border-color 160ms ease,
     box-shadow 160ms ease,
-    transform 160ms ease;
+    filter 160ms ease;
 }
 
 .homepage-earth-sunlight-toggle[aria-pressed="true"] {
-  border-color: rgba(181, 145, 49, 0.62);
-  color: #65531f;
   background: rgba(255, 244, 197, 0.94);
-  box-shadow: 0 4px 16px rgba(181, 145, 49, 0.2);
+  box-shadow: -4px 4px 16px rgba(181, 145, 49, 0.22);
 }
 
 .homepage-earth-sunlight-toggle:hover {
-  transform: translateY(-1px);
+  filter: brightness(0.97);
 }
 
 .homepage-earth-sunlight-toggle:focus-visible {
-  outline: 2px solid #4f8ba2;
-  outline-offset: 2px;
+  outline: 0;
+  filter: drop-shadow(0 0 4px rgba(79, 139, 162, 0.9));
 }
 
 a {
