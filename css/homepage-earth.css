@@ -99,6 +99,16 @@ a::after {
     opacity 120ms ease;
 }
 
+.ai-qrcode-link{
+    font-size: 30px;
+    font-weight: bold;
+}
+@media (max-width: 768px) {
+    .ai-qrcode-link {
+        font-size: 14px !important;
+    }
+}
+
 @media (hover: hover) {
   a:hover {
     color: #4d5457;
