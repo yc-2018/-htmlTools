@@ -40,6 +40,7 @@
     oceanBlueColor: 0x4fa6c8,
     oceanNightTintColor: 0x294c5a,
     oceanNightTintStrength: 0.78,
+    oceanNightTintCurve: 0.65,
     sunlightDirection: Object.freeze({ x: 0.8, y: 0.35, z: 0.7 }),
     sunlightNightBrightness: 0.45,
     sunlightDayBrightness: 1.18,
@@ -520,6 +521,7 @@
       typeof options.nightTintColor === 'number' ? options.nightTintColor : 0x000000
     );
     const nightTintStrength = options.nightTintStrength || 0;
+    const nightTintCurve = options.nightTintCurve || 1;
 
     material.name = options.name || 'earth-point-sunlight';
     material.onBeforeCompile = (shader) => {
@@ -531,6 +533,7 @@
       shader.uniforms.uSunlightEnabled = sunlightEnabledUniform;
       shader.uniforms.uNightTintColor = { value: nightTintColor };
       shader.uniforms.uNightTintStrength = { value: nightTintStrength };
+      shader.uniforms.uNightTintCurve = { value: nightTintCurve };
       shader.vertexShader = `
 uniform vec3 uSunDirection;
 uniform float uNightBrightness;
@@ -552,17 +555,19 @@ vSunlightMix = sunlightMix;
 uniform float uSunlightEnabled;
 uniform vec3 uNightTintColor;
 uniform float uNightTintStrength;
+uniform float uNightTintCurve;
 varying float vSunlightBrightness;
 varying float vSunlightMix;
 ${shader.fragmentShader}
 `.replace('#include <color_fragment>', `
 #include <color_fragment>
-float nightTintMix = (1.0 - vSunlightMix) * uNightTintStrength * uSunlightEnabled;
+float nightTintProgress = pow(max(0.0, 1.0 - vSunlightMix), uNightTintCurve);
+float nightTintMix = nightTintProgress * uNightTintStrength * uSunlightEnabled;
 diffuseColor.rgb = mix(diffuseColor.rgb, uNightTintColor, nightTintMix);
 diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
 `);
     };
-    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v3';
+    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v4';
 
     return material;
   }
@@ -932,7 +937,8 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
         oceanColors,
         {
           nightTintColor: config.oceanNightTintColor,
-          nightTintStrength: config.oceanNightTintStrength
+          nightTintStrength: config.oceanNightTintStrength,
+          nightTintCurve: config.oceanNightTintCurve
         }
       ));
       globeGroup.add(createPoints(
@@ -977,7 +983,8 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
           opacity,
           sunlightEnabledUniform,
           nightTintColor: sunlightOptions.nightTintColor,
-          nightTintStrength: sunlightOptions.nightTintStrength
+          nightTintStrength: sunlightOptions.nightTintStrength,
+          nightTintCurve: sunlightOptions.nightTintCurve
         })
       );
     }

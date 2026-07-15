@@ -77,6 +77,7 @@ function testSunlightConfigurationMatchesApprovedDesign() {
   assert.strictEqual(earth.config.sunlightDayBrightness, 1.18);
   assert.strictEqual(earth.config.oceanNightTintColor, 0x294c5a);
   assert.strictEqual(earth.config.oceanNightTintStrength, 0.78);
+  assert.strictEqual(earth.config.oceanNightTintCurve, 0.65);
   assert.strictEqual(earth.config.sunlightTwilightStart, -0.25);
   assert.strictEqual(earth.config.sunlightTwilightEnd, 0.35);
 }
@@ -171,7 +172,8 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
     vertexColors: false,
     sunlightEnabledUniform,
     nightTintColor: 0x294c5a,
-    nightTintStrength: 0.78
+    nightTintStrength: 0.78,
+    nightTintCurve: 0.65
   });
   const shader = createShaderStub();
 
@@ -193,11 +195,15 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   assert.strictEqual(shader.uniforms.uSunlightEnabled, sunlightEnabledUniform);
   assert.strictEqual(shader.uniforms.uNightTintColor.value.getHex(), 0x294c5a);
   assert.strictEqual(shader.uniforms.uNightTintStrength.value, 0.78);
+  assert.strictEqual(shader.uniforms.uNightTintCurve.value, 0.65);
   assert.ok(shader.vertexShader.includes('mat3(modelMatrix) * normalize(position)'));
   assert.ok(shader.vertexShader.includes('smoothstep(uTwilightStart, uTwilightEnd, sunlightDot)'));
   assert.ok(shader.vertexShader.includes('vSunlightMix = sunlightMix;'));
   assert.ok(shader.fragmentShader.includes(
-    'float nightTintMix = (1.0 - vSunlightMix) * uNightTintStrength * uSunlightEnabled;'
+    'pow(max(0.0, 1.0 - vSunlightMix), uNightTintCurve)'
+  ));
+  assert.ok(shader.fragmentShader.includes(
+    'float nightTintMix = nightTintProgress * uNightTintStrength * uSunlightEnabled;'
   ));
   assert.ok(shader.fragmentShader.includes(
     'diffuseColor.rgb = mix(diffuseColor.rgb, uNightTintColor, nightTintMix);'
@@ -240,6 +246,7 @@ function testSunlightMaterialStaysScopedToEarthAndMoon() {
   assert.ok(scriptSource.includes('createMoonModel(THREE, sunlightEnabledUniform)'));
   assert.ok(scriptSource.includes('nightTintColor: config.oceanNightTintColor'));
   assert.ok(scriptSource.includes('nightTintStrength: config.oceanNightTintStrength'));
+  assert.ok(scriptSource.includes('nightTintCurve: config.oceanNightTintCurve'));
 }
 
 function run() {
