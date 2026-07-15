@@ -3,7 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..');
+const homepagePath = path.join(repoRoot, 'index.html');
+const stylesheetPath = path.join(repoRoot, 'css', 'homepage-earth.css');
 const scriptPath = path.join(repoRoot, 'js', 'homepage-earth.js');
+const homepageSource = fs.readFileSync(homepagePath, 'utf8');
+const stylesheetSource = fs.readFileSync(stylesheetPath, 'utf8');
 const scriptSource = fs.readFileSync(scriptPath, 'utf8');
 const earth = require(path.join(repoRoot, 'js', 'homepage-earth.js'));
 const THREE = require(path.join(repoRoot, 'js', 'vendor', 'three-r128.min.js'));
@@ -98,12 +102,52 @@ function testSunlightBrightnessStaysWithinApprovedBounds() {
   assert.strictEqual(earth.getSunlightBrightness(1), 1.1);
 }
 
+function testSunlightToggleDefaultsOnAndDescribesBothStates() {
+  const buttonMatch = homepageSource.match(
+    /<button[^>]+id="homepage-earth-sunlight-toggle"[\s\S]+?<\/button>/
+  );
+
+  assert.ok(buttonMatch, 'homepage should include the sunlight toggle button');
+  const buttonMarkup = buttonMatch[0];
+  const enabled = earth.getSunlightTogglePresentation(true);
+  const disabled = earth.getSunlightTogglePresentation(false);
+
+  assert.ok(buttonMarkup.includes('type="button"'));
+  assert.ok(buttonMarkup.includes('aria-pressed="true"'));
+  assert.ok(buttonMarkup.includes('aria-label="关闭地球阳光"'));
+  assert.ok(buttonMarkup.includes('hidden'));
+  assert.ok(buttonMarkup.includes('☀ 阳光：开'));
+  assert.deepStrictEqual(enabled, {
+    pressed: 'true',
+    label: '☀ 阳光：开',
+    ariaLabel: '关闭地球阳光'
+  });
+  assert.deepStrictEqual(disabled, {
+    pressed: 'false',
+    label: '☀ 阳光：关',
+    ariaLabel: '开启地球阳光'
+  });
+}
+
+function testSunlightToggleStaysFixedAndSameSizeOnMobile() {
+  assert.ok(
+    /\.homepage-earth-sunlight-toggle\s*\{[^}]*position:\s*fixed;[^}]*top:\s*12px;[^}]*right:\s*12px;/s
+      .test(stylesheetSource)
+  );
+  assert.ok(
+    !/@media[^\{]*\([^\)]*max-width[\s\S]*homepage-earth-sunlight-toggle/.test(stylesheetSource),
+    'mobile styles must not shrink the sunlight toggle'
+  );
+}
+
 function testEarthPointMaterialInjectsWorldSpaceSunlight() {
+  const sunlightEnabledUniform = { value: 1 };
   const material = earth.createEarthPointMaterial(THREE, {
     color: 0x747a7d,
     size: 1.75,
     opacity: 0.52,
-    vertexColors: false
+    vertexColors: false,
+    sunlightEnabledUniform
   });
   const shader = createShaderStub();
 
@@ -122,9 +166,12 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   assert.ok(shader.uniforms.uSunDirection.value.z > 0, 'sun should point toward the viewer');
   assert.strictEqual(shader.uniforms.uNightBrightness.value, 0.76);
   assert.strictEqual(shader.uniforms.uDayBrightness.value, 1.1);
+  assert.strictEqual(shader.uniforms.uSunlightEnabled, sunlightEnabledUniform);
   assert.ok(shader.vertexShader.includes('mat3(modelMatrix) * normalize(position)'));
   assert.ok(shader.vertexShader.includes('smoothstep(uTwilightStart, uTwilightEnd, sunlightDot)'));
-  assert.ok(shader.fragmentShader.includes('diffuseColor.rgb *= vSunlightBrightness;'));
+  assert.ok(shader.fragmentShader.includes(
+    'diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);'
+  ));
 }
 
 function testOnlyEarthPointCloudUsesSunlightMaterial() {
@@ -145,6 +192,8 @@ function run() {
   testSunlightConfigurationMatchesApprovedDesign();
   testSunlightDirectionKeepsDayAndNightVisible();
   testSunlightBrightnessStaysWithinApprovedBounds();
+  testSunlightToggleDefaultsOnAndDescribesBothStates();
+  testSunlightToggleStaysFixedAndSameSizeOnMobile();
   testEarthPointMaterialInjectsWorldSpaceSunlight();
   testOnlyEarthPointCloudUsesSunlightMaterial();
   console.log('homepage earth sunlight unit tests passed');

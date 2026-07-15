@@ -463,6 +463,20 @@
         * smoothedProgress;
   }
 
+  function getSunlightTogglePresentation(enabled) {
+    return enabled
+      ? {
+        pressed: 'true',
+        label: '☀ 阳光：开',
+        ariaLabel: '关闭地球阳光'
+      }
+      : {
+        pressed: 'false',
+        label: '☀ 阳光：关',
+        ariaLabel: '开启地球阳光'
+      };
+  }
+
   function createEarthPointMaterial(THREE, options) {
     const material = new THREE.PointsMaterial({
       color: options.color,
@@ -478,6 +492,7 @@
       config.sunlightDirection.y,
       config.sunlightDirection.z
     ).normalize();
+    const sunlightEnabledUniform = options.sunlightEnabledUniform || { value: 1 };
 
     material.name = 'earth-point-sunlight';
     material.onBeforeCompile = (shader) => {
@@ -486,6 +501,7 @@
       shader.uniforms.uDayBrightness = { value: config.sunlightDayBrightness };
       shader.uniforms.uTwilightStart = { value: config.sunlightTwilightStart };
       shader.uniforms.uTwilightEnd = { value: config.sunlightTwilightEnd };
+      shader.uniforms.uSunlightEnabled = sunlightEnabledUniform;
       shader.vertexShader = `
 uniform vec3 uSunDirection;
 uniform float uNightBrightness;
@@ -502,14 +518,15 @@ float sunlightMix = smoothstep(uTwilightStart, uTwilightEnd, sunlightDot);
 vSunlightBrightness = mix(uNightBrightness, uDayBrightness, sunlightMix);
 `);
       shader.fragmentShader = `
+uniform float uSunlightEnabled;
 varying float vSunlightBrightness;
 ${shader.fragmentShader}
 `.replace('#include <color_fragment>', `
 #include <color_fragment>
-diffuseColor.rgb *= vSunlightBrightness;
+diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
 `);
     };
-    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v1';
+    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v2';
 
     return material;
   }
@@ -746,6 +763,7 @@ diffuseColor.rgb *= vSunlightBrightness;
 
   function initScene(window, document, THREE) {
     const canvas = document.getElementById('homepage-earth-background');
+    const sunlightToggle = document.getElementById('homepage-earth-sunlight-toggle');
 
     if (!canvas || !THREE || !window.WebGLRenderingContext) {
       document.documentElement.classList.add('earth-background-fallback');
@@ -772,6 +790,7 @@ diffuseColor.rgb *= vSunlightBrightness;
     const globeGroup = new THREE.Group();
     const satellitesGroup = new THREE.Group();
     const moonOrbitGroup = new THREE.Group();
+    const sunlightEnabledUniform = { value: 1 };
     const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 };
     const clock = new THREE.Clock();
     const satellites = [];
@@ -916,8 +935,28 @@ diffuseColor.rgb *= vSunlightBrightness;
           size,
           vertexColors: Boolean(colors),
           opacity,
+          sunlightEnabledUniform
         })
       );
+    }
+
+    function updateSunlightToggle() {
+      if (!sunlightToggle) {
+        return;
+      }
+
+      const presentation = getSunlightTogglePresentation(
+        sunlightEnabledUniform.value === 1
+      );
+      sunlightToggle.setAttribute('aria-pressed', presentation.pressed);
+      sunlightToggle.setAttribute('aria-label', presentation.ariaLabel);
+      sunlightToggle.textContent = presentation.label;
+    }
+
+    function handleSunlightToggle() {
+      sunlightEnabledUniform.value = sunlightEnabledUniform.value === 1 ? 0 : 1;
+      updateSunlightToggle();
+      render();
     }
 
     function clearGroup(group) {
@@ -1179,6 +1218,12 @@ diffuseColor.rgb *= vSunlightBrightness;
     canvas.addEventListener('webglcontextlost', handleContextLost, false);
     canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
 
+    if (sunlightToggle) {
+      updateSunlightToggle();
+      sunlightToggle.hidden = false;
+      sunlightToggle.addEventListener('click', handleSunlightToggle);
+    }
+
     resize();
     introStartTime = 0;
     startAnimation();
@@ -1208,6 +1253,7 @@ diffuseColor.rgb *= vSunlightBrightness;
     createMoonOrbitPoints,
     getMoonPosition,
     getSunlightBrightness,
+    getSunlightTogglePresentation,
     createEarthPointMaterial,
     isLandCoordinate,
     isChinaCoordinate,
