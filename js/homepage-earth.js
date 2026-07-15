@@ -23,7 +23,7 @@
     mobileBreakpoint: 768,
     desktopSatelliteCount: 14,
     mobileSatelliteCount: 14,
-    desktopPointCount: 24000,
+    desktopPointCount: 48000,
     mobilePointCount: 14000,
     pointerEase: 0.035,
     landPointRadius: 1.008,
@@ -31,13 +31,16 @@
     depthSphereRadius: 0.986,
     landPointSizePx: 1.75,
     oceanPointSizePx: 1.4,
+    desktopLandPointSizePx: 2,
+    desktopOceanPointSizePx: 1.6,
+    desktopChinaPointSizePx: 2.35,
     landPointOpacity: 0.52,
     oceanPointOpacity: 0.5,
     oceanWhiteColor: 0xcceeff,
     oceanBlueColor: 0x4fa6c8,
-    sunlightDirection: Object.freeze({ x: 0.8, y: 0.35, z: 0.25 }),
-    sunlightNightBrightness: 0.76,
-    sunlightDayBrightness: 1.1,
+    sunlightDirection: Object.freeze({ x: 0.8, y: 0.35, z: 0.7 }),
+    sunlightNightBrightness: 0.45,
+    sunlightDayBrightness: 1.18,
     sunlightTwilightStart: -0.25,
     sunlightTwilightEnd: 0.35,
     orbitBandCount: 4,
@@ -225,6 +228,24 @@
         ? config.mobileSatelliteCount
         : config.desktopSatelliteCount,
       pointerParallax: !isMobile
+    };
+  }
+
+  function getPointCloudSettings(viewportWidth) {
+    if (viewportWidth < config.mobileBreakpoint) {
+      return {
+        pointCount: config.mobilePointCount,
+        landPointSizePx: config.landPointSizePx,
+        oceanPointSizePx: config.oceanPointSizePx,
+        chinaPointSizePx: config.chinaPointSizePx
+      };
+    }
+
+    return {
+      pointCount: config.desktopPointCount,
+      landPointSizePx: config.desktopLandPointSizePx,
+      oceanPointSizePx: config.desktopOceanPointSizePx,
+      chinaPointSizePx: config.desktopChinaPointSizePx
     };
   }
 
@@ -494,7 +515,7 @@
     ).normalize();
     const sunlightEnabledUniform = options.sunlightEnabledUniform || { value: 1 };
 
-    material.name = 'earth-point-sunlight';
+    material.name = options.name || 'earth-point-sunlight';
     material.onBeforeCompile = (shader) => {
       shader.uniforms.uSunDirection = { value: sunDirection };
       shader.uniforms.uNightBrightness = { value: config.sunlightNightBrightness };
@@ -620,16 +641,14 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
     return model;
   }
 
-  function createMoonModel(THREE) {
+  function createMoonModel(THREE, sunlightEnabledUniform = { value: 1 }) {
     const model = new THREE.Group();
     const positions = [];
     const colors = [];
     const pointCount = 980;
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-    const lightDirection = new THREE.Vector3(-0.55, 0.72, 0.9).normalize();
-    const brightColor = new THREE.Color(0xdce5e8);
-    const darkColor = new THREE.Color(0x59656a);
-    const craterColor = new THREE.Color(0x465258);
+    const surfaceColor = new THREE.Color(0xaab5b9);
+    const craterColor = new THREE.Color(0x59656a);
     const craterSpecs = [
       { direction: new THREE.Vector3(0.72, 0.34, 0.61).normalize(), radius: 0.19 },
       { direction: new THREE.Vector3(0.48, -0.46, 0.75).normalize(), radius: 0.14 },
@@ -648,14 +667,10 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
         y,
         Math.sin(angle) * horizontalRadius
       );
-      const illumination = Math.max(0, direction.dot(lightDirection));
-      const shade = 0.18 + illumination * 0.82;
       const isCrater = craterSpecs.some((crater) => (
         direction.angleTo(crater.direction) < crater.radius
       ));
-      const color = isCrater
-        ? craterColor.clone().lerp(darkColor, illumination * 0.35)
-        : darkColor.clone().lerp(brightColor, shade);
+      const color = isCrater ? craterColor : surfaceColor;
 
       positions.push(direction.x, direction.y, direction.z);
       colors.push(color.r, color.g, color.b);
@@ -666,13 +681,13 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     const surface = new THREE.Points(
       geometry,
-      new THREE.PointsMaterial({
+      createEarthPointMaterial(THREE, {
+        color: 0xffffff,
         size: 1.85,
-        sizeAttenuation: true,
         vertexColors: true,
-        transparent: true,
         opacity: 0.88,
-        depthWrite: false
+        sunlightEnabledUniform,
+        name: 'moon-point-sunlight'
       })
     );
     const depthSphere = new THREE.Mesh(
@@ -830,9 +845,8 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
     }
 
     function createPointCloud() {
-      const pointCount = viewportWidth < config.mobileBreakpoint
-        ? config.mobilePointCount
-        : config.desktopPointCount;
+      const pointCloudSettings = getPointCloudSettings(viewportWidth);
+      const pointCount = pointCloudSettings.pointCount;
       const chinaPositions = [];
       const landPositions = [];
       const oceanPositions = [];
@@ -898,20 +912,20 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
       globeGroup.add(createPoints(
         oceanPositions,
         0xffffff,
-        config.oceanPointSizePx,
+        pointCloudSettings.oceanPointSizePx,
         config.oceanPointOpacity,
         oceanColors
       ));
       globeGroup.add(createPoints(
         landPositions,
         0x747a7d,
-        config.landPointSizePx,
+        pointCloudSettings.landPointSizePx,
         config.landPointOpacity
       ));
       globeGroup.add(createPoints(
         chinaPositions,
         config.chinaPointColor,
-        config.chinaPointSizePx,
+        pointCloudSettings.chinaPointSizePx,
         config.chinaPointOpacity
       ));
       globeGroup.rotation.order = 'YXZ';
@@ -1039,7 +1053,7 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
 
     function buildMoon() {
       clearGroup(moonOrbitGroup);
-      moonModel = createMoonModel(THREE);
+      moonModel = createMoonModel(THREE, sunlightEnabledUniform);
       moonOrbitPoints = createMoonOrbitPoints(THREE);
       moonModel.scale.setScalar(viewportWidth < config.mobileBreakpoint
         ? config.mobileMoonRadius
@@ -1239,6 +1253,7 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
     config,
     easeOutCubic,
     getDeviceSettings,
+    getPointCloudSettings,
     getSceneMetrics,
     getIntroDiameter,
     getPointerTarget,

@@ -71,10 +71,10 @@ function testSunlightConfigurationMatchesApprovedDesign() {
   assert.deepStrictEqual(earth.config.sunlightDirection, {
     x: 0.8,
     y: 0.35,
-    z: 0.25
+    z: 0.7
   });
-  assert.strictEqual(earth.config.sunlightNightBrightness, 0.76);
-  assert.strictEqual(earth.config.sunlightDayBrightness, 1.1);
+  assert.strictEqual(earth.config.sunlightNightBrightness, 0.45);
+  assert.strictEqual(earth.config.sunlightDayBrightness, 1.18);
   assert.strictEqual(earth.config.sunlightTwilightStart, -0.25);
   assert.strictEqual(earth.config.sunlightTwilightEnd, 0.35);
 }
@@ -83,23 +83,43 @@ function testSunlightDirectionKeepsDayAndNightVisible() {
   const coverage = getVisibleDiscCoverage(earth.config.sunlightDirection);
 
   assert.ok(
-    coverage.normalizedZ < earth.config.sunlightTwilightEnd,
-    'sun direction should not place the center of the visible disc in full daylight'
+    coverage.normalizedZ > earth.config.sunlightTwilightEnd,
+    'the center of the visible disc should stay in full daylight'
   );
-  assert.ok(coverage.night >= 0.2, 'at least 20% of the visible disc should be fully dark');
-  assert.ok(coverage.day >= 0.35, 'at least 35% of the visible disc should remain fully lit');
+  assert.ok(coverage.night >= 0.07, 'the dark crescent should cover at least 7% of the disc');
+  assert.ok(coverage.night <= 0.12, 'the dark crescent should not spread over the whole disc');
+  assert.ok(coverage.day >= 0.58, 'most of the visible disc should stay fully lit');
+}
+
+function testDesktopPointCloudCompensatesForTheLargerGlobe() {
+  assert.strictEqual(earth.config.desktopPointCount, 48000);
+  assert.strictEqual(earth.config.desktopLandPointSizePx, 2);
+  assert.strictEqual(earth.config.desktopOceanPointSizePx, 1.6);
+  assert.strictEqual(earth.config.desktopChinaPointSizePx, 2.35);
+  assert.deepStrictEqual(earth.getPointCloudSettings(1280), {
+    pointCount: 48000,
+    landPointSizePx: 2,
+    oceanPointSizePx: 1.6,
+    chinaPointSizePx: 2.35
+  });
+  assert.deepStrictEqual(earth.getPointCloudSettings(480), {
+    pointCount: 14000,
+    landPointSizePx: 1.75,
+    oceanPointSizePx: 1.4,
+    chinaPointSizePx: 2.1
+  });
 }
 
 function testSunlightBrightnessStaysWithinApprovedBounds() {
-  assert.strictEqual(earth.getSunlightBrightness(-1), 0.76);
-  assert.strictEqual(earth.getSunlightBrightness(-0.25), 0.76);
+  assert.strictEqual(earth.getSunlightBrightness(-1), 0.45);
+  assert.strictEqual(earth.getSunlightBrightness(-0.25), 0.45);
   assertClose(
     earth.getSunlightBrightness(0.05),
-    0.93,
+    0.815,
     'the midpoint of the twilight band should use the midpoint brightness'
   );
-  assert.strictEqual(earth.getSunlightBrightness(0.35), 1.1);
-  assert.strictEqual(earth.getSunlightBrightness(1), 1.1);
+  assert.strictEqual(earth.getSunlightBrightness(0.35), 1.18);
+  assert.strictEqual(earth.getSunlightBrightness(1), 1.18);
 }
 
 function testSunlightToggleDefaultsOnAndDescribesBothStates() {
@@ -164,8 +184,8 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   assert.ok(shader.uniforms.uSunDirection.value.x > 0, 'sun should come from screen right');
   assert.ok(shader.uniforms.uSunDirection.value.y > 0, 'sun should come from screen top');
   assert.ok(shader.uniforms.uSunDirection.value.z > 0, 'sun should point toward the viewer');
-  assert.strictEqual(shader.uniforms.uNightBrightness.value, 0.76);
-  assert.strictEqual(shader.uniforms.uDayBrightness.value, 1.1);
+  assert.strictEqual(shader.uniforms.uNightBrightness.value, 0.45);
+  assert.strictEqual(shader.uniforms.uDayBrightness.value, 1.18);
   assert.strictEqual(shader.uniforms.uSunlightEnabled, sunlightEnabledUniform);
   assert.ok(shader.vertexShader.includes('mat3(modelMatrix) * normalize(position)'));
   assert.ok(shader.vertexShader.includes('smoothstep(uTwilightStart, uTwilightEnd, sunlightDot)'));
@@ -174,7 +194,23 @@ function testEarthPointMaterialInjectsWorldSpaceSunlight() {
   ));
 }
 
-function testOnlyEarthPointCloudUsesSunlightMaterial() {
+function testMoonUsesTheSharedSunlightToggle() {
+  const sunlightEnabledUniform = { value: 1 };
+  const moon = earth.createMoonModel(THREE, sunlightEnabledUniform);
+  const surface = moon.children.find((child) => child.name === 'moon-surface');
+  const shader = createShaderStub();
+
+  surface.material.onBeforeCompile(shader);
+
+  assert.strictEqual(surface.material.name, 'moon-point-sunlight');
+  assert.strictEqual(shader.uniforms.uSunlightEnabled, sunlightEnabledUniform);
+  assert.ok(shader.vertexShader.includes('mat3(modelMatrix) * normalize(position)'));
+  assert.ok(shader.fragmentShader.includes(
+    'diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);'
+  ));
+}
+
+function testSunlightMaterialStaysScopedToEarthAndMoon() {
   const createPointsBlock = scriptSource.match(
     /function createPoints\([\s\S]+?(?=\n    function clearGroup)/
   )[0];
@@ -185,17 +221,22 @@ function testOnlyEarthPointCloudUsesSunlightMaterial() {
   assert.ok(createPointsBlock.includes('createEarthPointMaterial(THREE, {'));
   assert.ok(!createPointsBlock.includes('new THREE.PointsMaterial'));
   assert.ok(createPointsBlock.includes('vertexColors: Boolean(colors)'));
-  assert.ok(moonBlock.includes('new THREE.PointsMaterial'));
+  assert.ok(moonBlock.includes('createEarthPointMaterial(THREE, {'));
+  assert.ok(!moonBlock.includes('direction.dot(lightDirection)'));
+  assert.ok(!moonBlock.includes('const illumination ='));
+  assert.ok(scriptSource.includes('createMoonModel(THREE, sunlightEnabledUniform)'));
 }
 
 function run() {
   testSunlightConfigurationMatchesApprovedDesign();
   testSunlightDirectionKeepsDayAndNightVisible();
+  testDesktopPointCloudCompensatesForTheLargerGlobe();
   testSunlightBrightnessStaysWithinApprovedBounds();
   testSunlightToggleDefaultsOnAndDescribesBothStates();
   testSunlightToggleStaysFixedAndSameSizeOnMobile();
   testEarthPointMaterialInjectsWorldSpaceSunlight();
-  testOnlyEarthPointCloudUsesSunlightMaterial();
+  testMoonUsesTheSharedSunlightToggle();
+  testSunlightMaterialStaysScopedToEarthAndMoon();
   console.log('homepage earth sunlight unit tests passed');
 }
 
