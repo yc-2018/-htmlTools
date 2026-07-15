@@ -38,6 +38,8 @@
     oceanPointOpacity: 0.5,
     oceanWhiteColor: 0xcceeff,
     oceanBlueColor: 0x4fa6c8,
+    oceanNightTintColor: 0x294c5a,
+    oceanNightTintStrength: 0.78,
     sunlightDirection: Object.freeze({ x: 0.8, y: 0.35, z: 0.7 }),
     sunlightNightBrightness: 0.45,
     sunlightDayBrightness: 1.18,
@@ -514,6 +516,10 @@
       config.sunlightDirection.z
     ).normalize();
     const sunlightEnabledUniform = options.sunlightEnabledUniform || { value: 1 };
+    const nightTintColor = new THREE.Color(
+      typeof options.nightTintColor === 'number' ? options.nightTintColor : 0x000000
+    );
+    const nightTintStrength = options.nightTintStrength || 0;
 
     material.name = options.name || 'earth-point-sunlight';
     material.onBeforeCompile = (shader) => {
@@ -523,6 +529,8 @@
       shader.uniforms.uTwilightStart = { value: config.sunlightTwilightStart };
       shader.uniforms.uTwilightEnd = { value: config.sunlightTwilightEnd };
       shader.uniforms.uSunlightEnabled = sunlightEnabledUniform;
+      shader.uniforms.uNightTintColor = { value: nightTintColor };
+      shader.uniforms.uNightTintStrength = { value: nightTintStrength };
       shader.vertexShader = `
 uniform vec3 uSunDirection;
 uniform float uNightBrightness;
@@ -530,6 +538,7 @@ uniform float uDayBrightness;
 uniform float uTwilightStart;
 uniform float uTwilightEnd;
 varying float vSunlightBrightness;
+varying float vSunlightMix;
 ${shader.vertexShader}
 `.replace('#include <begin_vertex>', `
 #include <begin_vertex>
@@ -537,17 +546,23 @@ vec3 worldSurfaceDirection = normalize(mat3(modelMatrix) * normalize(position));
 float sunlightDot = dot(worldSurfaceDirection, uSunDirection);
 float sunlightMix = smoothstep(uTwilightStart, uTwilightEnd, sunlightDot);
 vSunlightBrightness = mix(uNightBrightness, uDayBrightness, sunlightMix);
+vSunlightMix = sunlightMix;
 `);
       shader.fragmentShader = `
 uniform float uSunlightEnabled;
+uniform vec3 uNightTintColor;
+uniform float uNightTintStrength;
 varying float vSunlightBrightness;
+varying float vSunlightMix;
 ${shader.fragmentShader}
 `.replace('#include <color_fragment>', `
 #include <color_fragment>
+float nightTintMix = (1.0 - vSunlightMix) * uNightTintStrength * uSunlightEnabled;
+diffuseColor.rgb = mix(diffuseColor.rgb, uNightTintColor, nightTintMix);
 diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
 `);
     };
-    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v2';
+    material.customProgramCacheKey = () => 'homepage-earth-sunlight-v3';
 
     return material;
   }
@@ -914,7 +929,11 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
         0xffffff,
         pointCloudSettings.oceanPointSizePx,
         config.oceanPointOpacity,
-        oceanColors
+        oceanColors,
+        {
+          nightTintColor: config.oceanNightTintColor,
+          nightTintStrength: config.oceanNightTintStrength
+        }
       ));
       globeGroup.add(createPoints(
         landPositions,
@@ -934,7 +953,14 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
       globeGroup.rotation.z = config.chinaFacingRotationZ;
     }
 
-    function createPoints(positions, color, size, opacity, colors = null) {
+    function createPoints(
+      positions,
+      color,
+      size,
+      opacity,
+      colors = null,
+      sunlightOptions = {}
+    ) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
@@ -949,7 +975,9 @@ diffuseColor.rgb *= mix(1.0, vSunlightBrightness, uSunlightEnabled);
           size,
           vertexColors: Boolean(colors),
           opacity,
-          sunlightEnabledUniform
+          sunlightEnabledUniform,
+          nightTintColor: sunlightOptions.nightTintColor,
+          nightTintStrength: sunlightOptions.nightTintStrength
         })
       );
     }
